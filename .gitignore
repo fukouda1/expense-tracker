@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# Capacitor iOS (not used)
+client/ios/
+
+# Prisma generated
+server/src/generated/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/

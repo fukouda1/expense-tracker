@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Account {
+  id              Int           @id @default(autoincrement())
+  name            String        @unique @db.VarChar(100)
+  icon            String        @default("💰") @db.VarChar(10)
+  color           String        @default("#10b981") @db.VarChar(20)
+  initial_balance Float         @default(0)
+  transactions    Transaction[] @relation("AccountFrom")
+  transfers_to    Transaction[] @relation("AccountTo")
+
+  @@map("accounts")
+}
+
+model Category {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique @db.VarChar(100)
+  icon         String        @default("📦") @db.VarChar(10)
+  color        String        @default("#6b7280") @db.VarChar(20)
+  type         String        @default("expense") @db.VarChar(10)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique @db.VarChar(100)
+  color           String           @default("#3b82f6") @db.VarChar(20)
+  transaction_tags TransactionTag[]
+
+  @@map("tags")
+}
+
+model Transaction {
+  id            Int              @id @default(autoincrement())
+  amount        Float
+  type          String           @db.VarChar(10)
+  category_id   Int?
+  account_id    Int
+  to_account_id Int?
+  date          String           @db.VarChar(30)
+  notes         String           @default("") @db.Text
+  created_at    DateTime         @default(now())
+  category      Category?        @relation(fields: [category_id], references: [id])
+  account       Account          @relation("AccountFrom", fields: [account_id], references: [id])
+  to_account    Account?         @relation("AccountTo", fields: [to_account_id], references: [id])
+  tags          TransactionTag[]
+
+  @@index([date])
+  @@index([type])
+  @@index([category_id])
+  @@index([account_id])
+  @@map("transactions")
+}
+
+model TransactionTag {
+  transaction_id Int
+  tag_id         Int
+  transaction    Transaction @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  tag            Tag         @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([transaction_id, tag_id])
+  @@map("transaction_tags")
+}
+
+model Budget {
+  id          Int       @id @default(autoincrement())
+  category_id Int?
+  amount      Float
+  month       String    @db.VarChar(7)
+  category    Category? @relation(fields: [category_id], references: [id])
+
+  @@unique([category_id, month])
+  @@index([month])
+  @@map("budgets")
+}
+
+model RecurringTransaction {
+  id              Int    @id @default(autoincrement())
+  amount          Float
+  type            String @db.VarChar(10)
+  category_id     Int?
+  account_id      Int
+  notes           String @default("") @db.Text
+  recurrence_type String @db.VarChar(10)
+  next_date       String @db.VarChar(10)
+  active          Boolean @default(true)
+
+  @@map("recurring_transactions")
+}
