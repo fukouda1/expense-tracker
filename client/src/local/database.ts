@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 
-const DB_NAME = 'mymoney_local';
+const DB_NAME = 'tracecash_local';
 const DB_VERSION = 1;
 
 let sqliteConnection: SQLiteConnection | null = null;

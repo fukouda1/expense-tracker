@@ -147,7 +147,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `mymoney_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.download = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -162,7 +162,7 @@ export default function Settings() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `mymoney_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -297,7 +297,7 @@ export default function Settings() {
           <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
             <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">📤 Import Backup</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-              Supports: .xlsx (multi-sheet backup), .csv (legacy MyMoney app format)
+              Supports: .xlsx (multi-sheet backup), .csv (legacy TraceCash app format)
             </p>
             <input type="file" accept=".xlsx,.xls,.csv" onChange={e => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }} className="text-xs text-gray-500" />
             {importFile && (

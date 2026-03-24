@@ -23,7 +23,7 @@ export interface Template {
   entries: TemplateEntry[];
 }
 
-const STORAGE_KEY = 'mymoney_templates_v2';
+const STORAGE_KEY = 'tracecash_templates_v2';
 
 function loadTemplates(): Template[] {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }

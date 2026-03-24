@@ -1,4 +1,4 @@
-# MyMoney - Expense Tracker
+# TraceCash - Expense Tracker
 
 ## Tech Stack
 - **Frontend**: React 19 + TypeScript + Vite 8 + Tailwind CSS 4
@@ -6,7 +6,7 @@
 - **Mobile/APK**: Capacitor 8 + SQLite (raw SQL, no ORM)
 - **Backend**: Node.js + Express 5 + TypeScript
 - **ORM**: Prisma 6 (MariaDB adapter)
-- **Database**: MySQL/MariaDB via XAMPP (port 3306, database: `mymoney`)
+- **Database**: MySQL/MariaDB via XAMPP (port 3306, database: `tracecash`)
 - **CI/CD**: GitHub Actions for APK builds
 
 ## Project Structure
@@ -60,5 +60,5 @@ cd server && npm run db:seed -- "path/to/export.csv"
 - Budget system with threshold alerts (80%, 100%)
 - Recurring transactions (auto-generated on app open)
 - Search with dynamic SQL WHERE filters
-- CSV import/export (compatible with MyMoney app format)
+- CSV import/export (compatible with TraceCash app format)
 - Dark mode, Material 3 design

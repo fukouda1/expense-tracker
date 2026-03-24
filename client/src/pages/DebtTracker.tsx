@@ -42,7 +42,7 @@ export default function DebtTracker() {
   // Mark as paid WITHOUT recording entry (just a local dismissal stored in localStorage)
   const [dismissedDebts, setDismissedDebts] = useState<Set<string>>(() => {
     try {
-      const stored = localStorage.getItem('mymoney_dismissed_debts');
+      const stored = localStorage.getItem('tracecash_dismissed_debts');
       return stored ? new Set(JSON.parse(stored)) : new Set();
     } catch { return new Set(); }
   });
@@ -52,7 +52,7 @@ export default function DebtTracker() {
     const next = new Set(dismissedDebts);
     next.add(key);
     setDismissedDebts(next);
-    localStorage.setItem('mymoney_dismissed_debts', JSON.stringify([...next]));
+    localStorage.setItem('tracecash_dismissed_debts', JSON.stringify([...next]));
     showToast(`Marked ${person} as settled (no entry recorded)`, 'success');
   };
 
@@ -61,7 +61,7 @@ export default function DebtTracker() {
     const next = new Set(dismissedDebts);
     next.delete(key);
     setDismissedDebts(next);
-    localStorage.setItem('mymoney_dismissed_debts', JSON.stringify([...next]));
+    localStorage.setItem('tracecash_dismissed_debts', JSON.stringify([...next]));
   };
 
   const [showDismissed, setShowDismissed] = useState(false);

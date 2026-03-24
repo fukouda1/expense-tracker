@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [monthlyTotal, setMonthlyTotal] = useState({ income: 0, expense: 0 });
   const [categoryData, setCategoryData] = useState<CategorySummary[]>([]);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
-  const [balanceHidden, setBalanceHidden] = useState(() => localStorage.getItem('mymoney_hide_balance') === '1');
+  const [balanceHidden, setBalanceHidden] = useState(() => localStorage.getItem('tracecash_hide_balance') === '1');
   const [recentTx, setRecentTx] = useState<Transaction[]>([]);
   const [showDisplayOpts, setShowDisplayOpts] = useState(false);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -84,7 +84,7 @@ export default function Dashboard() {
   }, [recentTx]);
 
   const toggleBalance = () => {
-    setBalanceHidden(h => { const n = !h; localStorage.setItem('mymoney_hide_balance', n ? '1' : '0'); return n; });
+    setBalanceHidden(h => { const n = !h; localStorage.setItem('tracecash_hide_balance', n ? '1' : '0'); return n; });
   };
 
   const handleDeleteTx = (id: number) => {
@@ -108,7 +108,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">MyMoney</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">TraceCash</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Track your finances</p>
           </div>
           <div className="flex items-center gap-1.5">

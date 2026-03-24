@@ -64,7 +64,7 @@ router.get('/xlsx', async (_req, res) => {
   // Write to buffer and send
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename=mymoney_backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  res.setHeader('Content-Disposition', `attachment; filename=tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`);
   res.send(Buffer.from(buf));
 });
 

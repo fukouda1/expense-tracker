@@ -173,10 +173,10 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
 }
 
 // ══════════════════════════════════════════════════════
-// Legacy MyMoney CSV Import
+// Legacy TraceCash CSV Import
 // ══════════════════════════════════════════════════════
 
-// Complete MyMoney app category mapping with correct types
+// Complete TraceCash app category mapping with correct types
 const CATEGORY_MAP: Record<string, { name: string; icon: string; color: string; type: 'income' | 'expense' | 'both' }> = {
   // ── Expense-only ──
   '3) Food':               { name: 'Food',                icon: '🍔', color: '#ef4444', type: 'expense' },
@@ -222,7 +222,7 @@ const CATEGORY_MAP: Record<string, { name: string; icon: string; color: string; 
   'Gift Check':            { name: 'Gift Check',           icon: '🎫', color: '#a855f7', type: 'income' },
   'Lent Payment':          { name: 'Lent Payment',         icon: '💰', color: '#22c55e', type: 'income' },
   'Receivable':            { name: 'Receivable',           icon: '📥', color: '#10b981', type: 'income' },
-  // ── Both (used as income AND expense in MyMoney) ──
+  // ── Both (used as income AND expense in TraceCash) ──
   'Balancing':             { name: 'Balancing',            icon: '⚖️', color: '#6b7280', type: 'both' },
   'Investments':           { name: 'Investments',          icon: '📈', color: '#10b981', type: 'both' },
   'Piggy Bank':            { name: 'Piggy Bank',           icon: '🐷', color: '#f59e0b', type: 'both' },

@@ -137,27 +137,27 @@ function computePeriodLabel(mode: ViewMode, period: string, customFrom: string, 
 const DisplayContext = createContext<DisplaySettings>(null!);
 
 export function DisplayProvider({ children }: { children: ReactNode }) {
-  const [viewMode, setViewModeState] = useState<ViewMode>(() => (localStorage.getItem('mymoney_view_mode') as ViewMode) || 'monthly');
-  const [showTotal, setShowTotalState] = useState(() => localStorage.getItem('mymoney_show_total') !== '0');
-  const [carryOver, setCarryOverState] = useState(() => localStorage.getItem('mymoney_carry_over') === '1');
-  const [period, setPeriod] = useState(() => getInitialPeriod((localStorage.getItem('mymoney_view_mode') as ViewMode) || 'monthly'));
+  const [viewMode, setViewModeState] = useState<ViewMode>(() => (localStorage.getItem('tracecash_view_mode') as ViewMode) || 'monthly');
+  const [showTotal, setShowTotalState] = useState(() => localStorage.getItem('tracecash_show_total') !== '0');
+  const [carryOver, setCarryOverState] = useState(() => localStorage.getItem('tracecash_carry_over') === '1');
+  const [period, setPeriod] = useState(() => getInitialPeriod((localStorage.getItem('tracecash_view_mode') as ViewMode) || 'monthly'));
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
 
   const setViewMode = useCallback((m: ViewMode) => {
     setViewModeState(m);
-    localStorage.setItem('mymoney_view_mode', m);
+    localStorage.setItem('tracecash_view_mode', m);
     if (m !== 'custom') setPeriod(getInitialPeriod(m));
   }, []);
 
   const setShowTotal = useCallback((v: boolean) => {
     setShowTotalState(v);
-    localStorage.setItem('mymoney_show_total', v ? '1' : '0');
+    localStorage.setItem('tracecash_show_total', v ? '1' : '0');
   }, []);
 
   const setCarryOver = useCallback((v: boolean) => {
     setCarryOverState(v);
-    localStorage.setItem('mymoney_carry_over', v ? '1' : '0');
+    localStorage.setItem('tracecash_carry_over', v ? '1' : '0');
   }, []);
 
   const setCustomRange = useCallback((from: string, to: string) => {

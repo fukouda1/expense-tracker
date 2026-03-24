@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mymoney.app',
-  appName: 'MyMoney',
+  appId: 'com.tracecash.app',
+  appName: 'TraceCash',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

@@ -1,6 +1,6 @@
 {
-  "name": "MyMoney - Expense Tracker",
-  "short_name": "MyMoney",
+  "name": "TraceCash - Expense Tracker",
+  "short_name": "TraceCash",
   "description": "Track your income, expenses, and transfers",
   "start_url": "/",
   "display": "standalone",
