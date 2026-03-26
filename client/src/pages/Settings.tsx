@@ -320,7 +320,17 @@ export default function Settings() {
         const ext = importFile.name.split('.').pop()?.toLowerCase();
 
         let data: repo.LocalImportResult;
-        if (ext === 'csv' && text.includes('[SHEET:')) {
+        if ((ext === 'xlsx' || ext === 'xls')) {
+          // Parse Excel on client using SheetJS
+          const XLSX = await import('xlsx');
+          const buf = await importFile.arrayBuffer();
+          const wb = XLSX.read(buf, { type: 'array' });
+          const sheets = new Map<string, Record<string, unknown>[]>();
+          for (const name of wb.SheetNames) {
+            sheets.set(name, XLSX.utils.sheet_to_json(wb.Sheets[name]) as Record<string, unknown>[]);
+          }
+          data = await repo.importFromSheets(sheets);
+        } else if (ext === 'csv' && text.includes('[SHEET:')) {
           // Multi-sheet CSV
           const sheets = parseMultiSheetCsvLocal(text);
           data = await repo.importFromSheets(sheets);
@@ -328,7 +338,7 @@ export default function Settings() {
           // Legacy format
           data = await repo.importLegacyCsv(text);
         } else {
-          setImportResult('Error: APK only supports .csv import. Export as .csv from web first.');
+          setImportResult('Error: Unsupported file format. Use .xlsx or .csv');
           return;
         }
 
