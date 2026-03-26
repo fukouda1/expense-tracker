@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useData } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../components/Toast';
@@ -11,6 +12,7 @@ import AutoBackupToggle from '../components/AutoBackup';
 import { PinLockSettings } from '../components/PinLock';
 import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatters';
 import { post } from '../services/api';
+import * as repo from '../local/repository';
 import type { Category, Account, Budget, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
 
 interface ImportPreview {
@@ -308,38 +310,104 @@ export default function Settings() {
     if (!importFile) return;
     setImporting(true);
     setImportResult(null);
-    const formData = new FormData();
-    formData.append('file', importFile);
+
+    const isNative = Capacitor.isNativePlatform();
+
     try {
-      const response = await fetch('/api/import/csv', { method: 'POST', body: formData });
-      const data = await response.json();
-      if (response.ok) {
-        // Format result message based on response shape
-        if (data.transactions !== undefined) {
-          // Full backup format
-          const parts = [];
-          if (data.accounts) parts.push(`${data.accounts} accounts`);
-          if (data.categories) parts.push(`${data.categories} categories`);
-          if (data.tags) parts.push(`${data.tags} tags`);
-          if (data.budgets) parts.push(`${data.budgets} budgets`);
-          if (data.recurring) parts.push(`${data.recurring} recurring`);
-          if (data.transactions) parts.push(`${data.transactions} transactions`);
-          setImportResult(`Imported: ${parts.join(', ')}${data.errors?.length ? ` (${data.errors.length} errors)` : ''}`);
-        } else {
+      if (isNative) {
+        // ── Native mode: import directly into local SQLite ──
+        const text = await importFile.text();
+        const ext = importFile.name.split('.').pop()?.toLowerCase();
+
+        let data: repo.LocalImportResult;
+        if (ext === 'csv' && text.includes('[SHEET:')) {
+          // Multi-sheet CSV
+          const sheets = parseMultiSheetCsvLocal(text);
+          data = await repo.importFromSheets(sheets);
+        } else if (ext === 'csv') {
           // Legacy format
-          setImportResult(`Imported ${data.imported} transactions, ${data.skipped} skipped${data.errors?.length ? `, ${data.errors.length} errors` : ''}`);
+          data = await repo.importLegacyCsv(text);
+        } else {
+          setImportResult('Error: APK only supports .csv import. Export as .csv from web first.');
+          return;
         }
+
+        const parts = [];
+        if (data.accounts) parts.push(`${data.accounts} accounts`);
+        if (data.categories) parts.push(`${data.categories} categories`);
+        if (data.tags) parts.push(`${data.tags} tags`);
+        if (data.budgets) parts.push(`${data.budgets} budgets`);
+        if (data.recurring) parts.push(`${data.recurring} recurring`);
+        if (data.transactions) parts.push(`${data.transactions} transactions`);
+        setImportResult(`Imported: ${parts.join(', ')}${data.errors.length ? ` (${data.errors.length} errors)` : ''}`);
         await refresh();
       } else {
-        setImportResult(`Error: ${data.error || 'Import failed'}`);
+        // ── Web mode: upload to server API ──
+        const formData = new FormData();
+        formData.append('file', importFile);
+        const response = await fetch('/api/import/csv', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (response.ok) {
+          if (data.transactions !== undefined) {
+            const parts = [];
+            if (data.accounts) parts.push(`${data.accounts} accounts`);
+            if (data.categories) parts.push(`${data.categories} categories`);
+            if (data.tags) parts.push(`${data.tags} tags`);
+            if (data.budgets) parts.push(`${data.budgets} budgets`);
+            if (data.recurring) parts.push(`${data.recurring} recurring`);
+            if (data.transactions) parts.push(`${data.transactions} transactions`);
+            setImportResult(`Imported: ${parts.join(', ')}${data.errors?.length ? ` (${data.errors.length} errors)` : ''}`);
+          } else {
+            setImportResult(`Imported ${data.imported} transactions, ${data.skipped} skipped${data.errors?.length ? `, ${data.errors.length} errors` : ''}`);
+          }
+          await refresh();
+        } else {
+          setImportResult(`Error: ${data.error || 'Import failed'}`);
+        }
       }
     } catch (err) {
-      setImportResult('Error: Network or server failure');
+      setImportResult('Error: Import failed');
       console.error(err);
     } finally {
       setImporting(false);
     }
   };
+
+  // Helper: parse multi-sheet CSV format for native import
+  function parseMultiSheetCsvLocal(content: string): Map<string, Record<string, unknown>[]> {
+    const sheets = new Map<string, Record<string, unknown>[]>();
+    const sections = content.split(/\[SHEET:/).slice(1);
+    for (const section of sections) {
+      const nameEnd = section.indexOf(']');
+      const name = section.slice(0, nameEnd);
+      const lines = section.slice(nameEnd + 1).split('\n').filter(l => l.trim());
+      if (lines.length < 2) { sheets.set(name, []); continue; }
+      const header = parseCsvFieldsLocal(lines[0]);
+      const rows: Record<string, unknown>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const fields = parseCsvFieldsLocal(lines[i]);
+        const row: Record<string, unknown> = {};
+        header.forEach((h, idx) => { row[h] = fields[idx] ?? ''; });
+        rows.push(row);
+      }
+      sheets.set(name, rows);
+    }
+    return sheets;
+  }
+
+  function parseCsvFieldsLocal(line: string): string[] {
+    const fields: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } else inQuotes = !inQuotes; }
+      else if (ch === ',' && !inQuotes) { fields.push(current); current = ''; }
+      else current += ch;
+    }
+    fields.push(current);
+    return fields;
+  }
 
   const colors = ['#ef4444','#f97316','#f59e0b','#22c55e','#10b981','#14b8a6','#3b82f6','#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e','#6b7280','#0ea5e9','#d97706','#7c3aed'];
   const icons = ['📦','🍔','🍱','🚌','🚆','🏠','📡','🦷','🍚','💊','🛒','🛍️','📱','🎉','💪','🐾','👕','💵','🎁','🏦','💸','🎮','📚','✈️','🎬','☕','🍕','🚗','💡','💰','🌊','📱'];
