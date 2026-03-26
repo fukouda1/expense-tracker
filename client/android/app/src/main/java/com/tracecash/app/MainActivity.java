@@ -1,4 +1,4 @@
-package com.mymoney.app;
+package com.tracecash.app;
 
 import com.getcapacitor.BridgeActivity;
 
