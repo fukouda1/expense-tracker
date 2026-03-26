@@ -18,7 +18,8 @@ const CREATE_TABLES_SQL = [
     name TEXT NOT NULL UNIQUE,
     icon TEXT NOT NULL DEFAULT '💰',
     color TEXT NOT NULL DEFAULT '#10b981',
-    initial_balance REAL NOT NULL DEFAULT 0
+    initial_balance REAL NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1
   )`,
 
   // Categories
@@ -27,14 +28,18 @@ const CREATE_TABLES_SQL = [
     name TEXT NOT NULL UNIQUE,
     icon TEXT NOT NULL DEFAULT '📦',
     color TEXT NOT NULL DEFAULT '#6b7280',
-    type TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('income','expense','both'))
+    type TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('income','expense','both')),
+    active INTEGER NOT NULL DEFAULT 1
   )`,
 
   // Tags
   `CREATE TABLE IF NOT EXISTS tags (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    color TEXT NOT NULL DEFAULT '#3b82f6'
+    color TEXT NOT NULL DEFAULT '#3b82f6',
+    active INTEGER NOT NULL DEFAULT 1,
+    category_id INTEGER,
+    FOREIGN KEY (category_id) REFERENCES categories(id)
   )`,
 
   // Transactions (the main expenses/income/transfer table)

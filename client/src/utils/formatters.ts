@@ -1,16 +1,43 @@
+// Zero-config currencies — reads from localStorage so it works everywhere
+// (inside and outside React components, in chart tooltips, etc.)
+
+const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'IDR']);
+
+const LOCALE_MAP: Record<string, string> = {
+  PHP: 'en-PH', USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB', JPY: 'ja-JP',
+  KRW: 'ko-KR', CNY: 'zh-CN', INR: 'en-IN', AUD: 'en-AU', CAD: 'en-CA',
+  SGD: 'en-SG', MYR: 'ms-MY', THB: 'th-TH', IDR: 'id-ID', VND: 'vi-VN',
+  BRL: 'pt-BR', MXN: 'es-MX', TWD: 'zh-TW', HKD: 'zh-HK', CHF: 'de-CH',
+  SEK: 'sv-SE', NZD: 'en-NZ', AED: 'ar-AE', SAR: 'ar-SA', NGN: 'en-NG', ZAR: 'en-ZA',
+};
+
+function getStoredCurrency(): { code: string; locale: string } {
+  const code = (typeof localStorage !== 'undefined' && localStorage.getItem('tracecash_currency')) || 'PHP';
+  return { code, locale: LOCALE_MAP[code] || 'en-US' };
+}
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
+  const { code, locale } = getStoredCurrency();
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency: 'PHP',
-    minimumFractionDigits: 2,
+    currency: code,
+    minimumFractionDigits: ZERO_DECIMAL.has(code) ? 0 : 2,
+    maximumFractionDigits: ZERO_DECIMAL.has(code) ? 0 : 2,
   }).format(amount);
 }
 
 export function formatNumber(amount: number): string {
-  return new Intl.NumberFormat('en-PH', {
+  const { locale } = getStoredCurrency();
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+export function getCurrencySymbol(): string {
+  const { code, locale } = getStoredCurrency();
+  const parts = new Intl.NumberFormat(locale, { style: 'currency', currency: code }).formatToParts(0);
+  return parts.find(p => p.type === 'currency')?.value ?? code;
 }
 
 export function formatDate(dateStr: string): string {

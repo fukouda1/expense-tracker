@@ -26,6 +26,7 @@ export interface Category {
   icon: string;
   color: string;
   type: 'income' | 'expense' | 'both';
+  active: boolean;
 }
 
 export interface Account {
@@ -34,12 +35,15 @@ export interface Account {
   icon: string;
   color: string;
   initial_balance: number;
+  active: boolean;
 }
 
 export interface Tag {
   id: number;
   name: string;
   color: string;
+  active: boolean;
+  category_id: number | null; // null = global tag, number = category-specific
 }
 
 export interface TransactionTag {

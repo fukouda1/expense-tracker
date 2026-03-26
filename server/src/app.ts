@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { rateLimit } from './middleware/rateLimit.js';
 import transactionsRouter from './routes/transactions.js';
 import categoriesRouter from './routes/categories.js';
 import accountsRouter from './routes/accounts.js';
@@ -19,6 +20,8 @@ app.use(cors());
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
+
+app.use('/api', rateLimit(200, 60000));
 
 // Health check
 app.get('/api/health', (_req, res) => {

@@ -13,6 +13,8 @@ model Account {
   icon            String        @default("💰") @db.VarChar(10)
   color           String        @default("#10b981") @db.VarChar(20)
   initial_balance Float         @default(0)
+  active          Boolean       @default(true)
+  sort_order      Int           @default(0)
   transactions    Transaction[] @relation("AccountFrom")
   transfers_to    Transaction[] @relation("AccountTo")
 
@@ -25,8 +27,11 @@ model Category {
   icon         String        @default("📦") @db.VarChar(10)
   color        String        @default("#6b7280") @db.VarChar(20)
   type         String        @default("expense") @db.VarChar(10)
+  active       Boolean       @default(true)
+  sort_order   Int           @default(0)
   transactions Transaction[]
   budgets      Budget[]
+  tags         Tag[]
 
   @@map("categories")
 }
@@ -35,6 +40,10 @@ model Tag {
   id              Int              @id @default(autoincrement())
   name            String           @unique @db.VarChar(100)
   color           String           @default("#3b82f6") @db.VarChar(20)
+  active          Boolean          @default(true)
+  sort_order      Int              @default(0)
+  category_id     Int?
+  category        Category?        @relation(fields: [category_id], references: [id])
   transaction_tags TransactionTag[]
 
   @@map("tags")
@@ -59,6 +68,8 @@ model Transaction {
   @@index([type])
   @@index([category_id])
   @@index([account_id])
+  @@index([date, type])
+  @@index([account_id, date])
   @@map("transactions")
 }
 
@@ -96,4 +107,17 @@ model RecurringTransaction {
   active          Boolean @default(true)
 
   @@map("recurring_transactions")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String   @db.VarChar(20)
+  entity    String   @db.VarChar(30)
+  entity_id Int
+  details   String   @default("") @db.Text
+  created_at DateTime @default(now())
+
+  @@index([entity, entity_id])
+  @@index([created_at])
+  @@map("audit_logs")
 }

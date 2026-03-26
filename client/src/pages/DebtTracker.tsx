@@ -208,24 +208,24 @@ export default function DebtTracker() {
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
 
   return (
-    <div className="px-4 pt-4 space-y-3">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 px-4 pt-4 pb-6 space-y-3">
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-gray-400 text-lg">&larr;</button>
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Debt Tracker</h1>
       </div>
 
-      {/* Summary Cards — high contrast for dark mode */}
+      {/* Summary Cards */}
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-emerald-500 dark:bg-emerald-600 rounded-xl p-4">
-            <p className="text-[10px] text-emerald-100 uppercase font-semibold tracking-wider">Others Owe You</p>
+          <div className="bg-emerald-500 rounded-xl p-4">
+            <p className="text-[10px] text-white/80 uppercase font-semibold tracking-wider">Others Owe You</p>
             <p className="text-xl font-bold text-white mt-1">{formatCurrency(debtData.totalOwed)}</p>
-            <p className="text-[10px] text-emerald-200 mt-0.5">{debtData.owed.length} {debtData.owed.length === 1 ? 'person' : 'people'}</p>
+            <p className="text-[10px] text-white/60 mt-0.5">{debtData.owed.length} {debtData.owed.length === 1 ? 'person' : 'people'}</p>
           </div>
-          <div className="bg-red-500 dark:bg-red-600 rounded-xl p-4">
-            <p className="text-[10px] text-red-100 uppercase font-semibold tracking-wider">You Owe Others</p>
+          <div className="bg-red-500 rounded-xl p-4">
+            <p className="text-[10px] text-white/80 uppercase font-semibold tracking-wider">You Owe Others</p>
             <p className="text-xl font-bold text-white mt-1">{formatCurrency(debtData.totalOwe)}</p>
-            <p className="text-[10px] text-red-200 mt-0.5">{debtData.owe.length} {debtData.owe.length === 1 ? 'person' : 'people'}</p>
+            <p className="text-[10px] text-white/60 mt-0.5">{debtData.owe.length} {debtData.owe.length === 1 ? 'person' : 'people'}</p>
           </div>
         </div>
         {/* Net Balance */}
@@ -233,12 +233,14 @@ export default function DebtTracker() {
           const net = debtData.totalOwed - debtData.totalOwe;
           const isPositive = net >= 0;
           return (
-            <div className="rounded-xl p-4 text-center bg-gray-800 dark:bg-gray-700 border border-gray-600">
-              <p className="text-[10px] text-gray-400 uppercase font-semibold tracking-wider">Net Balance</p>
-              <p className={`text-2xl font-bold mt-1 ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className="rounded-xl p-4 text-center border-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600"
+              style={{ borderLeftColor: isPositive ? '#10b981' : '#ef4444', borderLeftWidth: 4 }}
+            >
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold tracking-wider">Net Balance</p>
+              <p className={`text-2xl font-bold mt-1 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                 {isPositive ? '+' : ''}{formatCurrency(net)}
               </p>
-              <p className="text-[10px] text-gray-400 mt-1">
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
                 {isPositive ? 'People owe you more than you owe' : 'You owe more than people owe you'}
               </p>
             </div>
@@ -259,69 +261,68 @@ export default function DebtTracker() {
       {/* List */}
       <div className="space-y-2">
         {(tab === 'owed' ? debtData.owed : debtData.owe).map(d => (
-          <div key={d.person} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 overflow-hidden shadow-sm">
+          <div key={d.person} className={`bg-white dark:bg-gray-800/80 rounded-xl border-l-4 border border-gray-200 dark:border-gray-600 overflow-hidden ${tab === 'owed' ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
             <button
               onClick={() => setExpandedPerson(expandedPerson === d.person ? null : d.person)}
-              className="w-full flex items-center justify-between p-4"
+              className="w-full flex items-center gap-3 p-3"
             >
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold text-white ${
-                  tab === 'owed' ? 'bg-emerald-500' : 'bg-red-500'
-                }`}>
-                  {d.person[0]?.toUpperCase() ?? '?'}
-                </div>
-                <div className="text-left">
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white block">{d.person}</span>
-                  <span className="text-[11px] text-gray-500 dark:text-gray-400">{d.transactions.length} transaction{d.transactions.length !== 1 ? 's' : ''}</span>
-                </div>
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0 ${
+                tab === 'owed' ? 'bg-emerald-500' : 'bg-red-500'
+              }`}>
+                {d.person[0]?.toUpperCase() ?? '?'}
               </div>
-              <div className="text-right">
-                <span className={`text-base font-bold ${tab === 'owed' ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{d.person}</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">{d.transactions.length} txn{d.transactions.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-sm font-bold ${tab === 'owed' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                   {formatCurrency(d.balance)}
                 </span>
-                <span className={`block text-[10px] mt-0.5 ${expandedPerson === d.person ? 'rotate-180' : ''} transition-transform text-gray-400 dark:text-gray-500`}>▼</span>
+                <span className={`text-[10px] ${expandedPerson === d.person ? 'rotate-180' : ''} transition-transform text-gray-400`}>▼</span>
               </div>
             </button>
 
             {expandedPerson === d.person && (
-              <div className="border-t border-gray-200 dark:border-gray-600">
+              <div className="border-t border-gray-100 dark:border-gray-700">
                 {/* Action Buttons */}
-                <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 space-y-1.5">
+                <div className="px-3 py-2.5 space-y-1.5">
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleMarkFullPaid(d.person, d.balance, tab === 'owed' ? 'owed' : 'owe')}
-                      className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium transition-colors"
+                      className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[11px] font-medium transition-colors"
                     >
-                      ✅ Mark Paid ({formatCurrency(d.balance)})
+                      ✅ Full ({formatCurrency(d.balance)})
                     </button>
                     <button
                       onClick={() => openPartialPayment(d.person, d.balance, tab === 'owed' ? 'owed' : 'owe')}
-                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors"
+                      className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[11px] font-medium transition-colors"
                     >
                       💵 Partial
                     </button>
+                    <button
+                      onClick={() => dismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
+                      className="py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg text-[11px] font-medium transition-colors"
+                      title="Settle without recording entry"
+                    >
+                      🚫
+                    </button>
                   </div>
-                  <button
-                    onClick={() => dismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
-                    className="w-full py-1.5 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-medium transition-colors"
-                  >
-                    🚫 Mark Settled (no entry)
-                  </button>
                 </div>
 
                 {/* Transaction History */}
-                <div className="px-3 pb-3 pt-2 space-y-1.5">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wider">History</p>
+                <div className="px-3 pb-3 space-y-1">
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">History</p>
                   {d.transactions.sort((a, b) => b.date.localeCompare(a.date)).map(t => {
                     const isReturn = t.category_name === 'Lent Payment' || t.category_name === 'Debt Payment';
                     return (
-                      <div key={t.id} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-1.5 h-1.5 rounded-full ${isReturn ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                          <span className="text-gray-500">{formatDate(t.date)}</span>
-                          <span className="text-gray-400 text-[10px]">{t.category_name}</span>
+                      <div key={t.id} className="flex items-center justify-between text-[11px] py-0.5">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isReturn ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{formatDate(t.date)}</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-[10px] truncate">{t.category_name}</span>
                         </div>
-                        <span className={isReturn ? 'text-emerald-500 font-medium' : 'text-red-500 font-medium'}>
+                        <span className={`font-medium flex-shrink-0 ml-2 ${isReturn ? 'text-emerald-500' : 'text-red-500'}`}>
                           {isReturn ? '+' : '-'}{formatCurrency(t.amount)}
                         </span>
                       </div>
@@ -370,11 +371,10 @@ export default function DebtTracker() {
         </div>
       )}
 
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700">
-        <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
-          💡 <strong>How it works:</strong><br/>
-          • <strong>Mark Paid</strong> — creates a {tab === 'owed' ? 'Lent Payment (income)' : 'Debt Payment (expense)'} entry<br/>
-          • <strong>Mark Settled (no entry)</strong> — hides from tracker without recording a transaction (undo available)
+      <div className="rounded-xl p-3 border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800">
+        <p className="text-[10px] text-gray-600 dark:text-gray-400 leading-relaxed">
+          💡 <strong>How it works:</strong> The person's name is matched from the <strong>notes</strong> field of Lent Money / Debt entries.
+          "✅ Full" and "💵 Partial" record a real transaction. "🚫" settles without recording (reversible).
         </p>
       </div>
 

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import prisma from '../utils/db.js';
+import { logAudit } from '../utils/audit.js';
 
 const router = Router();
 
@@ -86,6 +87,7 @@ router.post('/', async (req, res) => {
       tags: tagIds?.length ? { create: tagIds.map((id: number) => ({ tag_id: id })) } : undefined,
     },
   });
+  await logAudit('create', 'transaction', tx.id, JSON.stringify({ amount, type, category_id }));
   res.json(tx);
 });
 
@@ -102,6 +104,7 @@ router.put('/:id', async (req, res) => {
       tags: tagIds?.length ? { create: tagIds.map((id: number) => ({ tag_id: id })) } : undefined,
     },
   });
+  await logAudit('update', 'transaction', id, JSON.stringify(req.body));
   res.json(tx);
 });
 
@@ -148,11 +151,57 @@ router.post('/copy-day', async (req, res) => {
   res.json({ ok: true, created });
 });
 
+// POST /api/transactions/split
+router.post('/split', async (req, res) => {
+  const { id, splits } = req.body as { id: number; splits: Array<{ amount: number; category_id: number }> };
+  if (!id || !splits || splits.length < 2) {
+    res.status(400).json({ error: 'Need transaction id and at least 2 splits' });
+    return;
+  }
+
+  const original = await prisma.transaction.findUnique({ where: { id } });
+  if (!original) {
+    res.status(404).json({ error: 'Transaction not found' });
+    return;
+  }
+
+  // Validate split amounts sum to original
+  const splitTotal = splits.reduce((sum, s) => sum + s.amount, 0);
+  if (Math.abs(splitTotal - original.amount) > 0.01) {
+    res.status(400).json({ error: `Split amounts (${splitTotal}) must equal original amount (${original.amount})` });
+    return;
+  }
+
+  // Delete original transaction tags and transaction
+  await prisma.transactionTag.deleteMany({ where: { transaction_id: id } });
+  await prisma.transaction.delete({ where: { id } });
+
+  // Create new transactions for each split
+  let created = 0;
+  for (const split of splits) {
+    await prisma.transaction.create({
+      data: {
+        amount: split.amount,
+        type: original.type,
+        category_id: split.category_id,
+        account_id: original.account_id,
+        to_account_id: original.to_account_id,
+        date: original.date,
+        notes: original.notes,
+      },
+    });
+    created++;
+  }
+
+  res.json({ created });
+});
+
 // DELETE /api/transactions/:id
 router.delete('/:id', async (req, res) => {
   const id = Number(req.params.id);
   await prisma.transactionTag.deleteMany({ where: { transaction_id: id } });
   await prisma.transaction.delete({ where: { id } });
+  await logAudit('delete', 'transaction', id);
   res.json({ ok: true });
 });
 

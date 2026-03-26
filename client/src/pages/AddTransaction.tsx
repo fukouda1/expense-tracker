@@ -1,9 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import Modal from '../components/Modal';
 import QuickTemplateBar from '../components/QuickTemplates';
 import type { TransactionType } from '../types';
+
+const PINNED_CATS_KEY = 'tracecash_pinned_cats';
+function getPinnedCats(): number[] {
+  try { return JSON.parse(localStorage.getItem(PINNED_CATS_KEY) || '[]'); } catch { return []; }
+}
+function togglePinnedCat(id: number): number[] {
+  const current = getPinnedCats();
+  const next = current.includes(id) ? current.filter(c => c !== id) : [...current, id];
+  localStorage.setItem(PINNED_CATS_KEY, JSON.stringify(next));
+  return next;
+}
 
 export default function AddTransaction() {
   const navigate = useNavigate();
@@ -15,19 +26,29 @@ export default function AddTransaction() {
   const editTx = editId ? transactions.find(t => t.id === editId) : null;
   const returnTo = params.get('returnTo');
 
+  // Pre-fill from query params (used by RecurringPreview "+ Add")
+  const prefillType = params.get('type') as TransactionType | null;
+  const prefillAmount = params.get('amount');
+  const prefillCategoryId = params.get('categoryId');
+  const prefillAccountId = params.get('accountId');
+  const prefillDate = params.get('date');
+  const prefillTime = params.get('time');
+  const prefillNotes = params.get('notes');
+  const prefillToAccountId = params.get('toAccountId');
+
   const goBack = () => {
     if (returnTo) navigate(returnTo);
     else navigate(-1);
   };
 
-  const [type, setType] = useState<TransactionType>(editTx?.type ?? 'expense');
-  const [display, setDisplay] = useState(editTx ? String(editTx.amount) : '0');
-  const [categoryId, setCategoryId] = useState<number | null>(editTx?.category_id ?? null);
-  const [accountId, setAccountId] = useState<number>(editTx?.account_id ?? accounts[0]?.id ?? 1);
-  const [toAccountId, setToAccountId] = useState<number | null>(editTx?.to_account_id ?? null);
-  const [date, setDate] = useState(editTx?.date?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState(editTx?.date?.slice(11, 16) ?? new Date().toTimeString().slice(0, 5));
-  const [notes, setNotes] = useState(editTx?.notes ?? '');
+  const [type, setType] = useState<TransactionType>(editTx?.type ?? prefillType ?? 'expense');
+  const [display, setDisplay] = useState(editTx ? String(editTx.amount) : prefillAmount ?? '0');
+  const [categoryId, setCategoryId] = useState<number | null>(editTx?.category_id ?? (prefillCategoryId ? Number(prefillCategoryId) : null));
+  const [accountId, setAccountId] = useState<number>(editTx?.account_id ?? (prefillAccountId ? Number(prefillAccountId) : accounts[0]?.id ?? 1));
+  const [toAccountId, setToAccountId] = useState<number | null>(editTx?.to_account_id ?? (prefillToAccountId ? Number(prefillToAccountId) : null));
+  const [date, setDate] = useState(editTx?.date?.slice(0, 10) ?? prefillDate ?? new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(editTx?.date?.slice(11, 16) ?? prefillTime ?? new Date().toTimeString().slice(0, 5));
+  const [notes, setNotes] = useState(editTx?.notes ?? prefillNotes ?? '');
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
@@ -36,6 +57,17 @@ export default function AddTransaction() {
   const [pendingOp, setPendingOp] = useState<string | null>(null);
   const [prevValue, setPrevValue] = useState<number | null>(null);
   const [freshEntry, setFreshEntry] = useState(true);
+
+  // Pinned categories
+  const [pinnedCats, setPinnedCats] = useState<number[]>(getPinnedCats);
+
+  // Batch entry mode
+  const [stayOpen, setStayOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Notes autocomplete
+  const [showNoteSuggestions, setShowNoteSuggestions] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   // Inline create states
   const [showNewAccount, setShowNewAccount] = useState(false);
@@ -50,8 +82,28 @@ export default function AddTransaction() {
   }, [accounts]);
 
   const filteredCategories = categories.filter(c =>
-    type === 'transfer' ? false : c.type === type || c.type === 'both'
+    c.active !== false && (type === 'transfer' ? false : c.type === type || c.type === 'both')
   );
+  const sortedCategories = useMemo(() => {
+    const pinned = filteredCategories.filter(c => pinnedCats.includes(c.id));
+    const unpinned = filteredCategories.filter(c => !pinnedCats.includes(c.id));
+    return [...pinned, ...unpinned];
+  }, [filteredCategories, pinnedCats]);
+
+  // Unique notes for autocomplete
+  const uniqueNotes = useMemo(() => {
+    const noteSet = new Set<string>();
+    for (const tx of transactions) {
+      if (tx.notes && tx.notes.trim()) noteSet.add(tx.notes.trim());
+    }
+    return Array.from(noteSet);
+  }, [transactions]);
+  const filteredNotes = useMemo(() => {
+    if (!notes.trim()) return [];
+    const lower = notes.toLowerCase();
+    return uniqueNotes.filter(n => n.toLowerCase().includes(lower) && n.toLowerCase() !== lower).slice(0, 6);
+  }, [notes, uniqueNotes]);
+  const activeAccounts = accounts.filter(a => a.active !== false);
 
   const selectedAccount = accounts.find(a => a.id === accountId);
   const selectedToAccount = accounts.find(a => a.id === toAccountId);
@@ -126,10 +178,23 @@ export default function AddTransaction() {
       };
       if (editTx) {
         await editTransaction({ ...editTx, ...data }, selectedTags);
+        goBack();
       } else {
         await addTransaction(data as any, selectedTags);
+        if (stayOpen) {
+          // Reset form but keep account, category, date
+          setDisplay('0');
+          setNotes('');
+          setSelectedTags([]);
+          setFreshEntry(true);
+          setPendingOp(null);
+          setPrevValue(null);
+          setToast('Saved! Ready for next entry.');
+          setTimeout(() => setToast(null), 2500);
+        } else {
+          goBack();
+        }
       }
-      goBack();
     } catch (err) {
       console.error(err);
     } finally {
@@ -167,13 +232,26 @@ export default function AddTransaction() {
           <button onClick={goBack} className="text-red-400 font-medium text-xs sm:text-sm flex items-center gap-1">
             ✕ CANCEL
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving || parseFloat(display) <= 0}
-            className="text-emerald-400 font-medium text-xs sm:text-sm flex items-center gap-1 disabled:opacity-40"
-          >
-            ✓ SAVE
-          </button>
+          <div className="flex items-center gap-3">
+            {!editTx && (
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={stayOpen}
+                  onChange={e => setStayOpen(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded accent-emerald-500"
+                />
+                <span className="text-[10px] sm:text-xs text-gray-400">Stay open</span>
+              </label>
+            )}
+            <button
+              onClick={handleSubmit}
+              disabled={saving || parseFloat(display) <= 0}
+              className="text-emerald-400 font-medium text-xs sm:text-sm flex items-center gap-1 disabled:opacity-40"
+            >
+              ✓ SAVE
+            </button>
+          </div>
         </div>
 
         {/* Type Selector */}
@@ -234,20 +312,37 @@ export default function AddTransaction() {
         {/* Quick Templates — applies all entries at once */}
         {!editTx && <QuickTemplateBar onApplied={goBack} />}
 
-        {/* Notes */}
-        <div className="px-3 sm:px-4 py-1">
+        {/* Notes with autocomplete */}
+        <div className="px-3 sm:px-4 py-1 relative">
           <textarea
+            ref={notesRef}
             value={notes}
-            onChange={e => setNotes(e.target.value)}
+            onChange={e => { setNotes(e.target.value); setShowNoteSuggestions(true); }}
+            onFocus={() => setShowNoteSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowNoteSuggestions(false), 150)}
             placeholder="Add notes"
             rows={2}
             className="w-full p-2 sm:p-3 bg-gray-800 border border-gray-700 rounded-lg text-xs sm:text-sm text-gray-200 placeholder-gray-500 resize-none"
           />
+          {showNoteSuggestions && filteredNotes.length > 0 && (
+            <div className="absolute left-3 right-3 sm:left-4 sm:right-4 top-full -mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-40 max-h-36 overflow-y-auto">
+              {filteredNotes.map((n, i) => (
+                <button
+                  key={i}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => { setNotes(n); setShowNoteSuggestions(false); }}
+                  className="w-full text-left px-3 py-2 text-xs sm:text-sm text-gray-300 hover:bg-gray-700 truncate border-b border-gray-700 last:border-b-0"
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Tags row */}
         <div className="px-3 sm:px-4 py-0.5 sm:py-1 flex gap-1.5 overflow-x-auto">
-          {tags.map(tag => (
+          {tags.filter(t => t.active !== false && (t.category_id === null || t.category_id === categoryId)).map(tag => (
             <button
               key={tag.id}
               onClick={() => setSelectedTags(prev => prev.includes(tag.id) ? prev.filter(t => t !== tag.id) : [...prev, tag.id])}
@@ -341,10 +436,17 @@ export default function AddTransaction() {
         </div>
       </div>
 
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg z-50 animate-bounce">
+          {toast}
+        </div>
+      )}
+
       {/* Account Picker Modal */}
       <Modal open={showAccountPicker} onClose={() => { setShowAccountPicker(false); setShowNewAccount(false); }} title="Select Account">
         <div className="space-y-1.5">
-          {accounts.map(a => (
+          {activeAccounts.map(a => (
             <button
               key={a.id}
               onClick={() => { setAccountId(a.id); setShowAccountPicker(false); }}
@@ -388,7 +490,7 @@ export default function AddTransaction() {
       {/* To Account Picker Modal */}
       <Modal open={showToAccountPicker} onClose={() => setShowToAccountPicker(false)} title="Select To Account">
         <div className="space-y-1.5">
-          {accounts.filter(a => a.id !== accountId).map(a => (
+          {activeAccounts.filter(a => a.id !== accountId).map(a => (
             <button
               key={a.id}
               onClick={() => { setToAccountId(a.id); setShowToAccountPicker(false); }}
@@ -407,19 +509,31 @@ export default function AddTransaction() {
       <Modal open={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setShowNewCategory(false); }} title="Select Category">
         <div className="space-y-3">
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {filteredCategories.map(c => (
-              <button
-                key={c.id}
-                onClick={() => { setCategoryId(c.id); setShowCategoryPicker(false); }}
-                className={`flex flex-col items-center gap-1 sm:gap-1.5 p-2 sm:p-3 rounded-xl transition-all ${
-                  categoryId === c.id
-                    ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/30'
-                    : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-              >
-                <span className="text-xl sm:text-2xl">{c.icon}</span>
-                <span className="text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 truncate w-full text-center">{c.name}</span>
-              </button>
+            {sortedCategories.map(c => (
+              <div key={c.id} className="relative">
+                <button
+                  onClick={() => { setCategoryId(c.id); setShowCategoryPicker(false); }}
+                  className={`w-full flex flex-col items-center gap-1 sm:gap-1.5 p-2 sm:p-3 rounded-xl transition-all ${
+                    categoryId === c.id
+                      ? 'ring-2 ring-emerald-500 bg-emerald-50 dark:bg-emerald-900/30'
+                      : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  <span className="text-xl sm:text-2xl">{c.icon}</span>
+                  <span className="text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 truncate w-full text-center">
+                    {pinnedCats.includes(c.id) && <span className="mr-0.5">⭐</span>}{c.name}
+                  </span>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPinnedCats(togglePinnedCat(c.id)); }}
+                  className={`absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full text-[9px] transition-colors ${
+                    pinnedCats.includes(c.id) ? 'bg-amber-400 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-400 hover:bg-amber-300 hover:text-white'
+                  }`}
+                  title={pinnedCats.includes(c.id) ? 'Unpin' : 'Pin'}
+                >
+                  📌
+                </button>
+              </div>
             ))}
           </div>
           {/* Inline add category */}

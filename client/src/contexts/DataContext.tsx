@@ -45,16 +45,26 @@ interface DataContextType {
   addAccount: (name: string, icon: string, color: string, initialBalance: number) => Promise<void>;
   editAccount: (id: number, name: string, icon: string, color: string) => Promise<void>;
   removeAccount: (id: number) => Promise<void>;
-  addTag: (name: string, color: string) => Promise<void>;
+  addTag: (name: string, color: string, categoryId?: number | null) => Promise<void>;
   removeTag: (id: number) => Promise<void>;
+  // Toggle active
+  toggleAccountActive: (id: number) => Promise<void>;
+  toggleCategoryActive: (id: number) => Promise<void>;
+  toggleTagActive: (id: number) => Promise<void>;
   // Budgets
   loadBudgets: (month?: string) => Promise<void>;
   saveBudget: (categoryId: number | null, amount: number, month: string) => Promise<void>;
+  editBudget: (id: number, categoryId: number | null, amount: number, month: string) => Promise<void>;
   removeBudget: (id: number) => Promise<void>;
   // Recurring
   loadRecurring: () => Promise<void>;
   addRecurring: (r: Omit<RecurringTransaction, 'id' | 'active' | 'category_name' | 'account_name'>) => Promise<void>;
+  editRecurring: (id: number, data: Partial<Omit<RecurringTransaction, 'id' | 'category_name' | 'account_name'>>) => Promise<void>;
   removeRecurring: (id: number) => Promise<void>;
+  // Reorder
+  reorderAccounts: (ids: number[]) => Promise<void>;
+  reorderCategories: (ids: number[]) => Promise<void>;
+  reorderTags: (ids: number[]) => Promise<void>;
   // Copy day
   copyDayTransactions: (sourceDate: string, targetDate: string) => Promise<number>;
   // Export
@@ -264,9 +274,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Tag CRUD
-  const addTag = async (name: string, color: string) => {
+  const addTag = async (name: string, color: string, categoryId?: number | null) => {
     if (isNative) await repo.insertTag(name, color);
-    else await api.post('/api/tags', { name, color });
+    else await api.post('/api/tags', { name, color, category_id: categoryId ?? null });
     await loadTags();
   };
   const removeTag = async (id: number) => {
@@ -275,10 +285,46 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await loadTags();
   };
 
+  // Toggle active
+  const toggleAccountActive = async (id: number) => {
+    if (isNative) {
+      // TODO: native toggle
+    } else {
+      await api.patch(`/api/accounts/${id}/toggle`);
+    }
+    await loadAccounts();
+  };
+  const toggleCategoryActive = async (id: number) => {
+    if (isNative) {
+      // TODO: native toggle
+    } else {
+      await api.patch(`/api/categories/${id}/toggle`);
+    }
+    await loadCategories();
+  };
+  const toggleTagActive = async (id: number) => {
+    if (isNative) {
+      // TODO: native toggle
+    } else {
+      await api.patch(`/api/tags/${id}/toggle`);
+    }
+    await loadTags();
+  };
+
   // Budget CRUD
   const saveBudget = async (categoryId: number | null, amount: number, month: string) => {
     if (isNative) await repo.upsertBudget(categoryId, amount, month);
     else await api.post('/api/budgets', { categoryId, amount, month });
+    await loadBudgets(month);
+  };
+  const editBudget = async (id: number, categoryId: number | null, amount: number, month: string) => {
+    if (isNative) {
+      // For native: delete old and create new
+      await repo.deleteBudget(id);
+      await repo.upsertBudget(categoryId, amount, month);
+    } else {
+      await api.put(`/api/budgets/${id}`, { categoryId, amount, month });
+    }
     await loadBudgets(month);
   };
   const removeBudget = async (id: number) => {
@@ -293,10 +339,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     else await api.post('/api/recurring', r);
     await loadRecurring();
   };
+  const editRecurring = async (id: number, data: Partial<Omit<RecurringTransaction, 'id' | 'category_name' | 'account_name'>>) => {
+    if (isNative) {
+      // TODO: native update
+    } else {
+      await api.put(`/api/recurring/${id}`, data);
+    }
+    await loadRecurring();
+  };
   const removeRecurring = async (id: number) => {
     if (isNative) await repo.deleteRecurring(id);
     else await api.del(`/api/recurring/${id}`);
     await loadRecurring();
+  };
+
+  // Reorder
+  const reorderAccounts = async (ids: number[]) => {
+    await api.post('/api/accounts/reorder', { ids });
+    await loadAccounts();
+  };
+  const reorderCategories = async (ids: number[]) => {
+    await api.post('/api/categories/reorder', { ids });
+    await loadCategories();
+  };
+  const reorderTags = async (ids: number[]) => {
+    await api.post('/api/tags/reorder', { ids });
+    await loadTags();
   };
 
   // Copy day
@@ -334,8 +402,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addCategory, editCategory, removeCategory,
       addAccount, editAccount, removeAccount,
       addTag, removeTag,
-      loadBudgets, saveBudget, removeBudget,
-      loadRecurring, addRecurring, removeRecurring,
+      toggleAccountActive, toggleCategoryActive, toggleTagActive,
+      loadBudgets, saveBudget, editBudget, removeBudget,
+      loadRecurring, addRecurring, editRecurring, removeRecurring,
+      reorderAccounts, reorderCategories, reorderTags,
       copyDayTransactions, exportCsv, refresh,
     }}>
       {children}

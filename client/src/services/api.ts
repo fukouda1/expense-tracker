@@ -24,3 +24,8 @@ export async function del<T>(url: string): Promise<T> {
   const res = await client.delete(url);
   return res.data;
 }
+
+export async function patch<T>(url: string, data?: unknown): Promise<T> {
+  const res = await client.patch(url, data);
+  return res.data;
+}

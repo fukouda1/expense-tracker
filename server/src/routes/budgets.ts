@@ -43,6 +43,18 @@ router.post('/', async (req, res) => {
   res.json(budget);
 });
 
+// PUT /api/budgets/:id
+router.put('/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const { categoryId, amount, month } = req.body;
+  const data: any = {};
+  if (amount !== undefined) data.amount = amount;
+  if (month !== undefined) data.month = month;
+  if (categoryId !== undefined) data.category_id = categoryId;
+  const budget = await prisma.budget.update({ where: { id }, data });
+  res.json(budget);
+});
+
 router.delete('/:id', async (req, res) => {
   await prisma.budget.delete({ where: { id: Number(req.params.id) } });
   res.json({ ok: true });

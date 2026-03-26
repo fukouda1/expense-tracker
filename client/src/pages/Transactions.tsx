@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useDisplay } from '../contexts/DisplayContext';
@@ -17,7 +17,7 @@ import type { TransactionType, Transaction } from '../types';
 
 export default function Transactions() {
   const navigate = useNavigate();
-  const { transactions, removeTransaction, copyDayTransactions, getTransactionsByDate, refresh } = useData();
+  const { transactions, categories, removeTransaction, editTransaction, copyDayTransactions, getTransactionsByDate, refresh } = useData();
   const { viewMode, showTotal, period, getPeriodRange } = useDisplay();
   const { showToast } = useToast();
   const [filter, setFilter] = useState<TransactionType | 'all'>('all');
@@ -29,6 +29,61 @@ export default function Transactions() {
   const [loadingPeriod, setLoadingPeriod] = useState(false);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+
+  // Bulk select mode
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  const toggleBulkMode = useCallback(() => {
+    setBulkMode(prev => {
+      if (prev) setSelectedIds(new Set());
+      return !prev;
+    });
+  }, []);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    setBulkDeleteConfirm(false);
+    setBulkProcessing(true);
+    try {
+      for (const id of selectedIds) {
+        await removeTransaction(id);
+      }
+      showToast(`Deleted ${selectedIds.size} transaction${selectedIds.size !== 1 ? 's' : ''}`, 'success');
+      setSelectedIds(new Set());
+      setBulkMode(false);
+    } catch { showToast('Bulk delete failed', 'error'); }
+    finally { setBulkProcessing(false); }
+  }, [selectedIds, removeTransaction, showToast]);
+
+  const handleBulkChangeCategory = useCallback(async (categoryId: number) => {
+    setShowCategoryPicker(false);
+    setBulkProcessing(true);
+    try {
+      const txMap = new Map(periodTxs.map(t => [t.id, t]));
+      for (const id of selectedIds) {
+        const tx = txMap.get(id);
+        if (tx) {
+          await editTransaction({ ...tx, category_id: categoryId }, tx.tags?.map(tag => tag.id) ?? []);
+        }
+      }
+      showToast(`Updated ${selectedIds.size} transaction${selectedIds.size !== 1 ? 's' : ''}`, 'success');
+      setSelectedIds(new Set());
+      setBulkMode(false);
+    } catch { showToast('Bulk update failed', 'error'); }
+    finally { setBulkProcessing(false); }
+  }, [selectedIds, periodTxs, editTransaction, showToast]);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +98,10 @@ export default function Transactions() {
   }, [period, viewMode, transactions]);
 
   const filtered = useMemo(() => filter === 'all' ? periodTxs : periodTxs.filter(t => t.type === filter), [periodTxs, filter]);
+
+  const selectAllVisible = useCallback(() => {
+    setSelectedIds(new Set(filtered.map(t => t.id)));
+  }, [filtered]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Transaction[]>();
@@ -96,7 +155,13 @@ export default function Transactions() {
       <div className="px-4 pt-4 space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h1>
-          <button onClick={() => setShowDisplayOpts(true)} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm">⚙️</button>
+          <div className="flex items-center gap-2">
+            <button onClick={toggleBulkMode}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${bulkMode ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
+              {bulkMode ? 'Cancel' : 'Select'}
+            </button>
+            <button onClick={() => setShowDisplayOpts(true)} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm">⚙️</button>
+          </div>
         </div>
 
         <PeriodNav />
@@ -158,7 +223,21 @@ export default function Transactions() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    {txs.map(t => (
+                    {txs.map(t => bulkMode ? (
+                      <div key={t.id} className="flex items-center gap-2" onClick={() => toggleSelect(t.id)}>
+                        <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${selectedIds.has(t.id) ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300 dark:border-gray-600'}`}>
+                          {selectedIds.has(t.id) && <span className="text-white text-xs">✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <TransactionCard
+                            transaction={t}
+                            onClick={() => toggleSelect(t.id)}
+                            onEdit={() => {}}
+                            onDelete={() => {}}
+                          />
+                        </div>
+                      </div>
+                    ) : (
                       <SwipeableCard key={t.id} onSwipeLeft={() => handleDelete(t)} onSwipeRight={() => navigate(`/add?edit=${t.id}`)}>
                         <TransactionCard
                           transaction={t}
@@ -207,6 +286,60 @@ export default function Transactions() {
 
         <TransactionDetail transaction={detailTx} onClose={() => setDetailTx(null)} onEdit={tx => navigate(`/add?edit=${tx.id}`)} onDelete={id => { setDetailTx(null); handleDelete(periodTxs.find(t => t.id === id)!); }} />
         <DisplayOptionsModal open={showDisplayOpts} onClose={() => setShowDisplayOpts(false)} />
+
+        {/* Bulk select floating action bar */}
+        {bulkMode && selectedIds.size > 0 && (
+          <div className="fixed bottom-16 left-0 right-0 z-50 px-4 pb-2">
+            <div className="bg-gray-900 dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-700 px-4 py-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm font-medium">{selectedIds.size} selected</span>
+                <button onClick={selectAllVisible} className="text-emerald-400 text-xs font-medium">All</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowCategoryPicker(true)} disabled={bulkProcessing}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium transition-colors">
+                  Category
+                </button>
+                <button onClick={() => setBulkDeleteConfirm(true)} disabled={bulkProcessing}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium transition-colors">
+                  Delete
+                </button>
+                <button onClick={toggleBulkMode}
+                  className="px-3 py-1.5 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-medium transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk delete confirmation */}
+        <ConfirmDialog
+          open={bulkDeleteConfirm}
+          onClose={() => setBulkDeleteConfirm(false)}
+          onConfirm={handleBulkDelete}
+          title="Delete Selected Transactions"
+          message={`Are you sure you want to delete ${selectedIds.size} transaction${selectedIds.size !== 1 ? 's' : ''}? This cannot be undone.`}
+          confirmText={`Delete ${selectedIds.size}`}
+          variant="danger"
+        />
+
+        {/* Change category picker modal */}
+        <Modal open={showCategoryPicker} onClose={() => setShowCategoryPicker(false)} title="Change Category">
+          <div className="space-y-1 max-h-80 overflow-y-auto">
+            {categories.filter(c => c.active).map(c => (
+              <button key={c.id} onClick={() => handleBulkChangeCategory(c.id)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left">
+                <span className="text-lg">{c.icon}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</span>
+                <span className="text-[10px] text-gray-400 ml-auto">{c.type}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+
+        {/* Bottom spacer when bulk bar is visible */}
+        {bulkMode && selectedIds.size > 0 && <div className="h-16" />}
       </div>
     </PullToRefresh>
   );

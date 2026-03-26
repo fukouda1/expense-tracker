@@ -13,6 +13,11 @@ const config: CapacitorConfig = {
       iosIsEncryption: false,
       androidIsEncryption: false,
     },
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: '#10b981',
+      showSpinner: false,
+    },
   },
 };
 

@@ -16,12 +16,13 @@ import EmptyState from '../components/EmptyState';
 import RecurringPreview from '../components/RecurringPreview';
 import QuickTemplateBar from '../components/QuickTemplates';
 import SavingsGauge from '../components/SavingsGauge';
+import SpendingAlerts from '../components/SpendingAlerts';
 import { formatCurrency } from '../utils/formatters';
 import type { CategorySummary, AccountBalance, Transaction } from '../types';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { budgets, loading, getAccountBalances, loadBudgets, getTransactionsByDate, removeTransaction, refresh } = useData();
+  const { transactions, budgets, loading, getAccountBalances, loadBudgets, getTransactionsByDate, removeTransaction, refresh } = useData();
   // All transactions for debt calculation (not period-filtered)
   const [allTxForDebt, setAllTxForDebt] = useState<Transaction[]>([]);
   const { dark, toggle } = useTheme();
@@ -38,9 +39,9 @@ export default function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
-    // Load all transactions for debt calculation (once)
+    // Load all transactions for debt calculation
     getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTxForDebt);
-  }, [loading]);
+  }, [loading, transactions]);
 
   useEffect(() => {
     const load = async () => {
@@ -66,7 +67,7 @@ export default function Dashboard() {
       await loadBudgets(from.slice(0, 7));
     };
     if (!loading) load();
-  }, [loading, period, viewMode]);
+  }, [loading, period, viewMode, transactions]);
 
   const totalBalance = balances.reduce((s, b) => s + b.balance, 0);
   const avgDaily = useMemo(() => {
@@ -113,9 +114,11 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={toggle} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800">{dark ? '☀️' : '🌙'}</button>
-            <button onClick={() => setShowDisplayOpts(true)} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800" title="Display options">📊</button>
-            <Link to="/settings" className="p-2 rounded-full bg-gray-100 dark:bg-gray-800" title="Settings">⚙️</Link>
-            <Link to="/search" className="p-2 rounded-full bg-gray-100 dark:bg-gray-800">🔍</Link>
+            <button onClick={() => setShowDisplayOpts(true)} className="p-2 rounded-full bg-gray-100 dark:bg-gray-800" title="Display options">
+              <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 8h12M3 12h18M3 16h8M3 20h14" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -157,6 +160,9 @@ export default function Dashboard() {
             </p>
           </div>
         </div>
+
+        {/* Spending Alerts */}
+        <SpendingAlerts />
 
         {/* Average Daily Spend + Biggest Expense */}
         <div className="grid grid-cols-2 gap-2">

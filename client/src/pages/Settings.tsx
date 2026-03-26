@@ -7,8 +7,20 @@ import Modal from '../components/Modal';
 import TransactionCard from '../components/TransactionCard';
 import BudgetProgress from '../components/BudgetProgress';
 import { TemplateManager } from '../components/QuickTemplates';
+import AutoBackupToggle from '../components/AutoBackup';
+import { PinLockSettings } from '../components/PinLock';
 import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatters';
-import type { Category, Account, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
+import { post } from '../services/api';
+import type { Category, Account, Budget, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
+
+interface ImportPreview {
+  fileName: string;
+  fileType: 'csv' | 'xlsx';
+  csvRows?: string[][];
+  totalLines?: number;
+  sheets?: { name: string; rowCount: number }[];
+  summary: string;
+}
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -19,13 +31,24 @@ export default function Settings() {
     addCategory, editCategory, removeCategory, getTransactionsByDate,
     addAccount, editAccount, removeAccount,
     addTag, removeTag,
-    loadBudgets, saveBudget, removeBudget,
-    loadRecurring, addRecurring, removeRecurring,
+    toggleAccountActive, toggleCategoryActive, toggleTagActive,
+    reorderAccounts, reorderCategories, reorderTags,
+    loadBudgets, saveBudget, editBudget, removeBudget,
+    loadRecurring, addRecurring, editRecurring, removeRecurring,
     exportCsv, refresh,
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'accounts' | 'tags' | 'budgets' | 'recurring' | 'templates'>('general');
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+
+  // Move item up/down in a list and save new order
+  const moveItem = async <T extends { id: number }>(items: T[], index: number, dir: -1 | 1, reorderFn: (ids: number[]) => Promise<void>) => {
+    const newIndex = index + dir;
+    if (newIndex < 0 || newIndex >= items.length) return;
+    const ids = items.map(i => i.id);
+    [ids[index], ids[newIndex]] = [ids[newIndex], ids[index]];
+    await reorderFn(ids);
+  };
 
   // Load ALL transactions when categories tab is opened (not period-filtered)
   useEffect(() => {
@@ -53,11 +76,13 @@ export default function Settings() {
   // Tag form
   const [tagName, setTagName] = useState('');
   const [tagColor, setTagColor] = useState('#3b82f6');
+  const [tagCategoryId, setTagCategoryId] = useState<number | ''>('');
 
   // Budget form
   const [budgetMonth, setBudgetMonth] = useState(getCurrentMonth());
   const [budgetCatId, setBudgetCatId] = useState<number | ''>('');
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [editBudgetId, setEditBudgetId] = useState<number | null>(null);
 
   // Recurring form
   const [recAmount, setRecAmount] = useState('');
@@ -67,9 +92,12 @@ export default function Settings() {
   const [recNotes, setRecNotes] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('monthly');
   const [recNextDate, setRecNextDate] = useState(new Date().toISOString().slice(0, 10));
+  const [editRecId, setEditRecId] = useState<number | null>(null);
 
   // CSV import
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const openModal = (type: string) => {
     setModalType(type);
@@ -77,9 +105,10 @@ export default function Settings() {
     // Reset forms
     setCatName(''); setCatIcon('📦'); setCatColor('#6b7280'); setCatType('expense'); setEditCatId(null);
     setAccName(''); setAccIcon('💰'); setAccColor('#10b981'); setAccBalance('0'); setEditAccId(null);
-    setTagName(''); setTagColor('#3b82f6');
-    setBudgetCatId(''); setBudgetAmount('');
+    setTagName(''); setTagColor('#3b82f6'); setTagCategoryId('');
+    setBudgetCatId(''); setBudgetAmount(''); setEditBudgetId(null);
     setRecAmount(''); setRecType('expense'); setRecCatId(''); setRecAccId(''); setRecNotes('');
+    setRecurrence('monthly'); setRecNextDate(new Date().toISOString().slice(0, 10)); setEditRecId(null);
   };
 
   const handleSaveCategory = async () => {
@@ -114,20 +143,32 @@ export default function Settings() {
 
   const handleSaveTag = async () => {
     if (!tagName) return;
-    await addTag(tagName, tagColor);
+    await addTag(tagName, tagColor, tagCategoryId || null);
     setShowModal(false);
   };
 
   const handleSaveBudget = async () => {
     if (!budgetAmount) return;
-    await saveBudget(budgetCatId || null, Number(budgetAmount), budgetMonth);
+    if (editBudgetId) {
+      await editBudget(editBudgetId, budgetCatId || null, Number(budgetAmount), budgetMonth);
+    } else {
+      await saveBudget(budgetCatId || null, Number(budgetAmount), budgetMonth);
+    }
     setShowModal(false);
     await loadBudgets(budgetMonth);
   };
 
+  const handleEditBudget = (b: Budget) => {
+    setEditBudgetId(b.id);
+    setBudgetCatId(b.category_id ?? '');
+    setBudgetAmount(String(b.amount));
+    setModalType('budget');
+    setShowModal(true);
+  };
+
   const handleSaveRecurring = async () => {
     if (!recAmount || !recAccId) return;
-    await addRecurring({
+    const data = {
       amount: Number(recAmount),
       type: recType,
       category_id: recCatId || null,
@@ -135,9 +176,27 @@ export default function Settings() {
       notes: recNotes,
       recurrence_type: recurrence,
       next_date: recNextDate,
-    });
+    };
+    if (editRecId) {
+      await editRecurring(editRecId, data);
+    } else {
+      await addRecurring(data);
+    }
     setShowModal(false);
     await loadRecurring();
+  };
+
+  const handleEditRecurring = (r: RecurringTransaction) => {
+    setEditRecId(r.id);
+    setRecAmount(String(r.amount));
+    setRecType(r.type);
+    setRecCatId(r.category_id ?? '');
+    setRecAccId(r.account_id);
+    setRecNotes(r.notes);
+    setRecurrence(r.recurrence_type);
+    setRecNextDate(r.next_date);
+    setModalType('recurring');
+    setShowModal(true);
   };
 
   const handleExportXlsx = async () => {
@@ -172,6 +231,78 @@ export default function Settings() {
 
   const [importResult, setImportResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+
+  const handleFilePreview = async (file: File) => {
+    setImportFile(file);
+    setImportResult(null);
+    setImportPreview(null);
+    setPreviewLoading(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'csv') {
+        const text = await file.text();
+        const lines = text.split('\n').filter(l => l.trim());
+        const rows = lines.map(l => {
+          // Simple CSV parse (handles quoted fields)
+          const result: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          for (const ch of l) {
+            if (ch === '"') { inQuotes = !inQuotes; }
+            else if (ch === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+            else { current += ch; }
+          }
+          result.push(current.trim());
+          return result;
+        });
+        // Count data rows (exclude header)
+        const dataRows = rows.length > 1 ? rows.length - 1 : 0;
+        // Try to detect accounts and categories from columns
+        const header = rows[0]?.map(h => h.toLowerCase()) || [];
+        const accountIdx = header.findIndex(h => h.includes('account'));
+        const categoryIdx = header.findIndex(h => h.includes('category'));
+        const uniqueAccounts = accountIdx >= 0
+          ? new Set(rows.slice(1).map(r => r[accountIdx]).filter(Boolean)).size : 0;
+        const uniqueCategories = categoryIdx >= 0
+          ? new Set(rows.slice(1).map(r => r[categoryIdx]).filter(Boolean)).size : 0;
+
+        const parts = [`${dataRows} transactions`];
+        if (uniqueAccounts) parts.push(`${uniqueAccounts} accounts`);
+        if (uniqueCategories) parts.push(`${uniqueCategories} categories`);
+
+        setImportPreview({
+          fileName: file.name,
+          fileType: 'csv',
+          csvRows: rows.slice(0, 6), // header + first 5 rows
+          totalLines: dataRows,
+          summary: `This file contains ${parts.join(', ')}`,
+        });
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        // For xlsx files, show basic file info (xlsx parsing happens server-side)
+        try {
+          const sizeMb = (file.size / 1024 / 1024).toFixed(2);
+          setImportPreview({
+            fileName: file.name,
+            fileType: 'xlsx',
+            sheets: [],
+            summary: `Excel file (${sizeMb} MB) — sheets will be parsed on import. Expected sheets: Accounts, Categories, Tags, Budgets, Recurring, Transactions`,
+          });
+        } catch {
+          // xlsx library not available, show basic info
+          setImportPreview({
+            fileName: file.name,
+            fileType: 'xlsx',
+            summary: `Excel file selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Preview failed:', err);
+      setImportPreview(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
 
   const handleImportCsv = async () => {
     if (!importFile) return;
@@ -256,6 +387,45 @@ export default function Settings() {
               <div className={`w-5 h-5 bg-white rounded-full transition-transform ${dark ? 'translate-x-6' : 'translate-x-0.5'}`} />
             </button>
           </div>
+          {/* PIN Lock */}
+          <PinLockSettings />
+          {/* Currency */}
+          <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
+            <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">💱 Currency</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">Set the currency used across the app</p>
+            <select
+              value={localStorage.getItem('tracecash_currency') ?? 'PHP'}
+              onChange={e => { localStorage.setItem('tracecash_currency', e.target.value); window.location.reload(); }}
+              className={inputClass}
+            >
+              <option value="PHP">🇵🇭 PHP — Philippine Peso (₱)</option>
+              <option value="USD">🇺🇸 USD — US Dollar ($)</option>
+              <option value="EUR">🇪🇺 EUR — Euro (€)</option>
+              <option value="GBP">🇬🇧 GBP — British Pound (£)</option>
+              <option value="JPY">🇯🇵 JPY — Japanese Yen (¥)</option>
+              <option value="KRW">🇰🇷 KRW — South Korean Won (₩)</option>
+              <option value="CNY">🇨🇳 CNY — Chinese Yuan (¥)</option>
+              <option value="INR">🇮🇳 INR — Indian Rupee (₹)</option>
+              <option value="AUD">🇦🇺 AUD — Australian Dollar (A$)</option>
+              <option value="CAD">🇨🇦 CAD — Canadian Dollar (C$)</option>
+              <option value="SGD">🇸🇬 SGD — Singapore Dollar (S$)</option>
+              <option value="MYR">🇲🇾 MYR — Malaysian Ringgit (RM)</option>
+              <option value="THB">🇹🇭 THB — Thai Baht (฿)</option>
+              <option value="IDR">🇮🇩 IDR — Indonesian Rupiah (Rp)</option>
+              <option value="VND">🇻🇳 VND — Vietnamese Dong (₫)</option>
+              <option value="BRL">🇧🇷 BRL — Brazilian Real (R$)</option>
+              <option value="MXN">🇲🇽 MXN — Mexican Peso (MX$)</option>
+              <option value="TWD">🇹🇼 TWD — Taiwan Dollar (NT$)</option>
+              <option value="HKD">🇭🇰 HKD — Hong Kong Dollar (HK$)</option>
+              <option value="CHF">🇨🇭 CHF — Swiss Franc</option>
+              <option value="SEK">🇸🇪 SEK — Swedish Krona (kr)</option>
+              <option value="NZD">🇳🇿 NZD — New Zealand Dollar (NZ$)</option>
+              <option value="AED">🇦🇪 AED — UAE Dirham</option>
+              <option value="SAR">🇸🇦 SAR — Saudi Riyal</option>
+              <option value="NGN">🇳🇬 NGN — Nigerian Naira (₦)</option>
+              <option value="ZAR">🇿🇦 ZAR — South African Rand (R)</option>
+            </select>
+          </div>
           {/* Export */}
           <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
             <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">📥 Export Full Backup</p>
@@ -299,15 +469,81 @@ export default function Settings() {
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
               Supports: .xlsx (multi-sheet backup), .csv (legacy TraceCash app format)
             </p>
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={e => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); }} className="text-xs text-gray-500" />
-            {importFile && (
-              <button
-                onClick={handleImportCsv}
-                disabled={importing}
-                className="mt-2 px-4 py-1.5 bg-emerald-500 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium"
-              >
-                {importing ? 'Importing...' : 'Import'}
-              </button>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={e => {
+                const f = e.target.files?.[0];
+                if (f) handleFilePreview(f);
+                else { setImportFile(null); setImportPreview(null); }
+              }}
+              className="text-xs text-gray-500"
+            />
+            {previewLoading && (
+              <p className="mt-2 text-xs text-gray-500">Reading file...</p>
+            )}
+            {importPreview && (
+              <div className="mt-3 space-y-2">
+                {/* Summary */}
+                <div className="p-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{importPreview.summary}</p>
+                </div>
+
+                {/* CSV preview table */}
+                {importPreview.fileType === 'csv' && importPreview.csvRows && importPreview.csvRows.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">
+                      Preview (first {Math.min(5, (importPreview.csvRows.length || 1) - 1)} of {importPreview.totalLines} rows):
+                    </p>
+                    <table className="w-full text-[11px] border-collapse">
+                      <thead>
+                        <tr>
+                          {importPreview.csvRows[0]?.map((h, i) => (
+                            <th key={i} className="px-1.5 py-1 bg-gray-100 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-600 font-medium">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importPreview.csvRows.slice(1).map((row, ri) => (
+                          <tr key={ri}>
+                            {row.map((cell, ci) => (
+                              <td key={ci} className="px-1.5 py-1 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 max-w-[120px] truncate">
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* XLSX sheet list */}
+                {importPreview.fileType === 'xlsx' && importPreview.sheets && (
+                  <div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Sheets:</p>
+                    <div className="space-y-1">
+                      {importPreview.sheets.map((s, i) => (
+                        <div key={i} className="flex justify-between px-2 py-1 bg-gray-50 dark:bg-gray-700/50 rounded text-[11px]">
+                          <span className="text-gray-700 dark:text-gray-300">{s.name}</span>
+                          <span className="text-gray-500 dark:text-gray-400">{s.rowCount} rows</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm Import button */}
+                <button
+                  onClick={() => { handleImportCsv(); setImportPreview(null); }}
+                  disabled={importing}
+                  className="w-full py-2 bg-emerald-500 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium"
+                >
+                  {importing ? 'Importing...' : 'Confirm Import'}
+                </button>
+              </div>
             )}
             {importResult && (
               <p className={`mt-2 text-xs ${importResult.startsWith('Error') ? 'text-red-500' : 'text-emerald-600'}`}>
@@ -315,6 +551,9 @@ export default function Settings() {
               </p>
             )}
           </div>
+
+          {/* Auto-backup */}
+          <AutoBackupToggle />
         </div>
       )}
 
@@ -328,6 +567,14 @@ export default function Settings() {
           try { await removeCategory(id); showToast('Category deleted', 'success'); }
           catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete: category is in use', 'error'); }
         }}
+        onToggleActive={toggleCategoryActive}
+        onReorder={reorderCategories}
+        onMerge={async (sourceId: number, targetId: number) => {
+          const res = await post<{ merged: number }>('/api/categories/merge', { sourceId, targetId });
+          await refresh();
+          getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions);
+          showToast(`Merged ${res.merged} transactions`, 'success');
+        }}
         navigate={navigate}
       />}
 
@@ -337,20 +584,35 @@ export default function Settings() {
           <button onClick={() => openModal('account')} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">
             + Add Account
           </button>
-          {accounts.map(a => (
-            <div key={a.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: a.color + '20' }}>
+          {accounts.map((a, idx) => (
+            <div key={a.id} className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!a.active ? 'opacity-50' : ''}`}>
+              {/* Sort arrows */}
+              <div className="flex flex-col gap-0.5 flex-shrink-0">
+                <button onClick={() => moveItem(accounts, idx, -1, reorderAccounts)}
+                  disabled={idx === 0}
+                  className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▲</button>
+                <button onClick={() => moveItem(accounts, idx, 1, reorderAccounts)}
+                  disabled={idx === accounts.length - 1}
+                  className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▼</button>
+              </div>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: a.color + '20' }}>
                 {a.icon}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{a.name}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.name}</p>
+                {!a.active && <p className="text-[10px] text-red-400">Inactive</p>}
               </div>
-              <button onClick={() => handleEditAcc(a)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
+              <button onClick={() => toggleAccountActive(a.id)}
+                className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${a.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                title={a.active ? 'Deactivate' : 'Activate'}>
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${a.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+              <button onClick={() => handleEditAcc(a)} className="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0">✏️</button>
               <button onClick={async () => {
                 if (!confirm('Delete this account?')) return;
                 try { await removeAccount(a.id); showToast('Account deleted', 'success'); }
                 catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete: account is in use', 'error'); }
-              }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
+              }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
             </div>
           ))}
         </div>
@@ -358,21 +620,85 @@ export default function Settings() {
 
       {/* Tags Tab */}
       {activeTab === 'tags' && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <button onClick={() => openModal('tag')} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">
             + Add Tag
           </button>
-          <div className="flex flex-wrap gap-2">
-            {tags.map(t => (
-              <div key={t.id} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white" style={{ backgroundColor: t.color }}>
-                {t.name}
-                <button onClick={async () => {
-                  if (!confirm('Delete this tag?')) return;
-                  try { await removeTag(t.id); showToast('Tag deleted', 'success'); }
-                  catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete: tag is in use', 'error'); }
-                }} className="ml-1 opacity-70 hover:opacity-100">&times;</button>
-              </div>
-            ))}
+          {/* Global Tags */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Global Tags</h3>
+              <span className="text-[10px] text-gray-400">Always shown</span>
+            </div>
+            <div className="space-y-1.5">
+              {tags.filter(t => !t.category_id).map(t => {
+                const linkedCat = t.category_id ? categories.find(c => c.id === t.category_id) : null;
+                return (
+                  <div key={t.id} className={`flex items-center gap-2 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!t.active ? 'opacity-50' : ''}`}>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</span>
+                    </div>
+                    {!t.active && <span className="text-[10px] text-red-400">Off</span>}
+                    <button onClick={() => toggleTagActive(t.id)}
+                      className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                    <button onClick={async () => {
+                      if (!confirm('Delete this tag?')) return;
+                      try { await removeTag(t.id); showToast('Tag deleted', 'success'); }
+                      catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete', 'error'); }
+                    }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
+                  </div>
+                );
+              })}
+              {tags.filter(t => !t.category_id).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">No global tags yet</p>
+              )}
+            </div>
+          </div>
+          {/* Category-Linked Tags */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-2 h-2 rounded-full bg-amber-500" />
+              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Category Tags</h3>
+              <span className="text-[10px] text-gray-400">Shown when category is selected</span>
+            </div>
+            <div className="space-y-1.5">
+              {tags.filter(t => t.category_id).map(t => {
+                const linkedCat = categories.find(c => c.id === t.category_id);
+                return (
+                  <div key={t.id} className={`flex items-center gap-2 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!t.active ? 'opacity-50' : ''}`}>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</span>
+                      {linkedCat && (
+                        <span className="text-[10px] text-gray-400 ml-1.5">{linkedCat.icon} {linkedCat.name}</span>
+                      )}
+                    </div>
+                    {!t.active && <span className="text-[10px] text-red-400">Off</span>}
+                    <button onClick={() => toggleTagActive(t.id)}
+                      className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                    <button onClick={async () => {
+                      if (!confirm('Delete this tag?')) return;
+                      try { await removeTag(t.id); showToast('Tag deleted', 'success'); }
+                      catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete', 'error'); }
+                    }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
+                  </div>
+                );
+              })}
+              {tags.filter(t => t.category_id).length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">No category-linked tags yet</p>
+              )}
+            </div>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              💡 <strong>Global tags</strong> always appear when adding a transaction. <strong>Category tags</strong> only appear when their linked category is selected.
+            </p>
           </div>
         </div>
       )}
@@ -384,16 +710,50 @@ export default function Settings() {
             <input type="month" value={budgetMonth} onChange={e => { setBudgetMonth(e.target.value); loadBudgets(e.target.value); }} className={inputClass + ' flex-1'} />
             <button onClick={() => openModal('budget')} className="px-4 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium whitespace-nowrap">+ Budget</button>
           </div>
-          <p className="text-xs text-gray-500">{formatMonth(budgetMonth)}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">{formatMonth(budgetMonth)}</p>
+            <button
+              onClick={async () => {
+                const [y, m] = budgetMonth.split('-').map(Number);
+                const prevDate = new Date(y, m - 2, 1);
+                const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+                // Load previous month's budgets via API
+                try {
+                  const prevBudgets: typeof budgets = await (await fetch(`/api/budgets?month=${prevMonth}`)).json();
+                  if (!prevBudgets.length) {
+                    showToast(`No budgets found in ${formatMonth(prevMonth)}`, 'error');
+                    return;
+                  }
+                  let copied = 0;
+                  for (const b of prevBudgets) {
+                    await saveBudget(b.category_id, b.amount, budgetMonth);
+                    copied++;
+                  }
+                  showToast(`Copied ${copied} budget${copied !== 1 ? 's' : ''} from ${formatMonth(prevMonth)}`, 'success');
+                  await loadBudgets(budgetMonth);
+                } catch {
+                  showToast('Failed to copy budgets', 'error');
+                }
+              }}
+              className="text-[11px] text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium flex items-center gap-1 transition-colors"
+            >
+              📋 Copy from prev month
+            </button>
+          </div>
           {budgets.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No budgets set for this month</p>
+            <div className="text-center py-6">
+              <p className="text-sm text-gray-400">No budgets set for this month</p>
+              <p className="text-[10px] text-gray-400 mt-1">Tap "+ Budget" to create one, or copy from previous month</p>
+            </div>
           ) : (
             <div className="space-y-2">
               {budgets.map(b => (
-                <div key={b.id} className="relative">
-                  <BudgetProgress budget={b} />
-                  <button onClick={() => { if (confirm('Delete?')) removeBudget(b.id); }} className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xs">🗑️</button>
-                </div>
+                <BudgetProgress
+                  key={b.id}
+                  budget={b}
+                  onEdit={() => handleEditBudget(b)}
+                  onDelete={() => { if (confirm('Delete this budget?')) removeBudget(b.id); }}
+                />
               ))}
             </div>
           )}
@@ -413,10 +773,11 @@ export default function Settings() {
               <div key={r.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    ₱{r.amount.toLocaleString()} - {r.category_name ?? r.type}
+                    {formatCurrency(r.amount)} - {r.category_name ?? r.type}
                   </p>
                   <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
                 </div>
+                <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
                 <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
               </div>
             ))
@@ -495,11 +856,19 @@ export default function Settings() {
               ))}
             </div>
           </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Link to Category (optional)</label>
+            <select value={tagCategoryId} onChange={e => setTagCategoryId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
+              <option value="">🌐 Global — always shown</option>
+              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1">Category tags only appear when that category is selected</p>
+          </div>
           <button onClick={handleSaveTag} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
       </Modal>
 
-      <Modal open={showModal && modalType === 'budget'} onClose={() => setShowModal(false)} title="Set Budget">
+      <Modal open={showModal && modalType === 'budget'} onClose={() => setShowModal(false)} title={editBudgetId ? 'Edit Budget' : 'Set Budget'}>
         <div className="space-y-3">
           <select value={budgetCatId} onChange={e => setBudgetCatId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">Overall Budget</option>
@@ -510,7 +879,7 @@ export default function Settings() {
         </div>
       </Modal>
 
-      <Modal open={showModal && modalType === 'recurring'} onClose={() => setShowModal(false)} title="Add Recurring Transaction">
+      <Modal open={showModal && modalType === 'recurring'} onClose={() => setShowModal(false)} title={editRecId ? 'Edit Recurring' : 'Add Recurring Transaction'}>
         <div className="space-y-3">
           <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="Amount (₱)" className={inputClass} />
           <select value={recType} onChange={e => setRecType(e.target.value as TransactionType)} className={inputClass}>
@@ -541,15 +910,20 @@ export default function Settings() {
 }
 
 // ── Categories Tab with modal transaction list ──
-function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navigate }: {
+function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onToggleActive, onReorder, onMerge, navigate }: {
   categories: Category[];
   transactions: Transaction[];
   onAdd: () => void;
   onEdit: (c: Category) => void;
   onDelete: (id: number) => void;
+  onToggleActive: (id: number) => void;
+  onReorder: (ids: number[]) => Promise<void>;
+  onMerge: (sourceId: number, targetId: number) => Promise<void>;
   navigate: (path: string) => void;
 }) {
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
+  const [mergeCat, setMergeCat] = useState<Category | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState<number | ''>('');
 
   const expenseCats = categories.filter(c => c.type === 'expense' || c.type === 'both');
   const incomeCats = categories.filter(c => c.type === 'income' || c.type === 'both');
@@ -559,11 +933,32 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navi
     : [];
   const selectedCatTotal = selectedCatTx.reduce((s, t) => s + t.amount, 0);
 
-  const renderCat = (c: Category) => {
+  const moveInList = async (list: Category[], index: number, dir: -1 | 1) => {
+    const newIdx = index + dir;
+    if (newIdx < 0 || newIdx >= list.length) return;
+    // Build full ID order: all categories in current order, with these two swapped
+    const allIds = categories.map(cat => cat.id);
+    const aIdx = allIds.indexOf(list[index].id);
+    const bIdx = allIds.indexOf(list[newIdx].id);
+    [allIds[aIdx], allIds[bIdx]] = [allIds[bIdx], allIds[aIdx]];
+    await onReorder(allIds);
+  };
+
+  const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment'];
+
+  const renderCat = (c: Category, list: Category[], index: number) => {
+    const isProtected = PROTECTED_CATS.includes(c.name);
     const txCount = transactions.filter(t => t.category_id === c.id).length;
     const total = transactions.filter(t => t.category_id === c.id).reduce((s, t) => s + t.amount, 0);
     return (
-      <div key={c.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
+      <div key={c.id} className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!c.active ? 'opacity-50' : ''}`}>
+        {/* Sort arrows */}
+        <div className="flex flex-col gap-0.5 flex-shrink-0">
+          <button onClick={() => moveInList(list, index, -1)} disabled={index === 0}
+            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▲</button>
+          <button onClick={() => moveInList(list, index, 1)} disabled={index === list.length - 1}
+            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▼</button>
+        </div>
         <button
           onClick={() => setSelectedCat(c)}
           className="flex items-center gap-3 flex-1 min-w-0"
@@ -573,12 +968,25 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navi
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400">{txCount} entries · {formatCurrency(total)}</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">
+              {txCount} entries · {formatCurrency(total)}
+              {isProtected && <span className="text-amber-500 ml-1">· System</span>}
+              {!c.active && <span className="text-red-400 ml-1">· Inactive</span>}
+            </p>
           </div>
           <span className="text-gray-400 dark:text-gray-500 text-xs">›</span>
         </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleActive(c.id); }}
+          className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${c.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+          title={c.active ? 'Deactivate' : 'Activate'}
+        >
+          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${c.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+        {isProtected && <span className="text-[10px] text-amber-500 flex-shrink-0" title="System category (Debt Tracker)">🔒</span>}
+        {!isProtected && <button onClick={(e) => { e.stopPropagation(); setMergeCat(c); setMergeTargetId(''); }} className="text-gray-400 hover:text-purple-500 text-sm flex-shrink-0" title="Merge into another category">🔀</button>}
         <button onClick={(e) => { e.stopPropagation(); onEdit(c); }} className="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0">✏️</button>
-        <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete category?')) onDelete(c.id); }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
+        {!isProtected && <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete category?')) onDelete(c.id); }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>}
       </div>
     );
   };
@@ -598,7 +1006,7 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navi
           </h3>
           <span className="text-xs text-gray-400">({expenseCats.length})</span>
         </div>
-        <div className="space-y-1.5">{expenseCats.map(renderCat)}</div>
+        <div className="space-y-1.5">{expenseCats.map((c, i) => renderCat(c, expenseCats, i))}</div>
       </div>
 
       {/* Income Categories */}
@@ -610,7 +1018,7 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navi
           </h3>
           <span className="text-xs text-gray-400">({incomeCats.length})</span>
         </div>
-        <div className="space-y-1.5">{incomeCats.map(renderCat)}</div>
+        <div className="space-y-1.5">{incomeCats.map((c, i) => renderCat(c, incomeCats, i))}</div>
       </div>
 
       {/* Category Transactions Modal */}
@@ -646,6 +1054,49 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, navi
                   Showing 100 of {selectedCatTx.length}
                 </p>
               )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Merge Category Modal */}
+      <Modal open={!!mergeCat} onClose={() => setMergeCat(null)} title={mergeCat ? `Merge "${mergeCat.name}" into...` : ''}>
+        {mergeCat && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              All transactions, budgets, and recurring entries from <strong>{mergeCat.icon} {mergeCat.name}</strong> will be moved to the selected category. The source category will be deleted.
+            </p>
+            <select
+              value={mergeTargetId}
+              onChange={e => setMergeTargetId(Number(e.target.value))}
+              className="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white"
+            >
+              <option value="">Select target category...</option>
+              {categories
+                .filter(c => c.id !== mergeCat.id && (c.type === mergeCat.type || c.type === 'both' || mergeCat.type === 'both'))
+                .map(c => (
+                  <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                ))
+              }
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMergeCat(null)}
+                className="flex-1 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!mergeTargetId) return;
+                  await onMerge(mergeCat.id, mergeTargetId as number);
+                  setMergeCat(null);
+                }}
+                disabled={!mergeTargetId}
+                className="flex-1 py-2.5 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-xl text-sm font-medium"
+              >
+                Merge
+              </button>
             </div>
           </div>
         )}

@@ -3,8 +3,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 import { DisplayProvider } from './contexts/DisplayContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 import { ToastProvider } from './components/Toast';
 import OfflineIndicator from './components/OfflineIndicator';
+import { useAutoBackupCheck } from './components/AutoBackup';
+import PinLock from './components/PinLock';
 import Layout from './components/Layout';
 
 // Code-split pages
@@ -26,13 +29,21 @@ function Loading() {
   );
 }
 
+function AutoBackupRunner() {
+  useAutoBackupCheck();
+  return null;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
-      <DataProvider>
-        <DisplayProvider>
-          <ToastProvider>
+      <PinLock>
+      <CurrencyProvider>
+        <DataProvider>
+          <DisplayProvider>
+            <ToastProvider>
             <OfflineIndicator />
+            <AutoBackupRunner />
             <BrowserRouter>
               <Suspense fallback={<Loading />}>
                 <Routes>
@@ -50,9 +61,11 @@ export default function App() {
                 </Routes>
               </Suspense>
             </BrowserRouter>
-          </ToastProvider>
-        </DisplayProvider>
-      </DataProvider>
+            </ToastProvider>
+          </DisplayProvider>
+        </DataProvider>
+      </CurrencyProvider>
+      </PinLock>
     </ThemeProvider>
   );
 }

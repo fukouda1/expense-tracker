@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend, AreaChart, Area,
@@ -11,6 +11,7 @@ import DisplayOptionsModal from '../components/DisplayOptionsModal';
 import { formatCurrency } from '../utils/formatters';
 import SavingsGauge from '../components/SavingsGauge';
 import CategoryTrend from '../components/CategoryTrend';
+import CashFlowForecast from '../components/CashFlowForecast';
 import type { CategorySummary, MonthlySummary, DailySummary, AccountBalance } from '../types';
 import * as api from '../services/api';
 
@@ -37,6 +38,10 @@ export default function Analytics() {
   const [trendMonths, setTrendMonths] = useState<6 | 12 | 24>(6);
   const [showDisplayOpts, setShowDisplayOpts] = useState(false);
   const [yoyData, setYoyData] = useState<{ thisYear: number; lastYear: number; pctChange: number } | null>(null);
+  const [monthlyComparison, setMonthlyComparison] = useState<{ name: string; icon: string; current: number; previous: number; pctChange: number }[]>([]);
+  const [dailyAvgByCat, setDailyAvgByCat] = useState<{ name: string; icon: string; avgDaily: number; activeDays: number }[]>([]);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const analyticsRef = useRef<HTMLDivElement>(null);
 
   // Data states
   const [expenseCats, setExpenseCats] = useState<CategorySummary[]>([]);
@@ -60,6 +65,74 @@ export default function Analytics() {
         setExpenseCats(cats);
         setTopExpenseCats(top);
         setWeekComp(wk);
+
+        // Monthly Comparison: fetch previous period data
+        try {
+          const fromDate = new Date(from);
+          const toDate = new Date(to.replace('T23:59:59', ''));
+          const periodMs = toDate.getTime() - fromDate.getTime();
+          const prevTo = new Date(fromDate.getTime() - 1);
+          const prevFrom = new Date(prevTo.getTime() - periodMs);
+          const prevTxs = await getTransactionsByDate(
+            prevFrom.toISOString().slice(0, 10),
+            prevTo.toISOString().slice(0, 10) + 'T23:59:59'
+          );
+
+          // Build previous period category totals
+          const prevCatMap = new Map<string, number>();
+          for (const t of prevTxs.filter(tx => tx.type === 'expense' && tx.category_name)) {
+            prevCatMap.set(t.category_name!, (prevCatMap.get(t.category_name!) ?? 0) + t.amount);
+          }
+
+          // Build comparison table
+          const allCatNames = new Set<string>();
+          cats.forEach(c => allCatNames.add(c.category_name));
+          prevCatMap.forEach((_, name) => allCatNames.add(name));
+
+          const currentCatMap = new Map<string, { total: number; icon: string }>();
+          cats.forEach(c => currentCatMap.set(c.category_name, { total: c.total, icon: c.category_icon }));
+
+          const comparison = Array.from(allCatNames).map(name => {
+            const current = currentCatMap.get(name)?.total ?? 0;
+            const previous = prevCatMap.get(name) ?? 0;
+            const icon = currentCatMap.get(name)?.icon ?? '📦';
+            const pctChange = previous > 0 ? ((current - previous) / previous) * 100 : (current > 0 ? 100 : 0);
+            return { name, icon, current, previous, pctChange };
+          }).filter(c => c.current > 0 || c.previous > 0)
+            .sort((a, b) => b.current - a.current);
+
+          setMonthlyComparison(comparison);
+        } catch {
+          setMonthlyComparison([]);
+        }
+
+        // Daily Average by Category
+        try {
+          const currentTxs = await getTransactionsByDate(from, to);
+          const catDays = new Map<string, { total: number; icon: string; days: Set<string> }>();
+          for (const t of currentTxs.filter(tx => tx.type === 'expense' && tx.category_name)) {
+            const entry = catDays.get(t.category_name!);
+            const day = t.date.slice(0, 10);
+            if (entry) {
+              entry.total += t.amount;
+              entry.days.add(day);
+            } else {
+              catDays.set(t.category_name!, { total: t.amount, icon: t.category_icon ?? '📦', days: new Set([day]) });
+            }
+          }
+          const dailyAvgs = Array.from(catDays.entries())
+            .map(([name, data]) => ({
+              name,
+              icon: data.icon,
+              avgDaily: data.total / data.days.size,
+              activeDays: data.days.size,
+            }))
+            .sort((a, b) => b.avgDaily - a.avgDaily);
+          setDailyAvgByCat(dailyAvgs);
+        } catch {
+          setDailyAvgByCat([]);
+        }
+
         // Year-over-year comparison
         try {
           const thisMonthKey = from.slice(0, 7);
@@ -128,6 +201,58 @@ export default function Analytics() {
     });
   }, [dailyData]);
 
+  const copySummary = async () => {
+    const lines: string[] = [];
+    lines.push(`TraceCash Analytics — ${periodLabel}`);
+    lines.push('');
+    if (tab === 'expense') {
+      lines.push(`Total Expense: ${formatCurrency(totalExpense)}`);
+      lines.push('');
+      lines.push('Category Breakdown:');
+      expenseCats.forEach(c => {
+        lines.push(`  ${c.category_icon} ${c.category_name}: ${formatCurrency(c.total)} (${c.percentage.toFixed(1)}%)`);
+      });
+    } else if (tab === 'income') {
+      lines.push(`Total Income: ${formatCurrency(totalIncome)}`);
+      lines.push('');
+      lines.push('Income Sources:');
+      incomeCats.forEach(c => {
+        lines.push(`  ${c.category_icon} ${c.category_name}: ${formatCurrency(c.total)} (${c.percentage.toFixed(1)}%)`);
+      });
+    } else if (tab === 'flow') {
+      const periodIncome = cumulativeFlow.reduce((s, d) => s + d.income, 0);
+      const periodExpense = cumulativeFlow.reduce((s, d) => s + d.expense, 0);
+      lines.push(`Income: ${formatCurrency(periodIncome)}`);
+      lines.push(`Expense: ${formatCurrency(periodExpense)}`);
+      lines.push(`Net: ${formatCurrency(periodIncome - periodExpense)}`);
+      if (periodIncome > 0) {
+        lines.push(`Savings Rate: ${Math.round(((periodIncome - periodExpense) / periodIncome) * 100)}%`);
+      }
+    } else if (tab === 'accounts') {
+      lines.push('Account Balances:');
+      balances.forEach(b => {
+        lines.push(`  ${b.account_name}: ${formatCurrency(b.balance)}`);
+      });
+      lines.push(`  Total: ${formatCurrency(balances.reduce((s, b) => s + b.balance, 0))}`);
+    }
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'));
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      // Fallback
+      const el = document.createElement('textarea');
+      el.value = lines.join('\n');
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
   const tabs: { value: Tab; label: string; icon: string }[] = [
     { value: 'expense', label: 'Expense', icon: '📉' },
     { value: 'income', label: 'Income', icon: '📈' },
@@ -136,10 +261,22 @@ export default function Analytics() {
   ];
 
   return (
-    <div className="px-4 pt-4 space-y-3">
+    <div ref={analyticsRef} className="px-4 pt-4 space-y-3">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Analytics</h1>
-        <button onClick={() => setShowDisplayOpts(true)} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm">⚙️</button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={copySummary}
+            className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              copySuccess
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            {copySuccess ? '✓ Copied' : '📋 Copy Summary'}
+          </button>
+          <button onClick={() => setShowDisplayOpts(true)} className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-sm">⚙️</button>
+        </div>
       </div>
 
       <PeriodNav />
@@ -205,6 +342,68 @@ export default function Analytics() {
                 <div><p className="text-[10px] text-gray-400">This Period</p><p className="text-xs font-bold text-gray-900 dark:text-white">{formatCurrency(yoyData.thisYear)}</p></div>
                 <div><p className="text-[10px] text-gray-400">Last Year</p><p className="text-xs font-bold text-gray-900 dark:text-white">{formatCurrency(yoyData.lastYear)}</p></div>
                 <div><p className="text-[10px] text-gray-400">Change</p><p className={`text-xs font-bold ${yoyData.pctChange > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{yoyData.pctChange > 0 ? '▲' : '▼'} {Math.abs(yoyData.pctChange).toFixed(1)}%</p></div>
+              </div>
+            </div>
+          )}
+
+          {/* Monthly Comparison */}
+          {monthlyComparison.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Monthly Comparison</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px]">
+                  <thead>
+                    <tr className="text-gray-400 uppercase text-[9px]">
+                      <th className="text-left pb-2 font-medium">Category</th>
+                      <th className="text-right pb-2 font-medium">This Period</th>
+                      <th className="text-right pb-2 font-medium">Previous</th>
+                      <th className="text-right pb-2 font-medium">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {monthlyComparison.map(c => (
+                      <tr key={c.name}>
+                        <td className="py-1.5 text-gray-700 dark:text-gray-300">
+                          <span className="mr-1">{c.icon}</span>{c.name}
+                        </td>
+                        <td className="py-1.5 text-right text-gray-900 dark:text-white font-medium">
+                          {formatCurrency(c.current)}
+                        </td>
+                        <td className="py-1.5 text-right text-gray-500">
+                          {formatCurrency(c.previous)}
+                        </td>
+                        <td className={`py-1.5 text-right font-bold ${
+                          c.pctChange > 0 ? 'text-red-500' : c.pctChange < 0 ? 'text-emerald-500' : 'text-gray-400'
+                        }`}>
+                          {c.previous === 0 && c.current > 0 ? 'New' :
+                            c.pctChange === 0 ? '—' :
+                            `${c.pctChange > 0 ? '▲' : '▼'} ${Math.abs(c.pctChange).toFixed(0)}%`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Daily Average by Category */}
+          {dailyAvgByCat.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Daily Average by Category</h2>
+              <div className="space-y-1.5">
+                {dailyAvgByCat.map(c => (
+                  <div key={c.name} className="flex items-center justify-between text-[11px]">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {c.icon} {c.name}
+                    </span>
+                    <span className="text-gray-500">
+                      <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(c.avgDaily)}</span>
+                      <span className="text-gray-400">/day</span>
+                      <span className="text-[10px] text-gray-400 ml-1">({c.activeDays} day{c.activeDays !== 1 ? 's' : ''} active)</span>
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -345,6 +544,9 @@ export default function Analytics() {
               </LineChart></ResponsiveContainer></div>
             </div>
           )}
+
+          {/* Cash Flow Forecast */}
+          <CashFlowForecast />
         </div>
       )}
 
