@@ -1,66 +1,85 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0d9488"/>
-      <stop offset="50%" stop-color="#10b981"/>
+      <stop offset="0%" stop-color="#134e4a"/>
+      <stop offset="45%" stop-color="#0f766e"/>
       <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
-    <linearGradient id="coin" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#d1fae5" stop-opacity="0.85"/>
+    <linearGradient id="lensGrad" x1="20%" y1="20%" x2="80%" y2="80%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.25"/>
-    </filter>
-    <filter id="inner-glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="3" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.35"/>
     </filter>
   </defs>
 
-  <!-- Rounded square background -->
-  <rect width="512" height="512" rx="115" ry="115" fill="url(#bg)"/>
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
 
-  <!-- Subtle grid pattern overlay -->
-  <rect width="512" height="512" rx="115" ry="115" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="40"/>
+  <!-- Subtle diagonal light sweep -->
+  <rect width="512" height="512" rx="112" ry="112"
+        fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="60"/>
 
-  <!-- Decorative ring -->
-  <circle cx="256" cy="220" r="148" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
-  <circle cx="256" cy="220" r="130" fill="rgba(0,0,0,0.1)"/>
-  <circle cx="256" cy="220" r="130" fill="url(#coin)" filter="url(#shadow)"/>
+  <!-- ══ MAGNIFYING GLASS ══ -->
 
-  <!-- Inner coin highlight -->
-  <circle cx="256" cy="220" r="118" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+  <!-- Handle (thick rounded rod, bottom-right) -->
+  <line x1="308" y1="308" x2="420" y2="420"
+        stroke="white" stroke-width="52" stroke-linecap="round"
+        filter="url(#shadow)"/>
+  <!-- Handle shine -->
+  <line x1="308" y1="308" x2="410" y2="410"
+        stroke="rgba(255,255,255,0.35)" stroke-width="18" stroke-linecap="round"/>
 
-  <!-- Rising chart bars inside coin -->
-  <rect x="178" y="243" width="22" height="40" rx="4" fill="#10b981" opacity="0.7"/>
-  <rect x="208" y="225" width="22" height="58" rx="4" fill="#10b981" opacity="0.8"/>
-  <rect x="238" y="208" width="22" height="75" rx="4" fill="#059669" opacity="0.9"/>
-  <rect x="268" y="190" width="22" height="93" rx="4" fill="#047857"/>
+  <!-- Lens outer ring (shadow) -->
+  <circle cx="210" cy="210" r="148" fill="rgba(0,0,0,0.25)" filter="url(#shadow)"/>
 
-  <!-- Trend line over bars -->
-  <polyline points="189,243 219,222 249,205 279,183" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Lens outer ring (white) -->
+  <circle cx="210" cy="210" r="148"
+          fill="none" stroke="white" stroke-width="46"/>
 
-  <!-- Arrow at end of trend line -->
-  <polygon points="279,183 295,183 287,168" fill="white"/>
+  <!-- Lens glass fill -->
+  <circle cx="210" cy="210" r="120" fill="url(#lensGrad)"/>
+  <circle cx="210" cy="210" r="120" fill="rgba(255,255,255,0.06)"/>
 
-  <!-- ₱ symbol in bottom-right of coin -->
-  <text x="325" y="270" font-family="'Arial Black', Arial, sans-serif" font-weight="900" font-size="38" fill="#047857" text-anchor="middle" opacity="0.6">₱</text>
+  <!-- ══ COIN INSIDE LENS ══ -->
+  <!-- Coin shadow -->
+  <circle cx="213" cy="216" r="70" fill="rgba(0,0,0,0.2)"/>
+  <!-- Coin body -->
+  <circle cx="210" cy="210" r="70" fill="url(#coinGrad)"/>
+  <!-- Coin inner ring -->
+  <circle cx="210" cy="210" r="60" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+  <!-- Coin shine arc -->
+  <path d="M172,178 a52,52,0,0,1,52,-18" fill="none"
+        stroke="rgba(255,255,255,0.45)" stroke-width="6" stroke-linecap="round"/>
 
-  <!-- App name "TraceCash" at bottom -->
-  <text x="256" y="398" font-family="'Arial Black', Arial, sans-serif" font-weight="900" font-size="52" fill="white" text-anchor="middle" letter-spacing="-1">
-    TraceCash
-  </text>
-  <!-- Underline accent -->
-  <rect x="136" y="412" width="240" height="4" rx="2" fill="rgba(255,255,255,0.5)"/>
+  <!-- ₱ peso sign -->
+  <text x="210" y="232"
+        font-family="'Arial Black', 'Georgia', serif"
+        font-weight="900"
+        font-size="72"
+        fill="white"
+        text-anchor="middle"
+        dominant-baseline="middle">₱</text>
 
-  <!-- Sparkle accents -->
-  <g opacity="0.6">
-    <circle cx="88" cy="88" r="6" fill="white" opacity="0.4"/>
-    <circle cx="100" cy="76" r="3" fill="white" opacity="0.3"/>
-    <circle cx="76" cy="100" r="3" fill="white" opacity="0.3"/>
-    <circle cx="424" cy="88" r="6" fill="white" opacity="0.4"/>
-    <circle cx="436" cy="76" r="3" fill="white" opacity="0.3"/>
-    <circle cx="412" cy="100" r="3" fill="white" opacity="0.3"/>
+  <!-- Lens glare spot -->
+  <ellipse cx="172" cy="168" rx="22" ry="14"
+           fill="rgba(255,255,255,0.4)" transform="rotate(-35,172,168)"/>
+
+  <!-- Small sparkles around lens -->
+  <g fill="white" opacity="0.7">
+    <circle cx="90"  cy="108" r="5"/>
+    <circle cx="78"  cy="94"  r="3"/>
+    <circle cx="104" cy="92"  r="3"/>
+    <circle cx="380" cy="110" r="4"/>
+    <circle cx="394" cy="98"  r="2.5"/>
   </g>
 </svg>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  TraceCash adaptive icon foreground
-  Viewport: 108×108dp  |  Safe zone: 18–90 on each axis (72×72 centre)
+  TraceCash adaptive icon foreground — "finding cash" magnifying glass
+  Viewport: 108×108dp  |  Safe zone: 18–90 (72×72 centre)
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,67 +9,87 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Coin / circle backdrop -->
+    <!-- ── Magnifying glass handle (bottom-right) ── -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.15"
-        android:pathData="M54,22 a32,32,0,1,1,0,64 a32,32,0,1,1,0,-64Z"/>
+        android:strokeColor="#00000000"
+        android:strokeWidth="1"
+        android:pathData="M62,62 L84,84 a6,6,0,0,1,0,8.5 a6,6,0,0,1,-8.5,0 L54,70 Z"/>
 
-    <!-- Coin ring outline -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.5"
-        android:fillAlpha="0"
-        android:pathData="M54,23 a31,31,0,1,1,0,62 a31,31,0,1,1,0,-62Z"/>
-
-    <!-- Bar 1 (shortest, left) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M39,70 L39,60 a2,2,0,0,1,2,-2 L45,58 a2,2,0,0,1,2,2 L47,70 Z"/>
-
-    <!-- Bar 2 (medium, centre) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M50,70 L50,52 a2,2,0,0,1,2,-2 L56,50 a2,2,0,0,1,2,2 L58,70 Z"/>
-
-    <!-- Bar 3 (tallest, right) -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M61,70 L61,43 a2,2,0,0,1,2,-2 L67,41 a2,2,0,0,1,2,2 L69,70 Z"/>
-
-    <!-- Trend line over bars (thick polyline rendered as filled stroke-like path) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M43,58 L54,50 L65,41"/>
-
-    <!-- Arrow head at top of trend -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M65,41 L73,35 L67,48 Z"/>
-
-    <!-- Base line (floor of bars) -->
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2"
-        android:strokeAlpha="0.5"
-        android:pathData="M36,70 L72,70"/>
-
-    <!-- Peso sign bottom-right accent -->
+    <!-- Handle shine strip -->
     <path
         android:fillColor="#FFFFFF"
         android:fillAlpha="0.35"
-        android:pathData="M76,72 a8,8,0,1,1,0,16 a8,8,0,1,1,0,-16Z"/>
+        android:pathData="M62,62 L80,80 a2,2,0,0,1,0,3 L60,65 Z"/>
+
+    <!-- ── Lens outer ring ── -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="9"
+        android:pathData="M42,42 m-28,0 a28,28,0,1,1,56,0 a28,28,0,1,1,-56,0"/>
+
+    <!-- ── Coin inside lens ── -->
+    <!-- Coin shadow layer -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.18"
+        android:pathData="M43,43 m-17,0 a17,17,0,1,1,34,0 a17,17,0,1,1,-34,0"/>
+
+    <!-- Coin body (amber/gold) -->
+    <path
+        android:pathData="M42,42 m-17,0 a17,17,0,1,1,34,0 a17,17,0,1,1,-34,0">
+        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="30" android:startY="30"
+                android:endX="55"   android:endY="55">
+                <item android:offset="0" android:color="#FBBF24"/>
+                <item android:offset="1" android:color="#D97706"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Coin inner ring -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:fillAlpha="0"
+        android:strokeAlpha="0.35"
+        android:pathData="M42,42 m-13,0 a13,13,0,1,1,26,0 a13,13,0,1,1,-26,0"/>
+
+    <!-- ₱ sign — rendered as two horizontal bars + vertical stroke -->
+    <!-- Vertical stroke -->
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.7"
-        android:pathData="M74,75 L78,75 L78,76.5 L74,76.5 Z
-                           M74,77.5 L78,77.5 L78,79 L74,79 Z
-                           M76,73 L76,84"/>
+        android:pathData="M41,30 L43,30 L43,56 L41,56 Z"/>
+    <!-- Top horizontal bar -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,35 L48,35 L48,37 L36,37 Z"/>
+    <!-- Second horizontal bar -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,39.5 L48,39.5 L48,41.5 L36,41.5 Z"/>
+    <!-- Curved top of P -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,30 a9,9,0,0,1,0,13 L43,30 Z"/>
+
+    <!-- Coin glare spot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.4"
+        android:pathData="M31,33 a7,4,0,0,1,8,-3 a7,4,0,0,1,-8,3 Z"/>
+
+    <!-- ── Lens glass glare arc ── -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.3"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M22,34 a24,24,0,0,1,18,-10"/>
 
 </vector>
