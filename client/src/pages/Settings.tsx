@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { useData } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../components/Toast';
@@ -258,20 +260,30 @@ export default function Settings() {
     setShowModal(true);
   };
 
-  const handleExportXlsx = async () => {
+  const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
     if (Capacitor.isNativePlatform()) {
-      showToast('XLSX export is web only — use CSV export instead', 'info');
-      return;
-    }
-    try {
-      const response = await fetch('/api/export/xlsx');
-      const blob = await response.blob();
+      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+      const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+      await Share.share({ title: fileName, url: uri, dialogTitle: 'Save or share file' });
+    } else {
+      const byteChars = atob(base64);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
+      a.href = url; a.download = fileName; a.click();
       URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleExportXlsx = async () => {
+    try {
+      const response = await fetch('/api/export/xlsx');
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     } catch (err) {
       showToast('Export failed', 'error');
     }
@@ -280,15 +292,11 @@ export default function Settings() {
   const handleExportCsv = async () => {
     try {
       const csv = await exportCsv();
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const base64 = btoa(unescape(encodeURIComponent(csv)));
+      const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      await saveAndShare(base64, fileName, 'text/csv');
     } catch (err) {
-      console.error('Export failed:', err);
+      showToast('Export failed', 'error');
     }
   };
 
