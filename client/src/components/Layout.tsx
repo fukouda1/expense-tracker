@@ -22,8 +22,8 @@ export default function Layout() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 flex flex-col">
-      <main className="flex-1 pb-20 w-full max-w-2xl mx-auto">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 flex flex-col safe-top">
+      <main className="flex-1 pb-safe-nav w-full max-w-2xl mx-auto">
         <Outlet />
       </main>
 

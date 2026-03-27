@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useData } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -26,6 +26,7 @@ interface ImportPreview {
 
 export default function Settings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const { dark, toggle } = useTheme();
   const {
@@ -40,7 +41,10 @@ export default function Settings() {
     exportCsv, refresh,
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'accounts' | 'tags' | 'budgets' | 'recurring' | 'templates'>('general');
+  const validTabs = ['general', 'categories', 'accounts', 'tags', 'budgets', 'recurring', 'templates'] as const;
+  type TabKey = typeof validTabs[number];
+  const initialTab = (validTabs.includes(searchParams.get('tab') as TabKey) ? searchParams.get('tab') : 'general') as TabKey;
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
   // Move item up/down in a list and save new order
@@ -57,6 +61,8 @@ export default function Settings() {
     if (activeTab === 'categories') {
       getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions);
     }
+    if (activeTab === 'budgets') loadBudgets(budgetMonth);
+    if (activeTab === 'recurring') loadRecurring();
   }, [activeTab]);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');

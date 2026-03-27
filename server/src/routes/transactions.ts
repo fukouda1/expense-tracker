@@ -308,6 +308,26 @@ router.post('/split', asyncHandler(async (req, res) => {
   res.json({ created });
 }));
 
+// GET /api/transactions/:id — must be after all literal path routes (search, split, etc.)
+router.get('/:id', asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
+  const t = await prisma.transaction.findUnique({
+    where: { id },
+    include: { category: true, account: true, to_account: true, tags: { include: { tag: true } } },
+  });
+  if (!t) { res.status(404).json({ error: 'Not found' }); return; }
+  res.json({
+    id: t.id, amount: t.amount, type: t.type,
+    category_id: t.category_id, account_id: t.account_id, to_account_id: t.to_account_id,
+    date: t.date, notes: t.notes, created_at: t.created_at,
+    category_name: t.category?.name ?? null, category_icon: t.category?.icon ?? null,
+    category_color: t.category?.color ?? null,
+    account_name: t.account.name, to_account_name: t.to_account?.name ?? null,
+    tags: t.tags.map(tt => tt.tag),
+  });
+}));
+
 // DELETE /api/transactions/:id
 router.delete('/:id', asyncHandler(async (req, res) => {
   const id = Number(req.params.id);

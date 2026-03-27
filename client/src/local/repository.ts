@@ -60,6 +60,22 @@ export async function deleteTransaction(id: number): Promise<void> {
   await db.run('DELETE FROM transactions WHERE id=?', [id]);
 }
 
+export async function getTransactionById(id: number): Promise<Transaction | null> {
+  const db = getDb();
+  const result = await db.query(
+    `SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+            a.name as account_name, a2.name as to_account_name
+     FROM transactions t
+     LEFT JOIN categories c ON t.category_id = c.id
+     LEFT JOIN accounts a ON t.account_id = a.id
+     LEFT JOIN accounts a2 ON t.to_account_id = a2.id
+     WHERE t.id = ?`,
+    [id]
+  );
+  const rows = result.values ?? [];
+  return rows.length > 0 ? (rows[0] as Transaction) : null;
+}
+
 export async function getAllTransactions(limit = 50, offset = 0): Promise<Transaction[]> {
   const db = getDb();
   const result = await db.query(

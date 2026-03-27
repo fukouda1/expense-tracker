@@ -61,3 +61,8 @@ input[type=number] { -moz-appearance: textfield; }
 /* Safe areas for notched phones */
 .safe-top { padding-top: env(safe-area-inset-top, 0); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* Main content bottom padding: clears fixed nav + safe area */
+.pb-safe-nav {
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+}

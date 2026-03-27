@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import QuickTemplateBar from '../components/QuickTemplates';
-import type { TransactionType } from '../types';
+import { get } from '../services/api';
+import * as repo from '../local/repository';
+import type { Transaction, TransactionType } from '../types';
+
+const isNative = Capacitor.isNativePlatform();
 
 const NOTES_MAX = 300;
 
@@ -27,7 +32,10 @@ export default function AddTransaction() {
     addAccount, addCategory, addTag } = useData();
 
   const editId = params.get('edit') ? Number(params.get('edit')) : null;
-  const editTx = editId ? transactions.find(t => t.id === editId) : null;
+  // Look in recently loaded transactions first; if missing, fetch async below
+  const [editTx, setEditTx] = useState<Transaction | null>(() =>
+    editId ? (transactions.find(t => t.id === editId) ?? null) : null
+  );
   const returnTo = params.get('returnTo');
 
   // Pre-fill from query params (used by RecurringPreview "+ Add")
@@ -81,6 +89,35 @@ export default function AddTransaction() {
   const [newCatName, setNewCatName] = useState('');
   const [showNewTag, setShowNewTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+
+  // If editId is set but transaction wasn't in recent cache, fetch it and pre-fill form
+  useEffect(() => {
+    if (!editId || editTx) return;
+    const load = async () => {
+      try {
+        let tx: Transaction | null = null;
+        if (isNative) {
+          tx = await repo.getTransactionById(editId);
+        } else {
+          tx = await get<Transaction>(`/api/transactions/${editId}`);
+        }
+        if (tx) {
+          setEditTx(tx);
+          setType(tx.type);
+          setDisplay(String(tx.amount));
+          setCategoryId(tx.category_id ?? null);
+          setAccountId(tx.account_id);
+          setToAccountId(tx.to_account_id ?? null);
+          setDate(tx.date?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+          setTime(tx.date?.slice(11, 16) ?? new Date().toTimeString().slice(0, 5));
+          setNotes(tx.notes ?? '');
+        }
+      } catch {
+        // Transaction not found — form stays in blank/prefill state
+      }
+    };
+    load();
+  }, [editId]);
 
   useEffect(() => {
     if (accounts.length > 0 && !editTx) setAccountId(accounts[0].id);

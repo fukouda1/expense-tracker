@@ -296,7 +296,7 @@ export default function Dashboard() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Budgets</h2>
-              <Link to="/settings" className="text-xs text-emerald-600">Manage</Link>
+              <Link to="/settings?tab=budgets" className="text-xs text-emerald-600">Manage</Link>
             </div>
             <div className="space-y-2">
               {budgets.slice(0, 3).map(b => <BudgetProgress key={b.id} budget={b} />)}
@@ -304,7 +304,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <Link
-            to="/settings"
+            to="/settings?tab=budgets"
             className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
           >
             <span className="text-xl">🎯</span>

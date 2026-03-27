@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import TransactionCard from '../components/TransactionCard';
+import TransactionDetail from '../components/TransactionDetail';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Modal from '../components/Modal';
 import { formatCurrency, getCurrentMonth, getDaysInMonth, getFirstDayOfMonth } from '../utils/formatters';
 import type { DailySummary, Transaction } from '../types';
@@ -9,7 +12,8 @@ import type { DailySummary, Transaction } from '../types';
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CalendarView() {
-  const { getDailySummaries, getTransactionsByDate, copyDayTransactions } = useData();
+  const navigate = useNavigate();
+  const { getDailySummaries, getTransactionsByDate, copyDayTransactions, removeTransaction } = useData();
   const { showToast } = useToast();
   const [month, setMonth] = useState(getCurrentMonth());
   const [dailyData, setDailyData] = useState<DailySummary[]>([]);
@@ -18,6 +22,8 @@ export default function CalendarView() {
   const [copySource, setCopySource] = useState<string | null>(null);
   const [copyTarget, setCopyTarget] = useState('');
   const [copying, setCopying] = useState(false);
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     getDailySummaries(month).then(setDailyData);
@@ -147,7 +153,9 @@ export default function CalendarView() {
             <p className="text-sm text-gray-400 text-center py-4">No transactions on this day</p>
           ) : (
             <div className="space-y-1.5">
-              {dayTransactions.map(t => <TransactionCard key={t.id} transaction={t} />)}
+              {dayTransactions.map(t => (
+                <TransactionCard key={t.id} transaction={t} onClick={() => setDetailTx(t)} />
+              ))}
             </div>
           )}
         </div>
@@ -191,6 +199,38 @@ export default function CalendarView() {
           </button>
         </div>
       </Modal>
+
+      {/* Transaction Detail Modal */}
+      <TransactionDetail
+        transaction={detailTx}
+        onClose={() => setDetailTx(null)}
+        onEdit={tx => {
+          setDetailTx(null);
+          navigate(`/add?edit=${tx.id}&returnTo=/calendar`);
+        }}
+        onDelete={id => setConfirmDeleteId(id)}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Delete Transaction"
+        message="Are you sure you want to delete this transaction? This cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        onConfirm={async () => {
+          if (confirmDeleteId === null) return;
+          await removeTransaction(confirmDeleteId);
+          setConfirmDeleteId(null);
+          setDetailTx(null);
+          showToast('Transaction deleted', 'success');
+          if (selectedDate) {
+            getTransactionsByDate(selectedDate, selectedDate + 'T23:59:59').then(setDayTransactions);
+          }
+          getDailySummaries(month).then(setDailyData);
+        }}
+        onClose={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }
