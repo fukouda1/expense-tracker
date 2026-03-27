@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useData } from '../contexts/DataContext';
@@ -271,6 +271,8 @@ export default function Settings() {
 
   const [importResult, setImportResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const importTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleFilePreview = async (file: File) => {
     setImportFile(file);
@@ -348,6 +350,13 @@ export default function Settings() {
     if (!importFile) return;
     setImporting(true);
     setImportResult(null);
+    setImportProgress(0);
+    // Animate progress bar from 0 → 85% while import runs
+    let pct = 0;
+    importTimerRef.current = setInterval(() => {
+      pct = Math.min(pct + (pct < 50 ? 4 : pct < 75 ? 2 : 0.5), 85);
+      setImportProgress(pct);
+    }, 150);
 
     const isNative = Capacitor.isNativePlatform();
 
@@ -417,7 +426,10 @@ export default function Settings() {
       setImportResult('Error: Import failed');
       console.error(err);
     } finally {
-      setImporting(false);
+      // Jump to 100% then clear
+      if (importTimerRef.current) clearInterval(importTimerRef.current);
+      setImportProgress(100);
+      setTimeout(() => { setImporting(false); setImportProgress(0); }, 600);
     }
   };
 
@@ -473,7 +485,7 @@ export default function Settings() {
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 pt-4 pb-8 space-y-4 safe-top">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 pt-4 space-y-4 safe-top pb-safe">
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-gray-400 text-lg">&larr;</button>
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
@@ -681,6 +693,26 @@ export default function Settings() {
                 </div>
               </div>
             )}
+
+            {/* Import progress bar */}
+            {importing && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400">Importing data...</span>
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{Math.round(importProgress)}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-200 ease-out"
+                    style={{ width: `${importProgress}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {importProgress < 30 ? 'Reading file…' : importProgress < 60 ? 'Processing records…' : importProgress < 90 ? 'Saving to database…' : 'Finishing up…'}
+                </p>
+              </div>
+            )}
+
             {importResult && (
               <p className={`mt-2 text-xs ${importResult.startsWith('Error') ? 'text-red-500' : 'text-emerald-600'}`}>
                 {importResult}

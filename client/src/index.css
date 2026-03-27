@@ -62,6 +62,11 @@ input[type=number] { -moz-appearance: textfield; }
 .safe-top { padding-top: env(safe-area-inset-top, 0); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 
+/* Standalone-page bottom padding: 1.5rem breathing room + gesture nav inset */
+.pb-safe {
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Main content bottom padding: clears fixed nav + safe area */
 .pb-safe-nav {
   padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);

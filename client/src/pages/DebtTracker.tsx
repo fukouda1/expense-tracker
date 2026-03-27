@@ -217,7 +217,7 @@ export default function DebtTracker() {
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 px-4 pt-4 space-y-3 safe-top safe-bottom">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 px-4 pt-4 space-y-3 safe-top pb-safe">
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-gray-400 text-lg">&larr;</button>
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Debt Tracker</h1>
