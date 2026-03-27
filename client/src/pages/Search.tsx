@@ -29,6 +29,9 @@ export default function Search() {
   const [amountMin, setAmountMin] = useState(initial?.amountMin ?? '');
   const [amountMax, setAmountMax] = useState(initial?.amountMax ?? '');
   const [results, setResults] = useState<Transaction[]>(initial?.results ?? []);
+  const [total, setTotal] = useState<number>(initial?.total ?? 0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searched, setSearched] = useState(initial?.searched ?? false);
   const [showFilters, setShowFilters] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -51,22 +54,40 @@ export default function Search() {
     };
   }, []);
 
+  const buildFilters = (): TransactionFilters => {
+    const filters: TransactionFilters = {};
+    if (keyword) filters.search = keyword;
+    if (dateFrom && dateTo) filters.dateRange = { from: dateFrom, to: dateTo + 'T23:59:59' };
+    if (categoryId) filters.categoryId = categoryId as number;
+    if (accountId) filters.accountId = accountId as number;
+    if (type) filters.type = type as TransactionType;
+    if (amountMin) filters.amountMin = Number(amountMin);
+    if (amountMax) filters.amountMax = Number(amountMax);
+    return filters;
+  };
+
   const handleSearch = async () => {
     setSearching(true);
     try {
-      const filters: TransactionFilters = {};
-      if (keyword) filters.search = keyword;
-      if (dateFrom && dateTo) filters.dateRange = { from: dateFrom, to: dateTo + 'T23:59:59' };
-      if (categoryId) filters.categoryId = categoryId as number;
-      if (accountId) filters.accountId = accountId as number;
-      if (type) filters.type = type as TransactionType;
-      if (amountMin) filters.amountMin = Number(amountMin);
-      if (amountMax) filters.amountMax = Number(amountMax);
-      const res = await searchTransactions(filters);
-      setResults(res);
+      const res = await searchTransactions(buildFilters(), 0);
+      setResults(res.results);
+      setTotal(res.total);
+      setHasMore(res.hasMore);
       setSearched(true);
     } finally {
       setSearching(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const res = await searchTransactions(buildFilters(), results.length);
+      setResults(prev => [...prev, ...res.results]);
+      setTotal(res.total);
+      setHasMore(res.hasMore);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -213,7 +234,7 @@ export default function Search() {
           {/* Summary bar */}
           <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-xl p-2.5 border border-gray-200 dark:border-gray-600">
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-              {results.length} result{results.length !== 1 ? 's' : ''}
+              {results.length}{hasMore ? ` of ${total}` : ''} result{total !== 1 ? 's' : ''}
             </span>
             <div className="flex gap-2 text-[10px] font-semibold">
               {totalIncome > 0 && <span className="text-emerald-500">+{formatCurrency(totalIncome)}</span>}
@@ -235,6 +256,15 @@ export default function Search() {
                   onDelete={() => handleDelete(t)}
                 />
               ))}
+              {hasMore && (
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="w-full py-2.5 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-emerald-600 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors disabled:opacity-50"
+                >
+                  {loadingMore ? 'Loading...' : `Load more (${total - results.length} remaining)`}
+                </button>
+              )}
             </div>
           )}
         </>

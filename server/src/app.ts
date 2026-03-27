@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -39,5 +39,30 @@ app.use('/api/recurring', recurringRouter);
 app.use('/api/import', importRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/export/pdf', pdfRouter);
+
+// Global error handler — must be last middleware
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('[Error]', err?.message ?? err);
+
+  // Prisma: record not found (update/delete on non-existent ID)
+  if (err?.code === 'P2025') {
+    return res.status(404).json({ error: 'Record not found' });
+  }
+  // Prisma: foreign key constraint
+  if (err?.code === 'P2003') {
+    return res.status(400).json({ error: 'Referenced record does not exist' });
+  }
+  // Prisma: unique constraint
+  if (err?.code === 'P2002') {
+    return res.status(409).json({ error: 'A record with this value already exists' });
+  }
+  // Explicit HTTP errors thrown by route handlers
+  if (err?.status) {
+    return res.status(err.status).json({ error: err.message });
+  }
+
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 export default app;

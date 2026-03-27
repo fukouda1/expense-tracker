@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import QuickTemplateBar from '../components/QuickTemplates';
 import type { TransactionType } from '../types';
+
+const NOTES_MAX = 300;
 
 const PINNED_CATS_KEY = 'tracecash_pinned_cats';
 function getPinnedCats(): number[] {
@@ -19,6 +22,7 @@ function togglePinnedCat(id: number): number[] {
 export default function AddTransaction() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { showToast } = useToast();
   const { categories, accounts, tags, addTransaction, editTransaction, transactions,
     addAccount, addCategory, addTag } = useData();
 
@@ -51,6 +55,7 @@ export default function AddTransaction() {
   const [notes, setNotes] = useState(editTx?.notes ?? prefillNotes ?? '');
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [amountError, setAmountError] = useState(false);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showToAccountPicker, setShowToAccountPicker] = useState(false);
@@ -164,7 +169,12 @@ export default function AddTransaction() {
 
   const handleSubmit = async () => {
     const amount = parseFloat(display);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0) {
+      setAmountError(true);
+      setTimeout(() => setAmountError(false), 600);
+      return;
+    }
+    setAmountError(false);
     setSaving(true);
     try {
       const data = {
@@ -195,14 +205,24 @@ export default function AddTransaction() {
           goBack();
         }
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to save transaction';
+      showToast(msg, 'error');
     } finally {
       setSaving(false);
     }
   };
 
   const typeColor = type === 'income' ? 'text-emerald-400' : type === 'transfer' ? 'text-blue-400' : 'text-red-400';
+  const isFutureDate = date > new Date().toISOString().slice(0, 10);
+
+  const handleTypeChange = (newType: TransactionType) => {
+    if (newType !== type && categoryId !== null) {
+      showToast('Category cleared — types do not match', 'info');
+      setCategoryId(null);
+    }
+    setType(newType);
+  };
 
   const keypad = [
     { label: '+', action: () => handleOperator('+'), op: true },
@@ -260,7 +280,7 @@ export default function AddTransaction() {
             <div key={t} className="flex items-center">
               {i > 0 && <span className="text-gray-600 mx-2 sm:mx-3">|</span>}
               <button
-                onClick={() => setType(t)}
+                onClick={() => handleTypeChange(t)}
                 className={`text-[11px] sm:text-sm font-semibold uppercase tracking-wide flex items-center gap-1 transition-colors ${
                   type === t ? typeColor : 'text-gray-500'
                 }`}
@@ -317,13 +337,17 @@ export default function AddTransaction() {
           <textarea
             ref={notesRef}
             value={notes}
-            onChange={e => { setNotes(e.target.value); setShowNoteSuggestions(true); }}
+            onChange={e => { if (e.target.value.length <= NOTES_MAX) { setNotes(e.target.value); setShowNoteSuggestions(true); } }}
             onFocus={() => setShowNoteSuggestions(true)}
             onBlur={() => setTimeout(() => setShowNoteSuggestions(false), 150)}
             placeholder="Add notes"
             rows={2}
+            maxLength={NOTES_MAX}
             className="w-full p-2 sm:p-3 bg-gray-800 border border-gray-700 rounded-lg text-xs sm:text-sm text-gray-200 placeholder-gray-500 resize-none"
           />
+          {notes.length > NOTES_MAX * 0.85 && (
+            <span className="absolute bottom-2 right-5 text-[9px] text-amber-400">{NOTES_MAX - notes.length} left</span>
+          )}
           {showNoteSuggestions && filteredNotes.length > 0 && (
             <div className="absolute left-3 right-3 sm:left-4 sm:right-4 top-full -mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-40 max-h-36 overflow-y-auto">
               {filteredNotes.map((n, i) => (
@@ -392,10 +416,18 @@ export default function AddTransaction() {
       {/* === BOTTOM SECTION (always pinned) === */}
       <div className="flex-shrink-0">
         {/* Calculator Display */}
-        <div className="px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 mx-3 sm:mx-4 rounded-xl flex items-center justify-end gap-2 sm:gap-3">
-          <span className={`text-3xl sm:text-5xl font-light ${typeColor} tracking-tight truncate`}>
-            {display === '0' ? '0' : display}
-          </span>
+        <div className={`px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 mx-3 sm:mx-4 rounded-xl flex items-center justify-end gap-2 sm:gap-3 transition-all ${amountError ? 'ring-2 ring-red-500 animate-pulse' : ''}`}>
+          <div className="flex flex-col items-end flex-1 min-w-0">
+            <span className={`text-3xl sm:text-5xl font-light ${amountError ? 'text-red-400' : typeColor} tracking-tight truncate`}>
+              {display === '0' ? '0' : display}
+            </span>
+            {amountError && (
+              <span className="text-red-400 text-[10px] mt-0.5">Enter an amount greater than 0</span>
+            )}
+            {pendingOp && !amountError && (
+              <span className="text-gray-500 text-[10px] mt-0.5">Pending: {pendingOp}</span>
+            )}
+          </div>
           <button onClick={handleBackspace} className="text-gray-400 text-lg sm:text-xl p-1 flex-shrink-0">⌫</button>
         </div>
 
@@ -420,12 +452,15 @@ export default function AddTransaction() {
 
         {/* Date & Time Row */}
         <div className="flex items-center justify-center gap-4 sm:gap-6 px-4 py-1.5 sm:py-2 pb-2 sm:pb-4 safe-bottom">
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="bg-transparent text-gray-300 text-xs sm:text-sm border-none outline-none"
-          />
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className={`bg-transparent text-xs sm:text-sm border-none outline-none ${isFutureDate ? 'text-amber-400' : 'text-gray-300'}`}
+            />
+            {isFutureDate && <span className="text-amber-400 text-[10px]">⚠ future</span>}
+          </div>
           <span className="text-gray-600">|</span>
           <input
             type="time"

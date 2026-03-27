@@ -18,18 +18,27 @@ import QuickTemplateBar from '../components/QuickTemplates';
 import SavingsGauge from '../components/SavingsGauge';
 import SpendingAlerts from '../components/SpendingAlerts';
 import { formatCurrency } from '../utils/formatters';
+import { get } from '../services/api';
 import type { CategorySummary, AccountBalance, Transaction } from '../types';
+
+interface DebtSummary { theyOwe: number; iOwe: number }
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { transactions, budgets, loading, getAccountBalances, loadBudgets, getTransactionsByDate, removeTransaction, refresh } = useData();
-  // All transactions for debt calculation (not period-filtered)
-  const [allTxForDebt, setAllTxForDebt] = useState<Transaction[]>([]);
+  const { transactions, budgets, recurring, loading, getAccountBalances, loadBudgets, getTransactionsByDate, removeTransaction, refresh } = useData();
+  const [debtSummary, setDebtSummary] = useState<DebtSummary>({ theyOwe: 0, iOwe: 0 });
   const { dark, toggle } = useTheme();
   const { getPeriodRange, period, viewMode, periodLabel } = useDisplay();
   const { showToast } = useToast();
 
   const [monthlyTotal, setMonthlyTotal] = useState({ income: 0, expense: 0 });
+  const [prevMonthExpense, setPrevMonthExpense] = useState<number | null>(null);
+  const recurringBurnRate = useMemo(() => {
+    const multipliers: Record<string, number> = { daily: 365 / 12, weekly: 52 / 12, monthly: 1, yearly: 1 / 12 };
+    return Math.round(
+      recurring.filter(r => r.active && r.type === 'expense').reduce((s, r) => s + r.amount * (multipliers[r.recurrence_type] ?? 1), 0) * 100
+    ) / 100;
+  }, [recurring]);
   const [categoryData, setCategoryData] = useState<CategorySummary[]>([]);
   const [balances, setBalances] = useState<AccountBalance[]>([]);
   const [balanceHidden, setBalanceHidden] = useState(() => localStorage.getItem('tracecash_hide_balance') === '1');
@@ -39,8 +48,8 @@ export default function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
-    // Load all transactions for debt calculation
-    getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTxForDebt);
+    // Load lightweight debt summary instead of all transactions
+    get<DebtSummary>('/analytics/debt-summary').then(setDebtSummary).catch(() => {});
   }, [loading, transactions]);
 
   useEffect(() => {
@@ -50,6 +59,20 @@ export default function Dashboard() {
       const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       setMonthlyTotal({ income, expense });
+
+      // Previous month expense for comparison badge
+      if (period === 'monthly' || viewMode === 'monthly') {
+        try {
+          const currentMonth = from.slice(0, 7);
+          const [y, m] = currentMonth.split('-').map(Number);
+          const prevDate = new Date(y, m - 2, 1);
+          const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+          const prev = await get<{ income: number; expense: number }>(`/analytics/monthly?month=${prevMonth}`);
+          setPrevMonthExpense(prev.expense);
+        } catch { setPrevMonthExpense(null); }
+      } else {
+        setPrevMonthExpense(null);
+      }
       // Category breakdown
       const catMap = new Map<string, CategorySummary>();
       for (const t of txs.filter(tx => tx.type === 'expense' && tx.category_name)) {
@@ -69,7 +92,7 @@ export default function Dashboard() {
     if (!loading) load();
   }, [loading, period, viewMode, transactions]);
 
-  const totalBalance = balances.reduce((s, b) => s + b.balance, 0);
+  const totalBalance = Math.round(balances.reduce((s, b) => s + b.balance, 0) * 100) / 100;
   const avgDaily = useMemo(() => {
     if (!recentTx.length) return 0;
     const days = new Set(recentTx.filter(t => t.type === 'expense').map(t => t.date.slice(0, 10)));
@@ -98,9 +121,7 @@ export default function Dashboard() {
     const id = deleteConfirm.id;
     setDeleteConfirm(null);
     await removeTransaction(id);
-    showToast('Transaction deleted', 'undo', {
-      onUndo: async () => { await refresh(); showToast('Data refreshed', 'info'); }
-    });
+    showToast('Transaction deleted', 'success');
   };
 
   return (
@@ -143,6 +164,21 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* vs Last Month badge */}
+        {prevMonthExpense !== null && prevMonthExpense > 0 && (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border ${
+            monthlyTotal.expense > prevMonthExpense
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+          }`}>
+            <span className="text-base">{monthlyTotal.expense > prevMonthExpense ? '📈' : '📉'}</span>
+            <span>
+              {monthlyTotal.expense > prevMonthExpense ? '+' : '-'}
+              {formatCurrency(Math.abs(monthlyTotal.expense - prevMonthExpense))} vs last month
+            </span>
+          </div>
+        )}
+
         {/* Period Summary */}
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-2.5 sm:p-3 border border-gray-100 dark:border-gray-700 text-center">
@@ -180,14 +216,22 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Recurring Burn Rate */}
+        {recurringBurnRate > 0 && (
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-3 border border-purple-200 dark:border-purple-800 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium uppercase tracking-wide">🔁 Fixed Monthly Costs</p>
+              <p className="text-sm font-bold text-purple-900 dark:text-purple-100 mt-0.5">{formatCurrency(recurringBurnRate)}<span className="text-[10px] font-normal text-purple-500 dark:text-purple-400">/mo</span></p>
+            </div>
+            <p className="text-[10px] text-purple-500 dark:text-purple-400 text-right leading-relaxed max-w-[100px]">
+              {recurring.filter(r => r.active && r.type === 'expense').length} recurring expense{recurring.filter(r => r.active && r.type === 'expense').length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
         {/* Savings Rate + Debts Card */}
         {(() => {
-          const lent = allTxForDebt.filter(t => t.category_name === 'Lent Money').reduce((s, t) => s + t.amount, 0);
-          const returned = allTxForDebt.filter(t => t.category_name === 'Lent Payment').reduce((s, t) => s + t.amount, 0);
-          const borrowed = allTxForDebt.filter(t => t.category_name === 'Debt').reduce((s, t) => s + t.amount, 0);
-          const paid = allTxForDebt.filter(t => t.category_name === 'Debt Payment').reduce((s, t) => s + t.amount, 0);
-          const theyOwe = Math.max(0, lent - returned);
-          const iOwe = Math.max(0, borrowed - paid);
+          const { theyOwe, iOwe } = debtSummary;
           const hasSavings = monthlyTotal.income > 0;
           const hasDebts = theyOwe > 0 || iOwe > 0;
           if (!hasSavings && !hasDebts) return null;
@@ -230,7 +274,7 @@ export default function Dashboard() {
         })()}
 
         {/* Budgets */}
-        {budgets.length > 0 && (
+        {budgets.length > 0 ? (
           <div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Budgets</h2>
@@ -240,6 +284,18 @@ export default function Dashboard() {
               {budgets.slice(0, 3).map(b => <BudgetProgress key={b.id} budget={b} />)}
             </div>
           </div>
+        ) : (
+          <Link
+            to="/settings"
+            className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+          >
+            <span className="text-xl">🎯</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Set a monthly budget</p>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400">Track your spending limits and get alerts</p>
+            </div>
+            <span className="text-amber-400 text-sm">›</span>
+          </Link>
         )}
 
         {/* Category Pie */}

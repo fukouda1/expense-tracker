@@ -26,7 +26,7 @@ interface DataContextType {
   removeTransaction: (id: number) => Promise<void>;
   // Data loading
   loadTransactions: (limit?: number, offset?: number) => Promise<void>;
-  searchTransactions: (filters: TransactionFilters) => Promise<Transaction[]>;
+  searchTransactions: (filters: TransactionFilters, offset?: number) => Promise<{ results: Transaction[]; total: number; hasMore: boolean }>;
   getTransactionsByDate: (from: string, to: string) => Promise<Transaction[]>;
   // Analytics
   getTodayTotal: () => Promise<{ income: number; expense: number }>;
@@ -181,9 +181,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await loadTransactions();
   };
 
-  const searchTx = async (filters: TransactionFilters): Promise<Transaction[]> => {
+  const searchTx = async (filters: TransactionFilters, offset = 0): Promise<{ results: Transaction[]; total: number; hasMore: boolean }> => {
     if (isNative) {
-      return repo.searchTransactions(filters);
+      const results = await repo.searchTransactions(filters);
+      return { results, total: results.length, hasMore: false };
     }
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
@@ -193,7 +194,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (filters.type) params.set('type', filters.type);
     if (filters.amountMin !== undefined) params.set('amountMin', String(filters.amountMin));
     if (filters.amountMax !== undefined) params.set('amountMax', String(filters.amountMax));
-    return api.get<Transaction[]>(`/api/transactions/search?${params}`);
+    params.set('limit', '50');
+    params.set('offset', String(offset));
+    return api.get<{ results: Transaction[]; total: number; hasMore: boolean }>(`/api/transactions/search?${params}`);
   };
 
   const getTransactionsByDate = async (from: string, to: string): Promise<Transaction[]> => {

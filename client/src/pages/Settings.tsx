@@ -151,13 +151,17 @@ export default function Settings() {
 
   const handleSaveBudget = async () => {
     if (!budgetAmount) return;
-    if (editBudgetId) {
-      await editBudget(editBudgetId, budgetCatId || null, Number(budgetAmount), budgetMonth);
-    } else {
-      await saveBudget(budgetCatId || null, Number(budgetAmount), budgetMonth);
+    try {
+      if (editBudgetId) {
+        await editBudget(editBudgetId, budgetCatId || null, Number(budgetAmount), budgetMonth);
+      } else {
+        await saveBudget(budgetCatId || null, Number(budgetAmount), budgetMonth);
+      }
+      setShowModal(false);
+      await loadBudgets(budgetMonth);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save budget', 'error');
     }
-    setShowModal(false);
-    await loadBudgets(budgetMonth);
   };
 
   const handleEditBudget = (b: Budget) => {
@@ -613,14 +617,26 @@ export default function Settings() {
                   </div>
                 )}
 
-                {/* Confirm Import button */}
-                <button
-                  onClick={() => { handleImportCsv(); setImportPreview(null); }}
-                  disabled={importing}
-                  className="w-full py-2 bg-emerald-500 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium"
-                >
-                  {importing ? 'Importing...' : 'Confirm Import'}
-                </button>
+                {/* Backup warning + Confirm Import */}
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-2.5">
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium mb-1.5">⚠️ Recommend backing up first</p>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400 mb-2.5">Duplicate transactions will be skipped, but importing the wrong file cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => { await handleExportXlsx(); }}
+                      className="flex-1 py-1.5 bg-white dark:bg-gray-700 border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-300 rounded-lg text-[11px] font-medium hover:bg-amber-50 transition-colors"
+                    >
+                      📥 Export Backup
+                    </button>
+                    <button
+                      onClick={() => { handleImportCsv(); setImportPreview(null); }}
+                      disabled={importing}
+                      className="flex-1 py-1.5 bg-emerald-500 disabled:bg-gray-400 text-white rounded-lg text-[11px] font-medium hover:bg-emerald-600 transition-colors"
+                    >
+                      {importing ? 'Importing...' : 'Import Anyway'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             {importResult && (

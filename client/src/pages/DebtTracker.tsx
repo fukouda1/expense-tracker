@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
+import { get } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { formatCurrency, formatDate } from '../utils/formatters';
@@ -9,14 +10,15 @@ import type { Transaction } from '../types';
 
 export default function DebtTracker() {
   const navigate = useNavigate();
-  const { categories, accounts, addTransaction, getTransactionsByDate } = useData();
+  const { categories, accounts, addTransaction } = useData();
   const { showToast } = useToast();
 
-  // Load ALL transactions (not period-filtered) for complete debt picture
+  // Load only debt-category transactions via lightweight endpoint
   const [allTx, setAllTx] = useState<Transaction[]>([]);
-  useEffect(() => {
-    getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTx);
+  const loadDebtTx = useCallback(() => {
+    get<Transaction[]>('/analytics/debt-transactions').then(setAllTx).catch(() => {});
   }, []);
+  useEffect(() => { loadDebtTx(); }, [loadDebtTx]);
 
   const [tab, setTab] = useState<'owe' | 'owed'>('owed');
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
@@ -174,8 +176,8 @@ export default function DebtTracker() {
       );
       setPaymentModal(null);
       setPaymentAmount('');
-      // Reload all transactions to refresh debt data
-      getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTx);
+      // Reload debt transactions to refresh debt data
+      loadDebtTx();
     } catch (err) {
       showToast('Failed to record payment', 'error');
     } finally {

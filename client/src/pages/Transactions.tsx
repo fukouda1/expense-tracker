@@ -129,9 +129,7 @@ export default function Transactions() {
     const id = deleteConfirm.id;
     setDeleteConfirm(null);
     await removeTransaction(id);
-    showToast('Transaction deleted', 'undo', {
-      onUndo: async () => { await refresh(); showToast('Data refreshed', 'info'); }
-    });
+    showToast('Transaction deleted', 'success');
   };
 
   const handleCopyDay = async () => {
@@ -327,14 +325,20 @@ export default function Transactions() {
         {/* Change category picker modal */}
         <Modal open={showCategoryPicker} onClose={() => setShowCategoryPicker(false)} title="Change Category">
           <div className="space-y-1 max-h-80 overflow-y-auto">
-            {categories.filter(c => c.active).map(c => (
-              <button key={c.id} onClick={() => handleBulkChangeCategory(c.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left">
-                <span className="text-lg">{c.icon}</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</span>
-                <span className="text-[10px] text-gray-400 ml-auto">{c.type}</span>
-              </button>
-            ))}
+            {(() => {
+              const selectedTypes = new Set(filtered.filter(t => selectedIds.has(t.id)).map(t => t.type));
+              const isSingleType = selectedTypes.size === 1;
+              return categories
+                .filter(c => c.active && (!isSingleType || selectedTypes.has(c.type as any)))
+                .map(c => (
+                  <button key={c.id} onClick={() => handleBulkChangeCategory(c.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left">
+                    <span className="text-lg">{c.icon}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{c.name}</span>
+                    <span className="text-[10px] text-gray-400 ml-auto">{c.type}</span>
+                  </button>
+                ));
+            })()}
           </div>
         </Modal>
 

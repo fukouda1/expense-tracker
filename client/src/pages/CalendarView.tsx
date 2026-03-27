@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useToast } from '../components/Toast';
 import TransactionCard from '../components/TransactionCard';
 import Modal from '../components/Modal';
 import { formatCurrency, getCurrentMonth, getDaysInMonth, getFirstDayOfMonth } from '../utils/formatters';
@@ -9,6 +10,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function CalendarView() {
   const { getDailySummaries, getTransactionsByDate, copyDayTransactions } = useData();
+  const { showToast } = useToast();
   const [month, setMonth] = useState(getCurrentMonth());
   const [dailyData, setDailyData] = useState<DailySummary[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -130,7 +132,7 @@ export default function CalendarView() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-              {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </h2>
             {dayTransactions.length > 0 && (
               <button
@@ -157,7 +159,7 @@ export default function CalendarView() {
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Copying from</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-white">
-              {copySource && new Date(copySource).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              {copySource && new Date(copySource + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{dayTransactions.length} transaction(s)</p>
           </div>
@@ -176,10 +178,10 @@ export default function CalendarView() {
               setCopying(true);
               try {
                 const count = await copyDayTransactions(copySource, copyTarget);
-                alert(`Copied ${count} transaction(s)`);
+                showToast(`Copied ${count} transaction${count !== 1 ? 's' : ''}`, 'success');
                 setCopySource(null);
                 getDailySummaries(month).then(setDailyData);
-              } catch { alert('Copy failed'); }
+              } catch { showToast('Copy failed', 'error'); }
               finally { setCopying(false); }
             }}
             disabled={copying || !copyTarget || copyTarget === copySource}

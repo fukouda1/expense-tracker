@@ -16,6 +16,7 @@ interface ImportResult {
   budgets: number;
   recurring: number;
   transactions: number;
+  duplicatesSkipped: number;
   errors: string[];
 }
 
@@ -24,7 +25,7 @@ interface ImportResult {
 // ══════════════════════════════════════════════════════
 
 export async function importFromSheets(sheets: Map<string, Row[]>): Promise<ImportResult> {
-  const result: ImportResult = { accounts: 0, categories: 0, tags: 0, budgets: 0, recurring: 0, transactions: 0, errors: [] };
+  const result: ImportResult = { accounts: 0, categories: 0, tags: 0, budgets: 0, recurring: 0, transactions: 0, duplicatesSkipped: 0, errors: [] };
 
   // ── Accounts ──
   const accountRows = sheets.get('Accounts') ?? [];
@@ -95,7 +96,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
       const catName = str(r, 'CATEGORY');
       const catId = catName ? (catNameMap.get(catName) ?? null) : null;
       await prisma.budget.upsert({
-        where: { category_id_month: { category_id: catId, month } },
+        where: { category_id_month: { category_id: catId as number, month } },
         create: { category_id: catId, amount, month },
         update: { amount },
       });
@@ -128,6 +129,15 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
   }
 
   // ── Transactions ──
+  // Build fingerprint set of existing transactions to skip duplicates on re-import
+  const existingTxs = await prisma.transaction.findMany({
+    select: { date: true, amount: true, type: true, account_id: true },
+  });
+  const existingFingerprints = new Set(
+    existingTxs.map(t => `${t.date}|${t.amount}|${t.type}|${t.account_id}`)
+  );
+  let duplicatesSkipped = 0;
+
   const txRows = sheets.get('Transactions') ?? [];
   for (let i = 0; i < txRows.length; i++) {
     const r = txRows[i];
@@ -141,15 +151,22 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
       const toAccId = toAccName ? (accountNameMap.get(toAccName) ?? null) : null;
       const catName = str(r, 'CATEGORY');
       const catId = catName ? (catNameMap.get(catName) ?? null) : null;
+      const txType = str(r, 'TYPE') || 'expense';
+      const txDate = str(r, 'DATE');
+
+      // Skip exact duplicates (same date + amount + type + account)
+      const fp = `${txDate}|${amount}|${txType}|${accId}`;
+      if (existingFingerprints.has(fp)) { duplicatesSkipped++; continue; }
+      existingFingerprints.add(fp); // prevent within-file duplicates too
 
       const tx = await prisma.transaction.create({
         data: {
           amount,
-          type: str(r, 'TYPE') || 'expense',
+          type: txType,
           category_id: catId,
           account_id: accId,
           to_account_id: toAccId,
-          date: str(r, 'DATE'),
+          date: txDate,
           notes: str(r, 'NOTES'),
         },
       });
@@ -169,6 +186,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     }
   }
 
+  result.duplicatesSkipped = duplicatesSkipped;
   return result;
 }
 
@@ -284,6 +302,14 @@ export async function parseLegacyCsvAndImport(csvContent: string): Promise<{ imp
   for (const c of await prisma.category.findMany()) catCache.set(c.name, c.id);
   for (const a of await prisma.account.findMany()) accCache.set(a.name, a.id);
 
+  // Build fingerprint set to prevent duplicate imports
+  const existingTxs = await prisma.transaction.findMany({
+    select: { date: true, amount: true, type: true, account_id: true },
+  });
+  const existingFingerprints = new Set(
+    existingTxs.map(t => `${t.date}|${t.amount}|${t.type}|${t.account_id}`)
+  );
+
   async function getOrCreateCat(orig: string): Promise<number | null> {
     const m = CATEGORY_MAP[orig];
     const name = m?.name ?? orig;
@@ -320,6 +346,11 @@ export async function parseLegacyCsvAndImport(csvContent: string): Promise<{ imp
         const cn = catStr.trim();
         if (cn && cn !== '-' && cn !== '  -  ') catId = await getOrCreateCat(cn);
       }
+      // Skip duplicates (same date + amount + type + account)
+      const fp = `${date}|${amount}|${type}|${accId}`;
+      if (existingFingerprints.has(fp)) { skipped++; continue; }
+      existingFingerprints.add(fp);
+
       await prisma.transaction.create({ data: { amount, type, category_id: catId, account_id: accId, to_account_id: toAccId, date, notes: notesParts.join(',').trim() } });
       imported++;
     } catch (e: any) { errors.push(`Row ${i + 1}: ${e.message}`); if (errors.length > 20) break; }
