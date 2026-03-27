@@ -1,95 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  TraceCash adaptive icon foreground — "finding cash" magnifying glass
+  TraceCash adaptive icon foreground — magnifying glass + flying cash
   Viewport: 108×108dp  |  Safe zone: 18–90 (72×72 centre)
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- ── Magnifying glass handle (bottom-right) ── -->
+    <!-- ── Magnifying glass handle ── -->
     <path
         android:fillColor="#FFFFFF"
-        android:strokeColor="#00000000"
-        android:strokeWidth="1"
-        android:pathData="M62,62 L84,84 a6,6,0,0,1,0,8.5 a6,6,0,0,1,-8.5,0 L54,70 Z"/>
-
-    <!-- Handle shine strip -->
+        android:pathData="M63,63 L88,88 a5,5,0,0,1,0,7 a5,5,0,0,1,-7,0 L56,70 Z"/>
+    <!-- Handle shine -->
     <path
         android:fillColor="#FFFFFF"
         android:fillAlpha="0.35"
-        android:pathData="M62,62 L80,80 a2,2,0,0,1,0,3 L60,65 Z"/>
+        android:pathData="M63,63 L84,84 a2,2,0,0,1,0,3 L61,66 Z"/>
 
-    <!-- ── Lens outer ring ── -->
+    <!-- ── Lens ring ── -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="9"
-        android:pathData="M42,42 m-28,0 a28,28,0,1,1,56,0 a28,28,0,1,1,-56,0"/>
+        android:strokeWidth="8"
+        android:pathData="M44,44 m-26,0 a26,26,0,1,1,52,0 a26,26,0,1,1,-52,0"/>
 
-    <!-- ── Coin inside lens ── -->
-    <!-- Coin shadow layer -->
+    <!-- Lens glass -->
     <path
-        android:fillColor="#000000"
-        android:fillAlpha="0.18"
-        android:pathData="M43,43 m-17,0 a17,17,0,1,1,34,0 a17,17,0,1,1,-34,0"/>
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.07"
+        android:pathData="M44,44 m-18,0 a18,18,0,1,1,36,0 a18,18,0,1,1,-36,0"/>
 
-    <!-- Coin body (amber/gold) -->
+    <!-- ── Flying cash bill ── -->
+    <!-- Bill body -->
     <path
-        android:pathData="M42,42 m-17,0 a17,17,0,1,1,34,0 a17,17,0,1,1,-34,0">
-        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt" name="android:fillColor">
+        android:pathData="M29,37 L59,37 a5,5,0,0,1,5,5 L64,53 a5,5,0,0,1,-5,5 L29,58 a5,5,0,0,1,-5,-5 L24,42 a5,5,0,0,1,5,-5 Z">
+        <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
-                android:startX="30" android:startY="30"
-                android:endX="55"   android:endY="55">
-                <item android:offset="0" android:color="#FBBF24"/>
-                <item android:offset="1" android:color="#D97706"/>
+                android:startX="24" android:startY="37"
+                android:endX="64"   android:endY="58">
+                <item android:offset="0" android:color="#6EE7B7"/>
+                <item android:offset="1" android:color="#10B981"/>
             </gradient>
         </aapt:attr>
     </path>
-
-    <!-- Coin inner ring -->
+    <!-- Bill inner border -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="1.2"
-        android:fillAlpha="0"
+        android:strokeWidth="1"
         android:strokeAlpha="0.35"
-        android:pathData="M42,42 m-13,0 a13,13,0,1,1,26,0 a13,13,0,1,1,-26,0"/>
+        android:pathData="M31,39 L57,39 a3,3,0,0,1,3,3 L60,51 a3,3,0,0,1,-3,3 L31,54 a3,3,0,0,1,-3,-3 L28,42 a3,3,0,0,1,3,-3 Z"/>
+    <!-- ₱ sign on bill — vertical stroke -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,40 L44.5,40 L44.5,55 L43,55 Z"/>
+    <!-- ₱ top bar -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,43.5 L48,43.5 L48,45 L40,45 Z"/>
+    <!-- ₱ second bar -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,46.5 L48,46.5 L48,48 L40,48 Z"/>
+    <!-- ₱ curved top -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44.5,40 a5,5,0,0,1,0,8 L44.5,40 Z"/>
+    <!-- Bill shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.3"
+        android:pathData="M29,39.5 L42,39.5 L42,41 L29,41 Z"/>
 
-    <!-- ₱ sign — rendered as two horizontal bars + vertical stroke -->
-    <!-- Vertical stroke -->
+    <!-- ── Left wing ── -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M41,30 L43,30 L43,56 L41,56 Z"/>
-    <!-- Top horizontal bar -->
+        android:fillAlpha="0.8"
+        android:pathData="M29,44 C22,38 12,36 7,41 C13,38 22,43 26,48 Z"/>
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M36,35 L48,35 L48,37 L36,37 Z"/>
-    <!-- Second horizontal bar -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M36,39.5 L48,39.5 L48,41.5 L36,41.5 Z"/>
-    <!-- Curved top of P -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M43,30 a9,9,0,0,1,0,13 L43,30 Z"/>
-
-    <!-- Coin glare spot -->
+        android:fillAlpha="0.6"
+        android:pathData="M29,48 C20,43 10,42 5,48 C11,44 22,47 26,52 Z"/>
     <path
         android:fillColor="#FFFFFF"
         android:fillAlpha="0.4"
-        android:pathData="M31,33 a7,4,0,0,1,8,-3 a7,4,0,0,1,-8,3 Z"/>
+        android:pathData="M29,51 C22,48 14,49 10,54 C16,50 24,52 27,55 Z"/>
 
-    <!-- ── Lens glass glare arc ── -->
+    <!-- ── Right wing ── -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.8"
+        android:pathData="M59,44 C66,38 76,36 81,41 C75,38 66,43 62,48 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6"
+        android:pathData="M59,48 C68,43 78,42 83,48 C77,44 66,47 62,52 Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.4"
+        android:pathData="M59,51 C66,48 74,49 78,54 C72,50 64,52 61,55 Z"/>
+
+    <!-- ── Lens glare arc ── -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
         android:strokeAlpha="0.3"
-        android:strokeWidth="2.5"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:pathData="M22,34 a24,24,0,0,1,18,-10"/>
+        android:pathData="M24,33 a22,22,0,0,1,20,-9"/>
 
 </vector>

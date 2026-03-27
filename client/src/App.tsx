@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 import { DisplayProvider } from './contexts/DisplayContext';
@@ -34,23 +34,29 @@ function AutoBackupRunner() {
   return null;
 }
 
-/** Handles Android hardware back button: closes open modals or navigates back. */
+/** Handles Android hardware back button: closes open modals, navigates back, or does nothing at root. */
 function BackButtonHandler() {
   const navigate = useNavigate();
+  const location = useLocation();
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
-      // If any modal overlay is open, dispatch Escape to close the topmost one
+      // Close any open modal first
       const openModal = document.querySelector('.fixed.inset-0.z-\\[100\\]');
       if (openModal) {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      } else {
+        return;
+      }
+      // Navigate back only if not already at the root — prevents closing the app
+      if (location.pathname !== '/') {
         navigate(-1);
       }
+      // At root with no modals: e.preventDefault() already consumed the event,
+      // so the system will not close/minimize the app.
     };
     document.addEventListener('backbutton', handler);
     return () => document.removeEventListener('backbutton', handler);
-  }, [navigate]);
+  }, [navigate, location.pathname]);
   return null;
 }
 

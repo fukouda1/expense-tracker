@@ -2,84 +2,101 @@
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#134e4a"/>
-      <stop offset="45%" stop-color="#0f766e"/>
+      <stop offset="50%" stop-color="#0f766e"/>
       <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
-    <linearGradient id="lensGrad" x1="20%" y1="20%" x2="80%" y2="80%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.05"/>
+    <linearGradient id="billGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="100%" stop-color="#10b981"/>
     </linearGradient>
-    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fbbf24"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
     <filter id="shadow">
-      <feDropShadow dx="3" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.35"/>
+      <feDropShadow dx="2" dy="5" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
     </filter>
   </defs>
 
   <!-- Background rounded square -->
   <rect width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
 
-  <!-- Subtle diagonal light sweep -->
-  <rect width="512" height="512" rx="112" ry="112"
-        fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="60"/>
-
-  <!-- ══ MAGNIFYING GLASS ══ -->
-
-  <!-- Handle (thick rounded rod, bottom-right) -->
-  <line x1="308" y1="308" x2="420" y2="420"
-        stroke="white" stroke-width="52" stroke-linecap="round"
-        filter="url(#shadow)"/>
+  <!-- ── MAGNIFYING GLASS ── -->
+  <!-- Handle shadow -->
+  <line x1="306" y1="306" x2="422" y2="422"
+        stroke="rgba(0,0,0,0.25)" stroke-width="56" stroke-linecap="round"/>
+  <!-- Handle body -->
+  <line x1="304" y1="304" x2="418" y2="418"
+        stroke="white" stroke-width="50" stroke-linecap="round"/>
   <!-- Handle shine -->
-  <line x1="308" y1="308" x2="410" y2="410"
-        stroke="rgba(255,255,255,0.35)" stroke-width="18" stroke-linecap="round"/>
+  <line x1="292" y1="310" x2="406" y2="424"
+        stroke="rgba(255,255,255,0.4)" stroke-width="14" stroke-linecap="round"/>
 
-  <!-- Lens outer ring (shadow) -->
-  <circle cx="210" cy="210" r="148" fill="rgba(0,0,0,0.25)" filter="url(#shadow)"/>
+  <!-- Lens ring shadow -->
+  <circle cx="212" cy="212" r="153" fill="rgba(0,0,0,0.2)" filter="url(#shadow)"/>
+  <!-- Lens ring -->
+  <circle cx="212" cy="212" r="152" fill="none" stroke="white" stroke-width="44"/>
+  <!-- Lens glass (subtle) -->
+  <circle cx="212" cy="212" r="122" fill="rgba(255,255,255,0.07)"/>
 
-  <!-- Lens outer ring (white) -->
-  <circle cx="210" cy="210" r="148"
-          fill="none" stroke="white" stroke-width="46"/>
+  <!-- ── FLYING CASH BILL INSIDE LENS ── -->
+  <!-- Bill shadow -->
+  <rect x="127" y="187" width="174" height="104" rx="12" fill="rgba(0,0,0,0.2)"/>
+  <!-- Bill body -->
+  <rect x="124" y="183" width="176" height="104" rx="12" fill="url(#billGrad)" filter="url(#shadow)"/>
+  <!-- Bill inner border -->
+  <rect x="132" y="191" width="160" height="88" rx="8" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+  <!-- Bill center oval -->
+  <ellipse cx="212" cy="235" rx="28" ry="28" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+  <!-- ₱ on bill -->
+  <text x="212" y="243"
+        font-family="'Arial Black', Arial, sans-serif"
+        font-weight="900" font-size="30"
+        fill="white" text-anchor="middle" dominant-baseline="middle">₱</text>
+  <!-- Bill value left -->
+  <text x="148" y="220"
+        font-family="Arial, sans-serif" font-weight="700" font-size="14"
+        fill="rgba(255,255,255,0.7)" text-anchor="middle">100</text>
+  <!-- Bill value right -->
+  <text x="276" y="252"
+        font-family="Arial, sans-serif" font-weight="700" font-size="14"
+        fill="rgba(255,255,255,0.7)" text-anchor="middle">100</text>
+  <!-- Bill shine streak -->
+  <rect x="136" y="196" width="60" height="6" rx="3" fill="rgba(255,255,255,0.25)"/>
 
-  <!-- Lens glass fill -->
-  <circle cx="210" cy="210" r="120" fill="url(#lensGrad)"/>
-  <circle cx="210" cy="210" r="120" fill="rgba(255,255,255,0.06)"/>
+  <!-- ── WINGS (left) ── -->
+  <!-- Left wing back feathers -->
+  <path d="M124,220 C100,195 68,188 48,200 C65,195 88,208 100,225 Z"
+        fill="white" opacity="0.65"/>
+  <!-- Left wing front -->
+  <path d="M124,228 C98,210 62,205 38,220 C58,212 90,220 108,235 Z"
+        fill="white" opacity="0.85"/>
+  <!-- Left wing tip highlight -->
+  <path d="M124,235 C104,225 78,228 60,240 C78,230 104,234 118,244 Z"
+        fill="white" opacity="0.55"/>
 
-  <!-- ══ COIN INSIDE LENS ══ -->
-  <!-- Coin shadow -->
-  <circle cx="213" cy="216" r="70" fill="rgba(0,0,0,0.2)"/>
-  <!-- Coin body -->
-  <circle cx="210" cy="210" r="70" fill="url(#coinGrad)"/>
-  <!-- Coin inner ring -->
-  <circle cx="210" cy="210" r="60" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-  <!-- Coin shine arc -->
-  <path d="M172,178 a52,52,0,0,1,52,-18" fill="none"
-        stroke="rgba(255,255,255,0.45)" stroke-width="6" stroke-linecap="round"/>
+  <!-- ── WINGS (right) ── -->
+  <!-- Right wing back feathers -->
+  <path d="M300,220 C324,195 356,188 376,200 C359,195 336,208 324,225 Z"
+        fill="white" opacity="0.65"/>
+  <!-- Right wing front -->
+  <path d="M300,228 C326,210 362,205 386,220 C366,212 334,220 316,235 Z"
+        fill="white" opacity="0.85"/>
+  <!-- Right wing tip highlight -->
+  <path d="M300,235 C320,225 346,228 364,240 C346,230 320,234 306,244 Z"
+        fill="white" opacity="0.55"/>
 
-  <!-- ₱ peso sign -->
-  <text x="210" y="232"
-        font-family="'Arial Black', 'Georgia', serif"
-        font-weight="900"
-        font-size="72"
-        fill="white"
-        text-anchor="middle"
-        dominant-baseline="middle">₱</text>
+  <!-- Lens glare arc -->
+  <path d="M158,166 a68,68,0,0,1,60,-22"
+        fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5"
+        stroke-linecap="round"/>
 
-  <!-- Lens glare spot -->
-  <ellipse cx="172" cy="168" rx="22" ry="14"
-           fill="rgba(255,255,255,0.4)" transform="rotate(-35,172,168)"/>
-
-  <!-- Small sparkles around lens -->
-  <g fill="white" opacity="0.7">
-    <circle cx="90"  cy="108" r="5"/>
-    <circle cx="78"  cy="94"  r="3"/>
-    <circle cx="104" cy="92"  r="3"/>
-    <circle cx="380" cy="110" r="4"/>
-    <circle cx="394" cy="98"  r="2.5"/>
+  <!-- Sparkles -->
+  <g fill="white">
+    <circle cx="84"  cy="90"  r="5"   opacity="0.7"/>
+    <circle cx="70"  cy="76"  r="3"   opacity="0.5"/>
+    <circle cx="100" cy="74"  r="3"   opacity="0.5"/>
+    <circle cx="398" cy="92"  r="4"   opacity="0.6"/>
+    <circle cx="412" cy="80"  r="2.5" opacity="0.45"/>
   </g>
 </svg>

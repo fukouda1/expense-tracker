@@ -1046,7 +1046,12 @@ export default function Settings() {
               <option value="">📊 Overall Budget</option>
             )}
             {categories
-              .filter(c => c.active !== false && c.type !== 'income')
+              .filter(c =>
+                c.active !== false &&
+                c.type !== 'income' &&
+                !c.name.startsWith('_') &&
+                c.icon !== '??' && c.icon !== '?'
+              )
               .filter(c => {
                 if (editBudgetId) return true;
                 return !budgets.some(b => b.category_id === c.id);
