@@ -428,6 +428,10 @@ export default function AddTransaction() {
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === 'Enter' && newTagName.trim()) {
+                    if (tags.some(t => t.name.toLowerCase() === newTagName.trim().toLowerCase())) {
+                      showToast(`Tag "${newTagName.trim()}" already exists`, 'error');
+                      return;
+                    }
                     addTag(newTagName.trim(), '#3b82f6');
                     setNewTagName(''); setShowNewTag(false);
                   }
@@ -435,7 +439,7 @@ export default function AddTransaction() {
                 }}
               />
               <button
-                onClick={() => { if (newTagName.trim()) { addTag(newTagName.trim(), '#3b82f6'); setNewTagName(''); setShowNewTag(false); } }}
+                onClick={() => { if (newTagName.trim()) { if (tags.some(t => t.name.toLowerCase() === newTagName.trim().toLowerCase())) { showToast(`Tag "${newTagName.trim()}" already exists`, 'error'); return; } addTag(newTagName.trim(), '#3b82f6'); setNewTagName(''); setShowNewTag(false); } }}
                 className="px-2 py-0.5 bg-emerald-500 text-white rounded-full text-[9px] font-medium"
               >✓</button>
             </div>
@@ -541,13 +545,17 @@ export default function AddTransaction() {
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === 'Enter' && newAccName.trim()) {
+                    if (accounts.some(a => a.name.toLowerCase() === newAccName.trim().toLowerCase())) {
+                      showToast(`Account "${newAccName.trim()}" already exists`, 'error');
+                      return;
+                    }
                     addAccount(newAccName.trim(), '💰', '#10b981', 0);
                     setNewAccName(''); setShowNewAccount(false);
                   }
                 }}
               />
               <button
-                onClick={() => { if (newAccName.trim()) { addAccount(newAccName.trim(), '💰', '#10b981', 0); setNewAccName(''); setShowNewAccount(false); } }}
+                onClick={() => { if (newAccName.trim()) { if (accounts.some(a => a.name.toLowerCase() === newAccName.trim().toLowerCase())) { showToast(`Account "${newAccName.trim()}" already exists`, 'error'); return; } addAccount(newAccName.trim(), '💰', '#10b981', 0); setNewAccName(''); setShowNewAccount(false); } }}
                 className="px-3 py-2 bg-emerald-500 text-white rounded-xl text-sm font-medium"
               >Add</button>
             </div>
@@ -619,13 +627,17 @@ export default function AddTransaction() {
                 autoFocus
                 onKeyDown={e => {
                   if (e.key === 'Enter' && newCatName.trim()) {
+                    if (categories.some(c => c.name.toLowerCase() === newCatName.trim().toLowerCase())) {
+                      showToast(`Category "${newCatName.trim()}" already exists`, 'error');
+                      return;
+                    }
                     addCategory(newCatName.trim(), '📦', '#6b7280', type === 'income' ? 'income' : 'expense');
                     setNewCatName(''); setShowNewCategory(false);
                   }
                 }}
               />
               <button
-                onClick={() => { if (newCatName.trim()) { addCategory(newCatName.trim(), '📦', '#6b7280', type === 'income' ? 'income' : 'expense'); setNewCatName(''); setShowNewCategory(false); } }}
+                onClick={() => { if (newCatName.trim()) { if (categories.some(c => c.name.toLowerCase() === newCatName.trim().toLowerCase())) { showToast(`Category "${newCatName.trim()}" already exists`, 'error'); return; } addCategory(newCatName.trim(), '📦', '#6b7280', type === 'income' ? 'income' : 'expense'); setNewCatName(''); setShowNewCategory(false); } }}
                 className="px-3 py-2 bg-emerald-500 text-white rounded-xl text-sm font-medium"
               >Add</button>
             </div>

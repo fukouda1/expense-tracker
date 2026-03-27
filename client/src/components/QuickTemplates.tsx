@@ -204,8 +204,9 @@ export function TemplateManager() {
 
   const handleSave = () => {
     if (!templateName.trim()) { showToast('Enter a template name', 'error'); return; }
-    const validEntries = entries.filter(e => e.amount > 0);
-    if (validEntries.length === 0) { showToast('Add at least one entry with an amount', 'error'); return; }
+    if (entries.some(e => e.amount <= 0)) { showToast('All entries must have an amount greater than 0', 'error'); return; }
+    if (entries.length === 0) { showToast('Add at least one entry', 'error'); return; }
+    const validEntries = entries;
 
     if (editingTemplate) {
       updateTemplate(editingTemplate.id, { name: templateName.trim(), entries: validEntries });
@@ -378,8 +379,8 @@ export function TemplateManager() {
 
           <button
             onClick={handleSave}
-            disabled={!templateName.trim() || entries.filter(e => e.amount > 0).length === 0}
-            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl text-sm font-medium safe-bottom"
+            disabled={!templateName.trim() || entries.some(e => e.amount <= 0) || entries.length === 0}
+            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl text-sm font-medium"
           >
             {editingTemplate ? 'Update Template' : 'Save Template'}
           </button>

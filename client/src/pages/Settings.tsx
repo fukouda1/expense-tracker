@@ -1046,12 +1046,12 @@ export default function Settings() {
               <option value="">📊 Overall Budget</option>
             )}
             {categories
-              .filter(c => c.type !== 'income')
+              .filter(c => c.active !== false && c.type !== 'income')
               .filter(c => {
-                if (editBudgetId) return true; // Allow all when editing
-                return !budgets.some(b => b.category_id === c.id); // Hide already budgeted
+                if (editBudgetId) return true;
+                return !budgets.some(b => b.category_id === c.id);
               })
-              .map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)
+              .map(c => <option key={c.id} value={c.id}>{c.icon || '📦'} {c.name}</option>)
             }
           </select>
           <input type="number" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Budget amount (₱)" className={inputClass} inputMode="decimal" />
