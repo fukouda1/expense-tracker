@@ -15,7 +15,7 @@ export default function SpendingAlerts() {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    get<Alert[]>('/analytics/spending-alerts')
+    get<Alert[]>('/api/analytics/spending-alerts')
       .then(setAlerts)
       .catch(() => {});
   }, []);

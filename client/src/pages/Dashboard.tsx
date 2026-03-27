@@ -49,7 +49,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Load lightweight debt summary instead of all transactions
-    get<DebtSummary>('/analytics/debt-summary').then(setDebtSummary).catch(() => {});
+    get<DebtSummary>('/api/analytics/debt-summary').then(setDebtSummary).catch(() => {});
   }, [loading, transactions]);
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function Dashboard() {
           const [y, m] = currentMonth.split('-').map(Number);
           const prevDate = new Date(y, m - 2, 1);
           const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-          const prev = await get<{ income: number; expense: number }>(`/analytics/monthly?month=${prevMonth}`);
+          const prev = await get<{ income: number; expense: number }>(`/api/analytics/monthly?month=${prevMonth}`);
           setPrevMonthExpense(prev.expense);
         } catch { setPrevMonthExpense(null); }
       } else {

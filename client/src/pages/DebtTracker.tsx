@@ -16,7 +16,7 @@ export default function DebtTracker() {
   // Load only debt-category transactions via lightweight endpoint
   const [allTx, setAllTx] = useState<Transaction[]>([]);
   const loadDebtTx = useCallback(() => {
-    get<Transaction[]>('/analytics/debt-transactions').then(setAllTx).catch(() => {});
+    get<Transaction[]>('/api/analytics/debt-transactions').then(setAllTx).catch(() => {});
   }, []);
   useEffect(() => { loadDebtTx(); }, [loadDebtTx]);
 
