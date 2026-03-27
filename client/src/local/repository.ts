@@ -732,7 +732,7 @@ function parseLegacyCsvDate(dateStr: string): string {
     Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',
     Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12',
   };
-  const match = dateStr.match(/(\w+)\s+(\d+),\s+(\d+)\s+(\d+):(\d+)\s+(\w+)/);
+  const match = dateStr.trim().match(/(\w+)\s+(\d+),\s+(\d+)\s+(\d+):(\d+)\s+(\w+)/);
   if (!match) return new Date().toISOString().slice(0, 16);
   const [, mon, day, year, hr, min, ampm] = match;
   let hour = parseInt(hr);

@@ -246,16 +246,21 @@ function parseCsvLine(line: string): string[] {
 }
 
 function parseDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    const match = dateStr.match(/(\w+)\s+(\d+),\s+(\d+)\s+(\d+):(\d+)\s+(\w+)/);
-    if (!match) return new Date().toISOString().slice(0, 16);
+  const trimmed = dateStr.trim();
+  // Always try manual parse first — "Mar 01, 2024 10:07 AM" format
+  const match = trimmed.match(/(\w+)\s+(\d+),\s+(\d+)\s+(\d+):(\d+)\s+(\w+)/);
+  if (match) {
     const months: Record<string, string> = { Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12' };
     const [, mon, day, year, hr, min, ampm] = match;
     let hour = parseInt(hr);
     if (ampm === 'PM' && hour !== 12) hour += 12;
     if (ampm === 'AM' && hour === 12) hour = 0;
     return `${year}-${months[mon]}-${day.padStart(2, '0')}T${String(hour).padStart(2, '0')}:${min}`;
+  }
+  // Fallback: try native Date parser
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 16);
   }
   return d.toISOString().slice(0, 16);
 }
