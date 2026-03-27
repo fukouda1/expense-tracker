@@ -120,13 +120,21 @@ export default function Settings() {
   };
 
   const handleSaveCategory = async () => {
-    if (!catName) return;
-    if (editCatId) {
-      await editCategory(editCatId, catName, catIcon, catColor, catType);
-    } else {
-      await addCategory(catName, catIcon, catColor, catType);
+    if (!catName.trim()) return;
+    if (!editCatId && categories.some(c => c.name.toLowerCase() === catName.trim().toLowerCase())) {
+      showToast(`Category "${catName.trim()}" already exists`, 'error');
+      return;
     }
-    setShowModal(false);
+    try {
+      if (editCatId) {
+        await editCategory(editCatId, catName.trim(), catIcon, catColor, catType);
+      } else {
+        await addCategory(catName.trim(), catIcon, catColor, catType);
+      }
+      setShowModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || err?.message || 'Failed to save category', 'error');
+    }
   };
 
   const handleEditCat = (c: Category) => {
@@ -135,13 +143,21 @@ export default function Settings() {
   };
 
   const handleSaveAccount = async () => {
-    if (!accName) return;
-    if (editAccId) {
-      await editAccount(editAccId, accName, accIcon, accColor);
-    } else {
-      await addAccount(accName, accIcon, accColor, Number(accBalance));
+    if (!accName.trim()) return;
+    if (!editAccId && accounts.some(a => a.name.toLowerCase() === accName.trim().toLowerCase())) {
+      showToast(`Account "${accName.trim()}" already exists`, 'error');
+      return;
     }
-    setShowModal(false);
+    try {
+      if (editAccId) {
+        await editAccount(editAccId, accName.trim(), accIcon, accColor);
+      } else {
+        await addAccount(accName.trim(), accIcon, accColor, Number(accBalance));
+      }
+      setShowModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || err?.message || 'Failed to save account', 'error');
+    }
   };
 
   const handleEditAcc = (a: Account) => {
@@ -150,9 +166,17 @@ export default function Settings() {
   };
 
   const handleSaveTag = async () => {
-    if (!tagName) return;
-    await addTag(tagName, tagColor, tagCategoryId || null);
-    setShowModal(false);
+    if (!tagName.trim()) return;
+    if (tags.some(t => t.name.toLowerCase() === tagName.trim().toLowerCase())) {
+      showToast(`Tag "${tagName.trim()}" already exists`, 'error');
+      return;
+    }
+    try {
+      await addTag(tagName.trim(), tagColor, tagCategoryId || null);
+      setShowModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || err?.message || 'Failed to save tag', 'error');
+    }
   };
 
   const handleSaveBudget = async () => {
@@ -449,7 +473,7 @@ export default function Settings() {
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 pt-4 pb-8 space-y-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 px-4 pt-4 pb-8 space-y-4 safe-top">
       <div className="flex items-center gap-2">
         <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-gray-400 text-lg">&larr;</button>
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
@@ -572,7 +596,10 @@ export default function Settings() {
               className="text-xs text-gray-500"
             />
             {previewLoading && (
-              <p className="mt-2 text-xs text-gray-500">Reading file...</p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-gray-500">Reading file...</p>
+              </div>
             )}
             {importPreview && (
               <div className="mt-3 space-y-2">
@@ -643,7 +670,12 @@ export default function Settings() {
                       disabled={importing}
                       className="flex-1 py-1.5 bg-emerald-500 disabled:bg-gray-400 text-white rounded-lg text-[11px] font-medium hover:bg-emerald-600 transition-colors"
                     >
-                      {importing ? 'Importing...' : 'Import Anyway'}
+                      {importing ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                          Importing...
+                        </span>
+                      ) : 'Import Anyway'}
                     </button>
                   </div>
                 </div>
@@ -977,10 +1009,20 @@ export default function Settings() {
       <Modal open={showModal && modalType === 'budget'} onClose={() => setShowModal(false)} title={editBudgetId ? 'Edit Budget' : 'Set Budget'}>
         <div className="space-y-3">
           <select value={budgetCatId} onChange={e => setBudgetCatId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
-            <option value="">Overall Budget</option>
-            {categories.filter(c => c.type !== 'income').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {/* Overall budget option — hide if already set (unless editing it) */}
+            {(!editBudgetId || budgetCatId !== '') && !budgets.some(b => b.category_id === null && b.id !== editBudgetId) && (
+              <option value="">📊 Overall Budget</option>
+            )}
+            {categories
+              .filter(c => c.type !== 'income')
+              .filter(c => {
+                if (editBudgetId) return true; // Allow all when editing
+                return !budgets.some(b => b.category_id === c.id); // Hide already budgeted
+              })
+              .map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)
+            }
           </select>
-          <input type="number" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Budget amount (₱)" className={inputClass} />
+          <input type="number" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Budget amount (₱)" className={inputClass} inputMode="decimal" />
           <button onClick={handleSaveBudget} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
       </Modal>

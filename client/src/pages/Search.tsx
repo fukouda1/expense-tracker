@@ -122,7 +122,7 @@ export default function Search() {
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none";
 
   return (
-    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 px-4 pt-4 pb-6 space-y-3">
+    <div className="min-h-[100dvh] bg-gray-50 dark:bg-gray-900 px-4 pt-4 space-y-3 safe-top safe-bottom">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

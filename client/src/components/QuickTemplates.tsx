@@ -321,9 +321,12 @@ export function TemplateManager() {
                       value={entry.amount || ''}
                       onChange={e => updateEntry(idx, 'amount', parseFloat(e.target.value) || 0)}
                       placeholder="0"
-                      className={inputClass}
+                      className={`${inputClass} ${entry.amount <= 0 ? 'border-red-400 dark:border-red-500' : ''}`}
                       inputMode="decimal"
                     />
+                    {entry.amount <= 0 && (
+                      <p className="text-[9px] text-red-400 mt-0.5">Amount must be greater than 0</p>
+                    )}
                   </div>
                 </div>
 
@@ -376,7 +379,7 @@ export function TemplateManager() {
           <button
             onClick={handleSave}
             disabled={!templateName.trim() || entries.filter(e => e.amount > 0).length === 0}
-            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl text-sm font-medium"
+            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl text-sm font-medium safe-bottom"
           >
             {editingTemplate ? 'Update Template' : 'Save Template'}
           </button>
