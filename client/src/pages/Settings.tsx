@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 import { useData } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../components/Toast';
@@ -262,9 +261,8 @@ export default function Settings() {
 
   const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
     if (Capacitor.isNativePlatform()) {
-      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-      const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-      await Share.share({ title: fileName, url: uri, dialogTitle: 'Save or share file' });
+      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Documents, recursive: true });
+      showToast(`Saved to Documents: ${fileName}`, 'success');
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
