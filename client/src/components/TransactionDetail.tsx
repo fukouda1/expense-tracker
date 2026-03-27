@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import Modal from './Modal';
 import { useData } from '../contexts/DataContext';
 import { post } from '../services/api';
 import type { Transaction } from '../types';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
+
+const isNative = Capacitor.isNativePlatform();
 
 interface Props {
   transaction: Transaction | null;
@@ -20,7 +23,7 @@ interface SplitRow {
 
 export default function TransactionDetail({ transaction: t, onClose, onEdit, onDelete }: Props) {
   const navigate = useNavigate();
-  const { categories, refresh } = useData();
+  const { categories, addTransaction, removeTransaction, refresh } = useData();
   const [showSplit, setShowSplit] = useState(false);
   const [splits, setSplits] = useState<SplitRow[]>([]);
 
@@ -68,10 +71,26 @@ export default function TransactionDetail({ transaction: t, onClose, onEdit, onD
 
   const handleSplit = async () => {
     if (!splitValid) return;
-    await post('/api/transactions/split', {
-      id: t.id,
-      splits: splits.map(s => ({ amount: Number(s.amount), category_id: Number(s.category_id) })),
-    });
+    if (isNative) {
+      // Native: delete original, create split transactions using DataContext
+      await removeTransaction(t.id);
+      for (const s of splits) {
+        await addTransaction({
+          amount: Number(s.amount), type: t.type,
+          category_id: Number(s.category_id),
+          account_id: t.account_id, to_account_id: t.to_account_id ?? null,
+          date: t.date, notes: t.notes ?? '',
+          account_name: t.account_name,
+          category_name: undefined, category_icon: undefined, category_color: undefined,
+          to_account_name: undefined, tags: [],
+        });
+      }
+    } else {
+      await post('/api/transactions/split', {
+        id: t.id,
+        splits: splits.map(s => ({ amount: Number(s.amount), category_id: Number(s.category_id) })),
+      });
+    }
     setShowSplit(false);
     await refresh();
     onClose();

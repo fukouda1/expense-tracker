@@ -14,6 +14,9 @@ import CategoryTrend from '../components/CategoryTrend';
 import CashFlowForecast from '../components/CashFlowForecast';
 import type { CategorySummary, MonthlySummary, DailySummary, AccountBalance } from '../types';
 import * as api from '../services/api';
+import { Capacitor } from '@capacitor/core';
+
+const isNative = Capacitor.isNativePlatform();
 
 type Tab = 'expense' | 'income' | 'flow' | 'accounts';
 
@@ -29,7 +32,7 @@ interface AccountAnalysis {
 }
 
 export default function Analytics() {
-  const { categories, getCategoryBreakdown, getMonthlyTrend, getTopCategories,
+  const { categories, accounts, getCategoryBreakdown, getMonthlyTrend, getTopCategories,
     getWeeklyComparison, getDailySummaries, getAccountBalances, getTransactionsByDate } = useData();
   const { dark } = useTheme();
   const { period, viewMode, getPeriodRange, periodLabel } = useDisplay();
@@ -148,8 +151,24 @@ export default function Analytics() {
           setYoyData({ thisYear: thisYearExp, lastYear: lastYearExp, pctChange });
         } catch { setYoyData(null); }
       } else if (tab === 'income') {
-        const res = await api.get<CategorySummary[]>(`/api/analytics/income-categories?from=${from}&to=${to}`);
-        setIncomeCats(res);
+        if (isNative) {
+          // Compute income categories locally from SQLite transactions
+          const txs = await getTransactionsByDate(from, to);
+          const catMap = new Map<string, CategorySummary>();
+          for (const t of txs.filter(tx => tx.type === 'income' && tx.category_name)) {
+            const key = String(t.category_id);
+            const ex = catMap.get(key);
+            if (ex) { ex.total += t.amount; ex.count++; }
+            else catMap.set(key, { category_id: t.category_id!, category_name: t.category_name!, category_icon: t.category_icon ?? '📦', category_color: t.category_color ?? '#6b7280', total: t.amount, count: 1, percentage: 0 });
+          }
+          const cats = Array.from(catMap.values()).sort((a, b) => b.total - a.total);
+          const gt = cats.reduce((s, c) => s + c.total, 0);
+          cats.forEach(c => c.percentage = gt > 0 ? (c.total / gt) * 100 : 0);
+          setIncomeCats(cats);
+        } else {
+          const res = await api.get<CategorySummary[]>(`/api/analytics/income-categories?from=${from}&to=${to}`);
+          setIncomeCats(res);
+        }
       } else if (tab === 'flow') {
         // Get daily data for current period + monthly trend
         const txs = await getTransactionsByDate(from, to);
@@ -168,12 +187,31 @@ export default function Analytics() {
         const tr = await getMonthlyTrend(trendMonths);
         setTrend(tr);
       } else if (tab === 'accounts') {
-        const [accs, bals] = await Promise.all([
-          api.get<AccountAnalysis[]>(`/api/analytics/account-analysis?from=${from}&to=${to}`),
-          getAccountBalances(),
-        ]);
-        setAccountData(accs);
-        setBalances(bals);
+        if (isNative) {
+          // Compute account analysis locally from SQLite transactions
+          const [txs, bals] = await Promise.all([getTransactionsByDate(from, to), getAccountBalances()]);
+          const accountMap = new Map<number, AccountAnalysis>();
+          for (const t of txs) {
+            if (!accountMap.has(t.account_id)) {
+              const acc = accounts.find(a => a.id === t.account_id);
+              accountMap.set(t.account_id, { account_id: t.account_id, account_name: t.account_name, account_icon: acc?.icon ?? '💰', account_color: acc?.color ?? '#6b7280', income: 0, expense: 0, net: 0, count: 0 } as AccountAnalysis);
+            }
+            const entry = accountMap.get(t.account_id)!;
+            if (t.type === 'income') entry.income += t.amount;
+            else if (t.type === 'expense') entry.expense += t.amount;
+            entry.net = entry.income - entry.expense;
+            entry.count++;
+          }
+          setAccountData(Array.from(accountMap.values()).sort((a, b) => Math.abs(b.net) - Math.abs(a.net)));
+          setBalances(bals);
+        } else {
+          const [accs, bals] = await Promise.all([
+            api.get<AccountAnalysis[]>(`/api/analytics/account-analysis?from=${from}&to=${to}`),
+            getAccountBalances(),
+          ]);
+          setAccountData(accs);
+          setBalances(bals);
+        }
       }
     };
     load();

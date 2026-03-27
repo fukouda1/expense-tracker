@@ -206,6 +206,10 @@ export default function Settings() {
   };
 
   const handleExportXlsx = async () => {
+    if (Capacitor.isNativePlatform()) {
+      showToast('XLSX export is web only — use CSV export instead', 'info');
+      return;
+    }
     try {
       const response = await fetch('/api/export/xlsx');
       const blob = await response.blob();
@@ -216,7 +220,7 @@ export default function Settings() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Export failed:', err);
+      showToast('Export failed', 'error');
     }
   };
 
@@ -813,7 +817,9 @@ export default function Settings() {
                 const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
                 // Load previous month's budgets via API
                 try {
-                  const prevBudgets: typeof budgets = await (await fetch(`/api/budgets?month=${prevMonth}`)).json();
+                  const prevBudgets: typeof budgets = Capacitor.isNativePlatform()
+                    ? await repo.getBudgets(prevMonth)
+                    : await (await fetch(`/api/budgets?month=${prevMonth}`)).json();
                   if (!prevBudgets.length) {
                     showToast(`No budgets found in ${formatMonth(prevMonth)}`, 'error');
                     return;

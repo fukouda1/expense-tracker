@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 const STORAGE_KEY = 'tracecash_auto_backup';
+const isNative = Capacitor.isNativePlatform();
 
 interface AutoBackupSettings {
   enabled: boolean;
@@ -19,8 +21,9 @@ function saveSettings(settings: AutoBackupSettings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
-/** Trigger an xlsx backup download */
+/** Trigger an xlsx backup download (web only) */
 async function downloadBackup(): Promise<boolean> {
+  if (isNative) return false; // No Express server in APK mode
   try {
     const response = await fetch('/api/export/xlsx');
     if (!response.ok) return false;
@@ -94,6 +97,8 @@ export default function AutoBackupToggle() {
         hour: '2-digit', minute: '2-digit',
       })
     : 'Never';
+
+  if (isNative) return null; // Auto-backup requires Express server — web only
 
   return (
     <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
