@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 import { DisplayProvider } from './contexts/DisplayContext';
@@ -39,10 +40,9 @@ function BackButtonHandler() {
   const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault();
+    const listener = CapacitorApp.addListener('backButton', () => {
       // Close any open modal first
-      const openModal = document.querySelector('.fixed.inset-0.z-\\[100\\]');
+      const openModal = document.querySelector('.fixed.inset-0');
       if (openModal) {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         return;
@@ -51,11 +51,9 @@ function BackButtonHandler() {
       if (location.pathname !== '/') {
         navigate(-1);
       }
-      // At root with no modals: e.preventDefault() already consumed the event,
-      // so the system will not close/minimize the app.
-    };
-    document.addEventListener('backbutton', handler);
-    return () => document.removeEventListener('backbutton', handler);
+      // At root with no modals: do nothing (app stays open)
+    });
+    return () => { listener.then(h => h.remove()); };
   }, [navigate, location.pathname]);
   return null;
 }

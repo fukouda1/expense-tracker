@@ -120,7 +120,7 @@ export default function Settings() {
   };
 
   const handleSaveCategory = async () => {
-    if (!catName.trim()) return;
+    if (!catName.trim()) { showToast('Category name is required', 'error'); return; }
     if (!editCatId && categories.some(c => c.name.toLowerCase() === catName.trim().toLowerCase())) {
       showToast(`Category "${catName.trim()}" already exists`, 'error');
       return;
@@ -128,8 +128,10 @@ export default function Settings() {
     try {
       if (editCatId) {
         await editCategory(editCatId, catName.trim(), catIcon, catColor, catType);
+        showToast('Category updated', 'success');
       } else {
         await addCategory(catName.trim(), catIcon, catColor, catType);
+        showToast('Category created', 'success');
       }
       setShowModal(false);
     } catch (err: any) {
@@ -143,7 +145,7 @@ export default function Settings() {
   };
 
   const handleSaveAccount = async () => {
-    if (!accName.trim()) return;
+    if (!accName.trim()) { showToast('Account name is required', 'error'); return; }
     if (!editAccId && accounts.some(a => a.name.toLowerCase() === accName.trim().toLowerCase())) {
       showToast(`Account "${accName.trim()}" already exists`, 'error');
       return;
@@ -151,8 +153,10 @@ export default function Settings() {
     try {
       if (editAccId) {
         await editAccount(editAccId, accName.trim(), accIcon, accColor);
+        showToast('Account updated', 'success');
       } else {
         await addAccount(accName.trim(), accIcon, accColor, Number(accBalance));
+        showToast('Account created', 'success');
       }
       setShowModal(false);
     } catch (err: any) {
@@ -166,13 +170,14 @@ export default function Settings() {
   };
 
   const handleSaveTag = async () => {
-    if (!tagName.trim()) return;
+    if (!tagName.trim()) { showToast('Tag name is required', 'error'); return; }
     if (tags.some(t => t.name.toLowerCase() === tagName.trim().toLowerCase())) {
       showToast(`Tag "${tagName.trim()}" already exists`, 'error');
       return;
     }
     try {
       await addTag(tagName.trim(), tagColor, tagCategoryId || null);
+      showToast('Tag created', 'success');
       setShowModal(false);
     } catch (err: any) {
       showToast(err?.response?.data?.error || err?.message || 'Failed to save tag', 'error');
@@ -180,12 +185,17 @@ export default function Settings() {
   };
 
   const handleSaveBudget = async () => {
-    if (!budgetAmount) return;
+    if (!budgetAmount || Number(budgetAmount) <= 0) {
+      showToast('Budget amount is required', 'error');
+      return;
+    }
     try {
       if (editBudgetId) {
         await editBudget(editBudgetId, budgetCatId || null, Number(budgetAmount), budgetMonth);
+        showToast('Budget updated', 'success');
       } else {
         await saveBudget(budgetCatId || null, Number(budgetAmount), budgetMonth);
+        showToast('Budget created', 'success');
       }
       setShowModal(false);
       await loadBudgets(budgetMonth);
@@ -203,7 +213,14 @@ export default function Settings() {
   };
 
   const handleSaveRecurring = async () => {
-    if (!recAmount || !recAccId) return;
+    if (!recAmount || Number(recAmount) <= 0) {
+      showToast('Amount is required', 'error');
+      return;
+    }
+    if (!recAccId) {
+      showToast('Account is required', 'error');
+      return;
+    }
     const data = {
       amount: Number(recAmount),
       type: recType,
@@ -213,13 +230,19 @@ export default function Settings() {
       recurrence_type: recurrence,
       next_date: recNextDate,
     };
-    if (editRecId) {
-      await editRecurring(editRecId, data);
-    } else {
-      await addRecurring(data);
+    try {
+      if (editRecId) {
+        await editRecurring(editRecId, data);
+        showToast('Recurring transaction updated', 'success');
+      } else {
+        await addRecurring(data);
+        showToast('Recurring transaction created', 'success');
+      }
+      setShowModal(false);
+      await loadRecurring();
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to save recurring transaction', 'error');
     }
-    setShowModal(false);
-    await loadRecurring();
   };
 
   const handleEditRecurring = (r: RecurringTransaction) => {
@@ -917,7 +940,7 @@ export default function Settings() {
             </div>
           ) : (
             <div className="space-y-2">
-              {budgets.map(b => (
+              {[...budgets].sort((a, b) => b.amount - a.amount).map(b => (
                 <BudgetProgress
                   key={b.id}
                   budget={b}
@@ -939,7 +962,7 @@ export default function Settings() {
           {recurring.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No recurring transactions</p>
           ) : (
-            recurring.map(r => (
+            [...recurring].sort((a, b) => b.amount - a.amount).map(r => (
               <div key={r.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">

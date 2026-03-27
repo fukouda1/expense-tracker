@@ -1,102 +1,234 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
+    <!-- Rich dark-teal to emerald background -->
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#134e4a"/>
-      <stop offset="50%" stop-color="#0f766e"/>
-      <stop offset="100%" stop-color="#059669"/>
+      <stop offset="0%"   stop-color="#0d2018"/>
+      <stop offset="45%"  stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#065f46"/>
     </linearGradient>
+    <!-- Bill gradient (green + gold tint) -->
     <linearGradient id="billGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6ee7b7"/>
-      <stop offset="100%" stop-color="#10b981"/>
+      <stop offset="0%"   stop-color="#86efac"/>
+      <stop offset="60%"  stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#15803d"/>
     </linearGradient>
-    <filter id="shadow">
-      <feDropShadow dx="2" dy="5" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    <!-- Gold trace glow -->
+    <linearGradient id="traceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <!-- Lens glass fill (cartoon blue tint) -->
+    <radialGradient id="lensGlass" cx="35%" cy="32%" r="70%">
+      <stop offset="0%"   stop-color="#bfecff" stop-opacity="0.38"/>
+      <stop offset="60%"  stop-color="#7dd3fc" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.10"/>
+    </radialGradient>
+    <!-- Cartoon ring gradient (silver/chrome) -->
+    <linearGradient id="ringGrad" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%"   stop-color="#f1f5f9"/>
+      <stop offset="35%"  stop-color="#cbd5e1"/>
+      <stop offset="70%"  stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <!-- Ring highlight (bright top arc) -->
+    <linearGradient id="ringHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Handle cartoon gradient (dark charcoal with warm tint) -->
+    <linearGradient id="handleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#292524"/>
+      <stop offset="40%"  stop-color="#44403c"/>
+      <stop offset="100%" stop-color="#1c1917"/>
+    </linearGradient>
+    <!-- Handle gold band -->
+    <linearGradient id="bandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#fde68a"/>
+      <stop offset="50%"  stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="5" stdDeviation="8" flood-color="#000" flood-opacity="0.4"/>
     </filter>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    <!-- Soft glow for traces -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <!-- Strong glow for glass ring -->
+    <filter id="ringGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Background rounded square -->
+  <!-- ── Background ── -->
   <rect width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
+  <!-- Subtle radial highlight -->
+  <radialGradient id="bgGlow" cx="30%" cy="25%" r="60%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06"/>
+    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#bgGlow)"/>
 
-  <!-- ── MAGNIFYING GLASS ── -->
-  <!-- Handle shadow -->
-  <line x1="306" y1="306" x2="422" y2="422"
-        stroke="rgba(0,0,0,0.25)" stroke-width="56" stroke-linecap="round"/>
-  <!-- Handle body -->
-  <line x1="304" y1="304" x2="418" y2="418"
-        stroke="white" stroke-width="50" stroke-linecap="round"/>
-  <!-- Handle shine -->
-  <line x1="292" y1="310" x2="406" y2="424"
-        stroke="rgba(255,255,255,0.4)" stroke-width="14" stroke-linecap="round"/>
+  <!-- ══════════════════════════════════
+       FLYING CASH BILL  (upper-right, bigger & fully visible)
+  ══════════════════════════════════ -->
+  <g transform="translate(330,138) rotate(-18)">
 
-  <!-- Lens ring shadow -->
-  <circle cx="212" cy="212" r="153" fill="rgba(0,0,0,0.2)" filter="url(#shadow)"/>
-  <!-- Lens ring -->
-  <circle cx="212" cy="212" r="152" fill="none" stroke="white" stroke-width="44"/>
-  <!-- Lens glass (subtle) -->
-  <circle cx="212" cy="212" r="122" fill="rgba(255,255,255,0.07)"/>
+    <!-- ── Large feathery wings ── -->
+    <!-- LEFT wing — 5 feather layers -->
+    <path d="M-95,-10 C-126,-42 -172,-52 -196,-34 C-172,-42 -132,-24 -110, -6Z" fill="white" opacity="0.38"/>
+    <path d="M-95,  2 C-132,-28 -182,-34 -206,-14 C-180,-22 -136, -6 -112, 10Z" fill="white" opacity="0.58"/>
+    <path d="M-95, 14 C-128,-10 -176,-12 -200, 10 C-174,  2 -130, 14 -108, 26Z" fill="white" opacity="0.75"/>
+    <path d="M-95, 26 C-122,  8 -164, 14 -182, 34 C-160, 22 -122, 28 -104, 40Z" fill="white" opacity="0.58"/>
+    <path d="M-95, 36 C-118, 22 -152, 28 -166, 46 C-146, 34 -114, 38 -100, 50Z" fill="white" opacity="0.38"/>
+    <!-- RIGHT wing — 5 feather layers -->
+    <path d="M95, -10 C126,-42 172,-52 196,-34 C172,-42 132,-24 110,  -6Z" fill="white" opacity="0.38"/>
+    <path d="M95,   2 C132,-28 182,-34 206,-14 C180,-22 136, -6 112,  10Z" fill="white" opacity="0.58"/>
+    <path d="M95,  14 C128,-10 176,-12 200, 10 C174,  2 130, 14 108,  26Z" fill="white" opacity="0.75"/>
+    <path d="M95,  26 C122,  8 164, 14 182, 34 C160, 22 122, 28 104,  40Z" fill="white" opacity="0.58"/>
+    <path d="M95,  36 C118, 22 152, 28 166, 46 C146, 34 114, 38 100,  50Z" fill="white" opacity="0.38"/>
 
-  <!-- ── FLYING CASH BILL INSIDE LENS ── -->
-  <!-- Bill shadow -->
-  <rect x="127" y="187" width="174" height="104" rx="12" fill="rgba(0,0,0,0.2)"/>
-  <!-- Bill body -->
-  <rect x="124" y="183" width="176" height="104" rx="12" fill="url(#billGrad)" filter="url(#shadow)"/>
-  <!-- Bill inner border -->
-  <rect x="132" y="191" width="160" height="88" rx="8" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
-  <!-- Bill center oval -->
-  <ellipse cx="212" cy="235" rx="28" ry="28" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
-  <!-- ₱ on bill -->
-  <text x="212" y="243"
-        font-family="'Arial Black', Arial, sans-serif"
-        font-weight="900" font-size="30"
-        fill="white" text-anchor="middle" dominant-baseline="middle">₱</text>
-  <!-- Bill value left -->
-  <text x="148" y="220"
-        font-family="Arial, sans-serif" font-weight="700" font-size="14"
-        fill="rgba(255,255,255,0.7)" text-anchor="middle">100</text>
-  <!-- Bill value right -->
-  <text x="276" y="252"
-        font-family="Arial, sans-serif" font-weight="700" font-size="14"
-        fill="rgba(255,255,255,0.7)" text-anchor="middle">100</text>
-  <!-- Bill shine streak -->
-  <rect x="136" y="196" width="60" height="6" rx="3" fill="rgba(255,255,255,0.25)"/>
+    <!-- ── Bill body ── -->
+    <rect x="-92" y="-52" width="184" height="104" rx="15"
+          fill="url(#billGrad)" filter="url(#shadow)"/>
+    <!-- Gold border accent -->
+    <rect x="-92" y="-52" width="184" height="104" rx="15"
+          fill="none" stroke="#fbbf24" stroke-width="3" opacity="0.75"/>
+    <!-- Inner white border -->
+    <rect x="-78" y="-38" width="156" height="76" rx="10"
+          fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1.5"/>
+    <!-- Bill texture lines -->
+    <line x1="-70" y1="-10" x2="-28" y2="-10" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+    <line x1="-70" y1="  0" x2="-28" y2="  0" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+    <line x1="-70" y1=" 10" x2="-28" y2=" 10" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+    <!-- Center medallion -->
+    <circle cx="0" cy="0" r="34" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+    <!-- ₱ symbol -->
+    <text x="0" y="13"
+          font-family="'Arial Black',Arial,sans-serif"
+          font-weight="900" font-size="36"
+          fill="white" text-anchor="middle">₱</text>
+    <!-- Denomination corners -->
+    <text x="-64" y="-30" font-family="Arial" font-weight="700" font-size="15"
+          fill="rgba(255,255,255,0.8)">100</text>
+    <text x="64"  y="44"  font-family="Arial" font-weight="700" font-size="15"
+          fill="rgba(255,255,255,0.8)" text-anchor="end">100</text>
+    <!-- Bill shine -->
+    <rect x="-76" y="-36" width="70" height="10" rx="5" fill="rgba(255,255,255,0.24)"/>
+  </g>
 
-  <!-- ── WINGS (left) ── -->
-  <!-- Left wing back feathers -->
-  <path d="M124,220 C100,195 68,188 48,200 C65,195 88,208 100,225 Z"
-        fill="white" opacity="0.65"/>
-  <!-- Left wing front -->
-  <path d="M124,228 C98,210 62,205 38,220 C58,212 90,220 108,235 Z"
-        fill="white" opacity="0.85"/>
-  <!-- Left wing tip highlight -->
-  <path d="M124,235 C104,225 78,228 60,240 C78,230 104,234 118,244 Z"
-        fill="white" opacity="0.55"/>
+  <!-- ══════════════════════════════════
+       GOLDEN TRACES  (glowing dashed path)
+  ══════════════════════════════════ -->
+  <!-- Glow layer behind traces -->
+  <path d="M286,172 Q248,222 206,292" fill="none"
+        stroke="#f59e0b" stroke-width="12" stroke-linecap="round"
+        stroke-dasharray="12,10" opacity="0.22" filter="url(#glow)"/>
+  <!-- Main trace 1 -->
+  <path d="M288,170 Q250,220 208,290" fill="none"
+        stroke="url(#traceGrad)" stroke-width="4" stroke-linecap="round"
+        stroke-dasharray="11,9" filter="url(#glow)"/>
+  <!-- Trace 2 -->
+  <path d="M300,162 Q260,214 218,284" fill="none"
+        stroke="rgba(253,230,138,0.6)" stroke-width="2.5" stroke-linecap="round"
+        stroke-dasharray="8,11"/>
+  <!-- Trace 3 -->
+  <path d="M274,178 Q236,228 196,298" fill="none"
+        stroke="rgba(253,230,138,0.45)" stroke-width="2" stroke-linecap="round"
+        stroke-dasharray="6,12"/>
+  <!-- Trace 4 -->
+  <path d="M310,154 Q268,208 226,278" fill="none"
+        stroke="rgba(251,191,36,0.28)" stroke-width="2" stroke-linecap="round"
+        stroke-dasharray="5,13"/>
+  <!-- Trace 5 -->
+  <path d="M262,184 Q226,234 186,304" fill="none"
+        stroke="rgba(253,230,138,0.22)" stroke-width="1.5" stroke-linecap="round"
+        stroke-dasharray="4,14"/>
 
-  <!-- ── WINGS (right) ── -->
-  <!-- Right wing back feathers -->
-  <path d="M300,220 C324,195 356,188 376,200 C359,195 336,208 324,225 Z"
-        fill="white" opacity="0.65"/>
-  <!-- Right wing front -->
-  <path d="M300,228 C326,210 362,205 386,220 C366,212 334,220 316,235 Z"
-        fill="white" opacity="0.85"/>
-  <!-- Right wing tip highlight -->
-  <path d="M300,235 C320,225 346,228 364,240 C346,230 320,234 306,244 Z"
-        fill="white" opacity="0.55"/>
+  <!-- Glowing dots along trail -->
+  <circle cx="270" cy="182" r="5.5" fill="#fde68a" opacity="0.9"  filter="url(#glow)"/>
+  <circle cx="256" cy="202" r="5.5" fill="#fbbf24" opacity="0.8"  filter="url(#glow)"/>
+  <circle cx="244" cy="224" r="5"   fill="#f59e0b" opacity="0.72" filter="url(#glow)"/>
+  <circle cx="234" cy="248" r="4.5" fill="#f59e0b" opacity="0.62"/>
+  <circle cx="222" cy="270" r="4"   fill="#f59e0b" opacity="0.5"/>
 
-  <!-- Lens glare arc -->
-  <path d="M158,166 a68,68,0,0,1,60,-22"
-        fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5"
+  <!-- ══════════════════════════════════
+       CARTOON MAGNIFYING GLASS
+  ══════════════════════════════════ -->
+
+  <!-- Handle — dark charcoal body -->
+  <line x1="286" y1="400" x2="408" y2="466"
+        stroke="#1c1917" stroke-width="52" stroke-linecap="round"/>
+  <line x1="286" y1="400" x2="408" y2="466"
+        stroke="url(#handleGrad)" stroke-width="46" stroke-linecap="round"/>
+  <!-- Gold band near lens junction -->
+  <line x1="282" y1="396" x2="302" y2="407"
+        stroke="url(#bandGrad)" stroke-width="50" stroke-linecap="butt"/>
+  <!-- Handle shine streak -->
+  <line x1="280" y1="402" x2="396" y2="462"
+        stroke="rgba(255,255,255,0.22)" stroke-width="12" stroke-linecap="round"/>
+  <!-- Handle edge highlight -->
+  <line x1="278" y1="404" x2="394" y2="464"
+        stroke="rgba(255,255,255,0.10)" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Ring outer shadow -->
+  <circle cx="198" cy="322" r="126" fill="rgba(0,0,0,0.35)"/>
+  <!-- Ring outer dark rim (cartoon outline) -->
+  <circle cx="195" cy="319" r="123" fill="none" stroke="#1e293b" stroke-width="6"/>
+  <!-- Ring body (silver/chrome gradient) -->
+  <circle cx="195" cy="319" r="120" fill="none"
+          stroke="url(#ringGrad)" stroke-width="40"/>
+  <!-- Ring top-left highlight arc (white shine = cartoon sheen) -->
+  <circle cx="195" cy="319" r="120" fill="none"
+          stroke="url(#ringHighlight)" stroke-width="18"
+          stroke-dasharray="188 566" stroke-dashoffset="0"
+          stroke-linecap="round"/>
+  <!-- Ring inner dark edge -->
+  <circle cx="195" cy="319" r="100" fill="none" stroke="#1e293b" stroke-width="3"/>
+
+  <!-- Lens glass (light blue cartoon tint) -->
+  <circle cx="195" cy="319" r="97" fill="url(#lensGlass)"/>
+
+  <!-- Traces MAGNIFIED inside lens -->
+  <clipPath id="lensClip">
+    <circle cx="195" cy="319" r="96"/>
+  </clipPath>
+  <g clip-path="url(#lensClip)">
+    <path d="M135,280 Q170,312 218,350" fill="none"
+          stroke="#fde68a" stroke-width="5.5" stroke-linecap="round"
+          stroke-dasharray="13,9" filter="url(#glow)" opacity="0.9"/>
+    <path d="M122,294 Q158,326 206,364" fill="none"
+          stroke="rgba(253,230,138,0.6)" stroke-width="3.5" stroke-linecap="round"
+          stroke-dasharray="9,11"/>
+    <path d="M148,270 Q182,302 230,340" fill="none"
+          stroke="rgba(251,191,36,0.45)" stroke-width="3" stroke-linecap="round"
+          stroke-dasharray="7,12"/>
+    <!-- Magnified glowing dots -->
+    <circle cx="148" cy="288" r="8"   fill="#fde68a" opacity="0.85" filter="url(#glow)"/>
+    <circle cx="170" cy="308" r="7"   fill="#fbbf24" opacity="0.75" filter="url(#glow)"/>
+    <circle cx="196" cy="330" r="6.5" fill="#f59e0b" opacity="0.65"/>
+    <circle cx="218" cy="350" r="5.5" fill="#f59e0b" opacity="0.55"/>
+    <!-- Lens glass glare inside -->
+    <ellipse cx="155" cy="272" rx="28" ry="14"
+             fill="rgba(255,255,255,0.18)" transform="rotate(-30,155,272)"/>
+  </g>
+
+  <!-- Lens outer glare arc (cartoon highlight on glass) -->
+  <path d="M114,262 a104,104,0,0,1,96,-38"
+        fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="6"
         stroke-linecap="round"/>
 
   <!-- Sparkles -->
-  <g fill="white">
-    <circle cx="84"  cy="90"  r="5"   opacity="0.7"/>
-    <circle cx="70"  cy="76"  r="3"   opacity="0.5"/>
-    <circle cx="100" cy="74"  r="3"   opacity="0.5"/>
-    <circle cx="398" cy="92"  r="4"   opacity="0.6"/>
-    <circle cx="412" cy="80"  r="2.5" opacity="0.45"/>
+  <g fill="#fde68a">
+    <circle cx="76"  cy="78"  r="5"   opacity="0.8"/>
+    <circle cx="60"  cy="64"  r="3"   opacity="0.6"/>
+    <circle cx="94"  cy="62"  r="3"   opacity="0.6"/>
+    <circle cx="448" cy="80"  r="4"   opacity="0.7"/>
+    <circle cx="462" cy="66"  r="2.5" opacity="0.5"/>
+    <circle cx="434" cy="66"  r="2.5" opacity="0.5"/>
   </g>
 </svg>
