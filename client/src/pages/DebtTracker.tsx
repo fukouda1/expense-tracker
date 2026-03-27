@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import { get } from '../services/api';
@@ -8,16 +9,22 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import type { Transaction } from '../types';
 
+const isNative = Capacitor.isNativePlatform();
+
 export default function DebtTracker() {
   const navigate = useNavigate();
-  const { categories, accounts, addTransaction } = useData();
+  const { categories, accounts, addTransaction, getTransactionsByDate } = useData();
   const { showToast } = useToast();
 
-  // Load only debt-category transactions via lightweight endpoint
+  // Native: full local SQLite scan (fast); Web: lightweight debt-only endpoint
   const [allTx, setAllTx] = useState<Transaction[]>([]);
   const loadDebtTx = useCallback(() => {
-    get<Transaction[]>('/api/analytics/debt-transactions').then(setAllTx).catch(() => {});
-  }, []);
+    if (isNative) {
+      getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTx).catch(() => {});
+    } else {
+      get<Transaction[]>('/api/analytics/debt-transactions').then(setAllTx).catch(() => {});
+    }
+  }, [getTransactionsByDate]);
   useEffect(() => { loadDebtTx(); }, [loadDebtTx]);
 
   const [tab, setTab] = useState<'owe' | 'owed'>('owed');

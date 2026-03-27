@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { get } from '../services/api';
 import { formatCurrency } from '../utils/formatters';
 
@@ -10,11 +11,14 @@ interface Alert {
   pctAbove: number;
 }
 
+const isNative = Capacitor.isNativePlatform();
+
 export default function SpendingAlerts() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    if (isNative) return; // No Express server in APK mode
     get<Alert[]>('/api/analytics/spending-alerts')
       .then(setAlerts)
       .catch(() => {});

@@ -19,13 +19,16 @@ import SavingsGauge from '../components/SavingsGauge';
 import SpendingAlerts from '../components/SpendingAlerts';
 import { formatCurrency } from '../utils/formatters';
 import { get } from '../services/api';
+import { Capacitor } from '@capacitor/core';
 import type { CategorySummary, AccountBalance, Transaction } from '../types';
 
 interface DebtSummary { theyOwe: number; iOwe: number }
 
+const isNative = Capacitor.isNativePlatform();
+
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { transactions, budgets, recurring, loading, getAccountBalances, loadBudgets, getTransactionsByDate, removeTransaction, refresh } = useData();
+  const { transactions, budgets, recurring, loading, getAccountBalances, loadBudgets, getTransactionsByDate, getMonthlyTotal, removeTransaction, refresh } = useData();
   const [debtSummary, setDebtSummary] = useState<DebtSummary>({ theyOwe: 0, iOwe: 0 });
   const { dark, toggle } = useTheme();
   const { getPeriodRange, period, viewMode, periodLabel } = useDisplay();
@@ -48,8 +51,23 @@ export default function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
-    // Load lightweight debt summary instead of all transactions
-    get<DebtSummary>('/api/analytics/debt-summary').then(setDebtSummary).catch(() => {});
+    if (isNative) {
+      // Native: compute from local SQLite debt transactions
+      getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(txs => {
+        const theyOwe = Math.max(0,
+          txs.filter(t => t.category_name === 'Lent Money').reduce((s, t) => s + t.amount, 0) -
+          txs.filter(t => t.category_name === 'Lent Payment').reduce((s, t) => s + t.amount, 0)
+        );
+        const iOwe = Math.max(0,
+          txs.filter(t => t.category_name === 'Debt').reduce((s, t) => s + t.amount, 0) -
+          txs.filter(t => t.category_name === 'Debt Payment').reduce((s, t) => s + t.amount, 0)
+        );
+        setDebtSummary({ theyOwe, iOwe });
+      }).catch(() => {});
+    } else {
+      // Web: use lightweight server endpoint
+      get<DebtSummary>('/api/analytics/debt-summary').then(setDebtSummary).catch(() => {});
+    }
   }, [loading, transactions]);
 
   useEffect(() => {
@@ -67,7 +85,7 @@ export default function Dashboard() {
           const [y, m] = currentMonth.split('-').map(Number);
           const prevDate = new Date(y, m - 2, 1);
           const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-          const prev = await get<{ income: number; expense: number }>(`/api/analytics/monthly?month=${prevMonth}`);
+          const prev = await getMonthlyTotal(prevMonth);
           setPrevMonthExpense(prev.expense);
         } catch { setPrevMonthExpense(null); }
       } else {
