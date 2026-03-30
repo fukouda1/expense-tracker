@@ -346,12 +346,9 @@ export async function parseLegacyCsvAndImport(csvContent: string): Promise<{ imp
         const cn = catStr.trim();
         if (cn && cn !== '-' && cn !== '  -  ') catId = await getOrCreateCat(cn);
       }
-      // Skip duplicates (same date + amount + type + account)
-      const fp = `${date}|${amount}|${type}|${accId}`;
-      if (existingFingerprints.has(fp)) { skipped++; continue; }
-      existingFingerprints.add(fp);
+      const notes = notesParts.join(',').trim();
 
-      await prisma.transaction.create({ data: { amount, type, category_id: catId, account_id: accId, to_account_id: toAccId, date, notes: notesParts.join(',').trim() } });
+      await prisma.transaction.create({ data: { amount, type, category_id: catId, account_id: accId, to_account_id: toAccId, date, notes } });
       imported++;
     } catch (e: any) { errors.push(`Row ${i + 1}: ${e.message}`); if (errors.length > 20) break; }
   }

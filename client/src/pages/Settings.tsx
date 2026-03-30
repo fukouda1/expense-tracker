@@ -277,7 +277,14 @@ export default function Settings() {
     try {
       const response = await fetch('/api/export/xlsx');
       const arrayBuffer = await response.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      // Convert to base64 in chunks to avoid max call stack with large files
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      }
+      const base64 = btoa(binary);
       const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
       await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     } catch (err) {
