@@ -120,6 +120,13 @@
     <filter id="coinShadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.4"/>
     </filter>
+    <!-- Bulge/spherize filter for convex lens magnification -->
+    <filter id="bulge" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0" result="src"/>
+      <!-- Displacement map using a radial gradient to push pixels outward from center -->
+      <feImage href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cdefs%3E%3CradialGradient id='b' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0%25' stop-color='%23808080'/%3E%3Cstop offset='100%25' stop-color='%23606060'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='100' cy='100' r='100' fill='url(%23b)'/%3E%3C/svg%3E" result="map" x="0%" y="0%" width="100%" height="100%"/>
+      <feDisplacementMap in="src" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G" result="bulged"/>
+    </filter>
   </defs>
 
   <!-- Background -->
@@ -131,7 +138,7 @@
   <rect width="512" height="512" rx="108" ry="108" fill="url(#bgGlow)"/>
 
   <!-- ═══ STACKED BILLS (3 widely fanned, bigger, flying away) ═══ -->
-  <g transform="translate(350,58) rotate(-18) scale(0.68)" filter="url(#shadow)">
+  <g transform="translate(376,56) rotate(-15) scale(0.58)" filter="url(#shadow)">
     <!-- Wings on the stack -->
     <path d="M-90,0 C-126,-30 -170,-34 -192,-14 C-170,-20 -128,-6 -106,8Z" fill="white" opacity="0.65"/>
     <path d="M-90,14 C-120,-6 -164,-4 -186,18 C-162,8 -122,18 -100,30Z" fill="white" opacity="0.4"/>
@@ -165,13 +172,13 @@
   </g>
 
   <!-- ═══ TRACE ═══ -->
-  <path d="M326,102 Q296,168 262,244 Q234,296 212,324" fill="none" stroke="#f59e0b" stroke-width="16" stroke-linecap="round" stroke-dasharray="15,10" opacity="0.14" filter="url(#glow)"/>
-  <path d="M326,102 Q296,168 262,244 Q234,296 212,324" fill="none" stroke="url(#traceGrad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="14,9" filter="url(#softGlow)"/>
-  <path d="M338,94 Q308,162 274,238 Q246,290 224,318" fill="none" stroke="rgba(253,230,138,0.35)" stroke-width="3" stroke-linecap="round" stroke-dasharray="10,12"/>
+  <path d="M362,108 Q330,160 290,230 Q254,286 224,316" fill="none" stroke="#f59e0b" stroke-width="16" stroke-linecap="round" stroke-dasharray="15,10" opacity="0.14" filter="url(#glow)"/>
+  <path d="M362,108 Q330,160 290,230 Q254,286 224,316" fill="none" stroke="url(#traceGrad)" stroke-width="6" stroke-linecap="round" stroke-dasharray="14,9" filter="url(#softGlow)"/>
+  <path d="M374,102 Q342,154 302,224 Q266,280 236,310" fill="none" stroke="rgba(253,230,138,0.35)" stroke-width="3" stroke-linecap="round" stroke-dasharray="10,12"/>
 
   <!-- ═══ FOUR TRAIL COINS (along the trace, dimmed) ═══ -->
   <!-- Coin 1 — near bill, largest -->
-  <g transform="translate(314,132)" filter="url(#coinShadow)" opacity="0.85">
+  <g transform="translate(344,134)" filter="url(#coinShadow)" opacity="0.85">
     <circle r="11" fill="url(#coinOuter)"/>
     <circle r="11" fill="none" stroke="#7a5a0a" stroke-width="1.5"/>
     <circle r="9" fill="url(#coinMiddle)"/>
@@ -181,7 +188,7 @@
     <circle cx="-2.2" cy="-4" r="1.6" fill="white" opacity="0.38"/>
   </g>
   <!-- Coin 2 -->
-  <g transform="translate(296,176)" filter="url(#coinShadow)" opacity="0.78">
+  <g transform="translate(322,172)" filter="url(#coinShadow)" opacity="0.78">
     <circle r="10" fill="url(#coinOuter)"/>
     <circle r="10" fill="none" stroke="#7a5a0a" stroke-width="1.3"/>
     <circle r="8" fill="url(#coinMiddle)"/>
@@ -191,7 +198,7 @@
     <circle cx="-2" cy="-3.5" r="1.5" fill="white" opacity="0.35"/>
   </g>
   <!-- Coin 3 -->
-  <g transform="translate(276,218)" filter="url(#coinShadow)" opacity="0.72">
+  <g transform="translate(298,214)" filter="url(#coinShadow)" opacity="0.72">
     <circle r="9" fill="url(#coinOuter)"/>
     <circle r="9" fill="none" stroke="#7a5a0a" stroke-width="1.2"/>
     <circle r="7.2" fill="url(#coinMiddle)"/>
@@ -201,7 +208,7 @@
     <circle cx="-1.8" cy="-3.2" r="1.3" fill="white" opacity="0.32"/>
   </g>
   <!-- Coin 4 — near glass, smallest -->
-  <g transform="translate(256,258)" filter="url(#coinShadow)" opacity="0.65">
+  <g transform="translate(272,258)" filter="url(#coinShadow)" opacity="0.65">
     <circle r="7.5" fill="url(#coinOuter)"/>
     <circle r="7.5" fill="none" stroke="#7a5a0a" stroke-width="1"/>
     <circle r="6" fill="url(#coinMiddle)"/>
@@ -268,119 +275,199 @@
   <!-- Inner chrome lip -->
   <circle cx="194" cy="310" r="99.5" fill="none" stroke="rgba(203,213,225,0.25)" stroke-width="1.5"/>
 
-  <!-- Lens glass — clearer, more realistic -->
+  <!-- Lens glass — with magnification/convex lens effect -->
   <circle cx="194" cy="310" r="98" fill="rgba(240,249,255,0.06)"/>
   <circle cx="194" cy="310" r="98" fill="url(#lensGlass)"/>
-  <!-- Subtle vignette -->
-  <circle cx="194" cy="310" r="98" fill="url(#lensVignette)"/>
 
-  <!-- Diagonal lens reflection (upper-left, away from coins) -->
-  <path d="M120,248 L178,270 L166,284 L108,262Z" fill="rgba(255,255,255,0.08)"/>
-  <!-- Second smaller reflection -->
-  <path d="M184,260 L202,268 L196,278 L178,270Z" fill="rgba(255,255,255,0.05)"/>
+  <!-- ═══ STRONG CONVEX/BULGING GLASS EFFECT ═══ -->
 
-  <!-- Glass surface glare arcs -->
-  <path d="M112,254 a100,100,0,0,1,96,-38" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="6" stroke-linecap="round"/>
-  <path d="M128,266 a86,86,0,0,1,56,-24" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Bright center hotspot (convex lens focuses light strongly in center) -->
+  <radialGradient id="lensMagnify" cx="46%" cy="44%" r="40%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+    <stop offset="25%" stop-color="#e0f7fa" stop-opacity="0.12"/>
+    <stop offset="50%" stop-color="#b2ebf2" stop-opacity="0.04"/>
+    <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="194" cy="310" r="98" fill="url(#lensMagnify)"/>
 
-  <!-- ═══ INSIDE LENS: tall stack + short stack + face-up coin ═══ -->
+  <!-- Very heavy edge darkening (thick convex glass = very dark rim) -->
+  <radialGradient id="lensEdgeDark" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="42%" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="62%" stop-color="#0c4a6e" stop-opacity="0.18"/>
+    <stop offset="78%" stop-color="#0a3d5c" stop-opacity="0.38"/>
+    <stop offset="90%" stop-color="#082f23" stop-opacity="0.55"/>
+    <stop offset="100%" stop-color="#041f17" stop-opacity="0.7"/>
+  </radialGradient>
+  <circle cx="194" cy="310" r="98" fill="url(#lensEdgeDark)"/>
+
+  <!-- Large convex dome highlight (off-center bright area = curved glass) -->
+  <radialGradient id="domeHL" cx="40%" cy="36%" r="48%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.18"/>
+    <stop offset="30%" stop-color="#ffffff" stop-opacity="0.08"/>
+    <stop offset="60%" stop-color="#ffffff" stop-opacity="0.02"/>
+    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="178" cy="292" r="75" fill="url(#domeHL)"/>
+
+  <!-- Wide curved refraction band (thick arc = glass dome catching light) -->
+  <path d="M124,268 Q168,244 224,256 Q258,266 268,286" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="24" stroke-linecap="round"/>
+  <!-- Inner refraction -->
+  <path d="M140,278 Q178,260 222,270 Q248,278 256,292" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" stroke-linecap="round"/>
+  <!-- Tight bright arc (sharp highlight on dome peak) -->
+  <path d="M152,272 Q180,258 212,266" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Specular bright spot cluster (light hitting dome peak) -->
+  <circle cx="172" cy="264" r="10" fill="rgba(255,255,255,0.14)"/>
+  <circle cx="170" cy="262" r="5" fill="rgba(255,255,255,0.28)"/>
+  <circle cx="168" cy="260" r="2.5" fill="rgba(255,255,255,0.45)"/>
+
+  <!-- Glass surface glare arcs (on the dome) -->
+  <path d="M118,260 a96,96,0,0,1,88,-36" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M132,270 a80,80,0,0,1,52,-22" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- ═══ INSIDE LENS: cartoon chunky coin stacks (magnified — scaled 1.08x) ═══ -->
   <clipPath id="lensClip">
     <circle cx="194" cy="310" r="97"/>
   </clipPath>
   <g clip-path="url(#lensClip)">
 
-    <!-- Golden discovery glow behind coins -->
-    <radialGradient id="coinGlow" cx="50%" cy="55%" r="45%">
-      <stop offset="0%" stop-color="#ffd54f" stop-opacity="0.18"/>
+    <!-- Warm golden glow -->
+    <radialGradient id="coinGlow" cx="50%" cy="55%" r="50%">
+      <stop offset="0%" stop-color="#ffd54f" stop-opacity="0.2"/>
       <stop offset="60%" stop-color="#ffca28" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
     </radialGradient>
-    <circle cx="190" cy="310" r="70" fill="url(#coinGlow)"/>
+    <circle cx="190" cy="310" r="80" fill="url(#coinGlow)"/>
 
-    <!-- ═══ TALL STACK (right, 6 layers) ═══ -->
-    <g transform="translate(196,298)">
-      <!-- Macro for stack layer: bottom ellipse, rect edge, ridges, top ellipse -->
-      <!-- Layer 6 bottom -->
-      <ellipse cy="40" rx="24" ry="7.5" fill="#d4a017"/>
-      <rect x="-24" y="34" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="34" x2="-21" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="34" x2="-15" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="34" x2="-9" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="34" x2="-3" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="34" x2="3" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="34" x2="9" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="34" x2="15" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="34" x2="21" y2="40" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="34" rx="24" ry="7.5" fill="#ffca28"/>
+    <!-- Cartoon coin colors: warm orange-gold like the reference -->
+    <!-- Each coin layer = thick edge (dark orange) + top face (bright yellow-orange) -->
+    <!-- Diagonal shine stripe on top coins for cartoon look -->
+
+    <!-- ═══ SCATTERED FLAT COINS (bottom, behind stacks) ═══ -->
+    <!-- Flat coin bottom-left -->
+    <g transform="translate(128,370)">
+      <ellipse rx="18" ry="5" cy="3.5" fill="#c67b00"/>
+      <ellipse rx="18" ry="5" fill="#e6a100"/>
+      <ellipse rx="18" ry="5" fill="none" stroke="#a06000" stroke-width="1.5"/>
+      <ellipse rx="13" ry="3.5" fill="none" stroke="rgba(255,200,40,0.4)" stroke-width="0.8"/>
+      <text y="2" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="5.5" fill="#8b5e00" text-anchor="middle">₱</text>
+    </g>
+    <!-- Flat coin bottom-right -->
+    <g transform="translate(248,372)">
+      <ellipse rx="16" ry="4.5" cy="3" fill="#c67b00"/>
+      <ellipse rx="16" ry="4.5" fill="#e6a100"/>
+      <ellipse rx="16" ry="4.5" fill="none" stroke="#a06000" stroke-width="1.3"/>
+      <ellipse rx="11.5" ry="3" fill="none" stroke="rgba(255,200,40,0.35)" stroke-width="0.7"/>
+      <text y="1.8" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="5" fill="#8b5e00" text-anchor="middle">₱</text>
+    </g>
+    <!-- Flat coin bottom-center -->
+    <g transform="translate(188,380)">
+      <ellipse rx="15" ry="4" cy="2.5" fill="#c67b00"/>
+      <ellipse rx="15" ry="4" fill="#d4a017"/>
+      <ellipse rx="15" ry="4" fill="none" stroke="#a06000" stroke-width="1.2"/>
+      <text y="1.5" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="4.5" fill="#8b5e00" text-anchor="middle">₱</text>
+    </g>
+
+    <!-- ═══ SHORT STACK (left, 4 coins) ═══ -->
+    <g transform="translate(148,318)">
+      <!-- Each layer: thick dark edge rect + ridge lines + bright top ellipse -->
+      <!-- Layer 4 (bottom) -->
+      <ellipse cy="30" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="22" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="22" x2="-23" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="22" x2="-17" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="22" x2="-11" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="22" x2="-5" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="22" x2="1" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="22" x2="7" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="22" x2="13" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="22" x2="19" y2="30" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="22" rx="26" ry="8.5" fill="#ffb300"/>
+      <!-- Layer 3 -->
+      <ellipse cy="18" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="10" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="10" x2="-23" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="10" x2="-17" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="10" x2="-11" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="10" x2="-5" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="10" x2="1" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="10" x2="7" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="10" x2="13" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="10" x2="19" y2="18" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="10" rx="26" ry="8.5" fill="#ffb300"/>
+      <!-- Layer 2 -->
+      <ellipse cy="6" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="-2" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="-2" x2="-23" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="-2" x2="-17" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="-2" x2="-11" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="-2" x2="-5" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="-2" x2="1" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="-2" x2="7" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="-2" x2="13" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="-2" x2="19" y2="6" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="-2" rx="26" ry="8.5" fill="#ffb300"/>
+      <!-- Top coin with ₱ face + diagonal shine -->
+      <ellipse cy="-6" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="-14" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="-14" x2="-23" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="-14" x2="-17" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="-14" x2="-11" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="-14" x2="-5" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="-14" x2="1" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="-14" x2="7" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="-14" x2="13" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="-14" x2="19" y2="-6" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="-14" rx="26" ry="8.5" fill="#ffc107"/>
+      <ellipse cy="-14" rx="26" ry="8.5" fill="none" stroke="#a06000" stroke-width="1.8"/>
+      <ellipse cy="-14" rx="20" ry="6.2" fill="#ffca28"/>
+      <ellipse cy="-14" rx="15" ry="4.5" fill="#ffd54f"/>
+      <text y="-11.5" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="7" fill="#8b5e00" text-anchor="middle">₱</text>
+      <!-- Diagonal shine stripe -->
+      <path d="M-8,-20 L4,-14 L-2,-10 L-14,-16Z" fill="rgba(255,255,255,0.25)"/>
+    </g>
+
+    <!-- ═══ TALL STACK (right-center, 7 coins) ═══ -->
+    <g transform="translate(204,296)">
+      <!-- Layer 7 (bottom) -->
+      <ellipse cy="48" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="40" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="40" x2="-23" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="40" x2="-17" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="40" x2="-11" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="40" x2="-5" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="40" x2="1" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="40" x2="7" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="40" x2="13" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="40" x2="19" y2="48" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="40" rx="26" ry="8.5" fill="#ffb300"/>
+      <!-- Layer 6 -->
+      <ellipse cy="36" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="28" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="28" x2="-23" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="28" x2="-17" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="28" x2="-11" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="28" x2="-5" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="28" x2="1" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="28" x2="7" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="28" x2="13" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="28" x2="19" y2="36" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="28" rx="26" ry="8.5" fill="#ffb300"/>
       <!-- Layer 5 -->
-      <ellipse cy="30.5" rx="24" ry="7.5" fill="#d4a017"/>
-      <rect x="-24" y="24.5" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="24.5" x2="-21" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="24.5" x2="-15" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="24.5" x2="-9" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="24.5" x2="-3" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="24.5" x2="3" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="24.5" x2="9" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="24.5" x2="15" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="24.5" x2="21" y2="30.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="24.5" rx="24" ry="7.5" fill="#ffca28"/>
+      <ellipse cy="24" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="16" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="16" x2="-23" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="16" x2="-17" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="16" x2="-11" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="16" x2="-5" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="16" x2="1" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="16" x2="7" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="16" x2="13" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="16" x2="19" y2="24" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="16" rx="26" ry="8.5" fill="#ffb300"/>
       <!-- Layer 4 -->
-      <ellipse cy="21" rx="24" ry="7.5" fill="#d4a017"/>
-      <rect x="-24" y="15" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="15" x2="-21" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="15" x2="-15" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="15" x2="-9" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="15" x2="-3" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="15" x2="3" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="15" x2="9" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="15" x2="15" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="15" x2="21" y2="21" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="15" rx="24" ry="7.5" fill="#ffca28"/>
+      <ellipse cy="12" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="4" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="4" x2="-23" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="4" x2="-17" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="4" x2="-11" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="4" x2="-5" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="4" x2="1" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="4" x2="7" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="4" x2="13" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="4" x2="19" y2="12" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="4" rx="26" ry="8.5" fill="#ffb300"/>
       <!-- Layer 3 -->
-      <ellipse cy="11.5" rx="24" ry="7.5" fill="#d4a017"/>
-      <rect x="-24" y="5.5" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="5.5" x2="-21" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="5.5" x2="-15" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="5.5" x2="-9" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="5.5" x2="-3" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="5.5" x2="3" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="5.5" x2="9" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="5.5" x2="15" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="5.5" x2="21" y2="11.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="5.5" rx="24" ry="7.5" fill="#ffca28"/>
+      <ellipse cy="0" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="-8" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="-8" x2="-23" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="-8" x2="-17" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="-8" x2="-11" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="-8" x2="-5" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="-8" x2="1" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="-8" x2="7" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="-8" x2="13" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="-8" x2="19" y2="0" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="-8" rx="26" ry="8.5" fill="#ffb300"/>
       <!-- Layer 2 -->
-      <ellipse cy="2" rx="24" ry="7.5" fill="#d4a017"/>
-      <rect x="-24" y="-4" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="-4" x2="-21" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="-4" x2="-15" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="-4" x2="-9" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="-4" x2="-3" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="-4" x2="3" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="-4" x2="9" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="-4" x2="15" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="-4" x2="21" y2="2" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="-4" rx="24" ry="7.5" fill="#ffca28"/>
-      <!-- Top coin -->
-      <ellipse cy="-7.5" rx="24" ry="7.5" fill="#e6a100"/>
-      <rect x="-24" y="-13.5" width="48" height="6" fill="url(#stackEdge)"/>
-      <line x1="-21" y1="-13.5" x2="-21" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-15" y1="-13.5" x2="-15" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-9" y1="-13.5" x2="-9" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="-3" y1="-13.5" x2="-3" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="3" y1="-13.5" x2="3" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="9" y1="-13.5" x2="9" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="15" y1="-13.5" x2="15" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/><line x1="21" y1="-13.5" x2="21" y2="-7.5" stroke="#ffd54f" stroke-width="1.5" opacity="0.7"/>
-      <ellipse cy="-13.5" rx="24" ry="7.5" fill="url(#coinOuterBig)"/>
-      <ellipse cy="-13.5" rx="24" ry="7.5" fill="none" stroke="#7a5a0a" stroke-width="1.8"/>
-      <ellipse cy="-13.5" rx="19" ry="5.8" fill="url(#coinMiddleBig)"/>
-      <ellipse cy="-13.5" rx="14" ry="4.2" fill="url(#coinInnerBig)"/>
-      <text y="-11" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="6.5" fill="#b8860b" text-anchor="middle">₱</text>
-      <ellipse cx="-5" cy="-16" rx="7" ry="2.2" fill="rgba(255,255,255,0.35)"/>
+      <ellipse cy="-12" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="-20" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="-20" x2="-23" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="-20" x2="-17" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="-20" x2="-11" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="-20" x2="-5" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="-20" x2="1" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="-20" x2="7" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="-20" x2="13" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="-20" x2="19" y2="-12" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="-20" rx="26" ry="8.5" fill="#ffb300"/>
+      <!-- Top coin with ₱ face + diagonal shine -->
+      <ellipse cy="-24" rx="26" ry="8.5" fill="#a06000"/>
+      <rect x="-26" y="-32" width="52" height="8" fill="#c67b00" rx="1"/>
+      <line x1="-23" y1="-32" x2="-23" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-17" y1="-32" x2="-17" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-11" y1="-32" x2="-11" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="-5" y1="-32" x2="-5" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="1" y1="-32" x2="1" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="7" y1="-32" x2="7" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="13" y1="-32" x2="13" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/><line x1="19" y1="-32" x2="19" y2="-24" stroke="#e6a100" stroke-width="2" opacity="0.5"/>
+      <ellipse cy="-32" rx="26" ry="8.5" fill="#ffc107"/>
+      <ellipse cy="-32" rx="26" ry="8.5" fill="none" stroke="#a06000" stroke-width="1.8"/>
+      <ellipse cy="-32" rx="20" ry="6.2" fill="#ffca28"/>
+      <ellipse cy="-32" rx="15" ry="4.5" fill="#ffd54f"/>
+      <text y="-29.5" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="7" fill="#8b5e00" text-anchor="middle">₱</text>
+      <!-- Diagonal shine stripe -->
+      <path d="M-8,-38 L4,-32 L-2,-28 L-14,-34Z" fill="rgba(255,255,255,0.25)"/>
     </g>
 
-    <!-- ═══ SHORT STACK (left, 4 layers) ═══ -->
-    <g transform="translate(142,316)">
-      <!-- Layer 4 bottom -->
-      <ellipse cy="22" rx="22" ry="7" fill="#d4a017"/>
-      <rect x="-22" y="16.5" width="44" height="5.5" fill="url(#stackEdge)"/>
-      <line x1="-19" y1="16.5" x2="-19" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-13" y1="16.5" x2="-13" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-7" y1="16.5" x2="-7" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-1" y1="16.5" x2="-1" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="5" y1="16.5" x2="5" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="11" y1="16.5" x2="11" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="17" y1="16.5" x2="17" y2="22" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/>
-      <ellipse cy="16.5" rx="22" ry="7" fill="#ffca28"/>
-      <!-- Layer 3 -->
-      <ellipse cy="13" rx="22" ry="7" fill="#d4a017"/>
-      <rect x="-22" y="7.5" width="44" height="5.5" fill="url(#stackEdge)"/>
-      <line x1="-19" y1="7.5" x2="-19" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-13" y1="7.5" x2="-13" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-7" y1="7.5" x2="-7" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-1" y1="7.5" x2="-1" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="5" y1="7.5" x2="5" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="11" y1="7.5" x2="11" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="17" y1="7.5" x2="17" y2="13" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/>
-      <ellipse cy="7.5" rx="22" ry="7" fill="#ffca28"/>
-      <!-- Layer 2 -->
-      <ellipse cy="4" rx="22" ry="7" fill="#d4a017"/>
-      <rect x="-22" y="-1.5" width="44" height="5.5" fill="url(#stackEdge)"/>
-      <line x1="-19" y1="-1.5" x2="-19" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-13" y1="-1.5" x2="-13" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-7" y1="-1.5" x2="-7" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-1" y1="-1.5" x2="-1" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="5" y1="-1.5" x2="5" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="11" y1="-1.5" x2="11" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="17" y1="-1.5" x2="17" y2="4" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/>
-      <ellipse cy="-1.5" rx="22" ry="7" fill="#ffca28"/>
-      <!-- Top coin -->
-      <ellipse cy="-5" rx="22" ry="7" fill="#e6a100"/>
-      <rect x="-22" y="-10.5" width="44" height="5.5" fill="url(#stackEdge)"/>
-      <line x1="-19" y1="-10.5" x2="-19" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-13" y1="-10.5" x2="-13" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-7" y1="-10.5" x2="-7" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="-1" y1="-10.5" x2="-1" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="5" y1="-10.5" x2="5" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="11" y1="-10.5" x2="11" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/><line x1="17" y1="-10.5" x2="17" y2="-5" stroke="#ffd54f" stroke-width="1.4" opacity="0.7"/>
-      <ellipse cy="-10.5" rx="22" ry="7" fill="url(#coinOuterBig)"/>
-      <ellipse cy="-10.5" rx="22" ry="7" fill="none" stroke="#7a5a0a" stroke-width="1.6"/>
-      <ellipse cy="-10.5" rx="17" ry="5.2" fill="url(#coinMiddleBig)"/>
-      <ellipse cy="-10.5" rx="13" ry="3.8" fill="url(#coinInnerBig)"/>
-      <text y="-8.2" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="6" fill="#b8860b" text-anchor="middle">₱</text>
-      <ellipse cx="-4.5" cy="-13" rx="6.5" ry="2" fill="rgba(255,255,255,0.32)"/>
-    </g>
-
-    <!-- ═══ FRONT FACE-UP COIN (smaller, front-right) ═══ -->
-    <g transform="translate(232,322)">
-      <circle r="27" fill="rgba(0,0,0,0.12)" cx="2" cy="2"/>
-      <circle r="25" fill="url(#coinOuterBig)"/>
-      <circle r="25" fill="none" stroke="#6b4f0a" stroke-width="3"/>
-      <circle r="20.5" fill="url(#coinMiddleBig)"/>
-      <circle r="16" fill="url(#coinInnerBig)"/>
-      <text y="6.5" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="20" fill="#b8860b" text-anchor="middle">₱</text>
-      <path d="M-9,-13 A16,16,0,0,1,12,-8" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="3.5" stroke-linecap="round"/>
-      <circle cx="-5" cy="-10" r="3.5" fill="white" opacity="0.4"/>
-      <path d="M-11,11 A16,16,0,0,1,-14,5" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2" stroke-linecap="round"/>
+    <!-- ═══ FRONT LEANING COIN (face-up, overlapping stacks) ═══ -->
+    <g transform="translate(240,334)">
+      <circle r="28" fill="rgba(0,0,0,0.1)" cx="2" cy="2"/>
+      <!-- Outer -->
+      <circle r="26" fill="#e6a100"/>
+      <circle r="26" fill="none" stroke="#8b5e00" stroke-width="3"/>
+      <!-- Middle ring -->
+      <circle r="21" fill="#ffb300"/>
+      <!-- Inner face -->
+      <circle r="16" fill="#ffc107"/>
+      <!-- Bright center -->
+      <circle r="11" fill="#ffd54f"/>
+      <!-- ₱ sign -->
+      <text y="6" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="20" fill="#8b5e00" text-anchor="middle">₱</text>
+      <!-- Diagonal shine stripe -->
+      <path d="M-10,-16 L6,-6 L-2,2 L-18,-8Z" fill="rgba(255,255,255,0.22)"/>
+      <!-- Highlight crescent -->
+      <path d="M-9,-13 A16,16,0,0,1,12,-8" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="-5" cy="-10" r="3" fill="white" opacity="0.35"/>
     </g>
 
     <!-- Lens glare -->
-    <ellipse cx="148" cy="256" rx="28" ry="12" fill="rgba(255,255,255,0.16)" transform="rotate(-32,148,256)"/>
+    <ellipse cx="148" cy="256" rx="28" ry="12" fill="rgba(255,255,255,0.14)" transform="rotate(-32,148,256)"/>
   </g>
 
   <!-- Specular dot on glass -->
