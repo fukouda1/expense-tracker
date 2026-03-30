@@ -13,6 +13,7 @@ import AutoBackupToggle from '../components/AutoBackup';
 import { PinLockSettings } from '../components/PinLock';
 import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatters';
 import { post } from '../services/api';
+import MonthPicker from '../components/MonthPicker';
 import * as repo from '../local/repository';
 import type { Category, Account, Budget, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
 
@@ -47,6 +48,7 @@ export default function Settings() {
   const initialTab = (validTabs.includes(searchParams.get('tab') as TabKey) ? searchParams.get('tab') : 'general') as TabKey;
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [pdfMonth, setPdfMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
   // Move item up/down in a list and save new order
   const moveItem = async <T extends { id: number }>(items: T[], index: number, dir: -1 | 1, reorderFn: (ids: number[]) => Promise<void>) => {
@@ -214,16 +216,12 @@ export default function Settings() {
   };
 
   const handleSaveRecurring = async () => {
-    if (!recAmount || Number(recAmount) <= 0) {
-      showToast('Amount is required', 'error');
-      return;
-    }
     if (!recAccId) {
       showToast('Account is required', 'error');
       return;
     }
     const data = {
-      amount: Number(recAmount),
+      amount: recAmount === '' ? 0 : Number(recAmount),
       type: recType,
       category_id: recCatId || null,
       account_id: recAccId as number,
@@ -606,12 +604,11 @@ export default function Settings() {
               Generate a formatted financial report with summary, category breakdown, and transaction list
             </p>
             <div className="flex gap-2 items-center">
-              <input type="month" defaultValue={new Date().toISOString().slice(0, 7)} id="pdf-month"
+              <MonthPicker value={pdfMonth} onChange={setPdfMonth}
                 className="p-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
               <button
                 onClick={() => {
-                  const month = (document.getElementById('pdf-month') as HTMLInputElement)?.value || new Date().toISOString().slice(0, 7);
-                  window.open(`/api/export/pdf?month=${month}`, '_blank');
+                  window.open(`/api/export/pdf?month=${pdfMonth}`, '_blank');
                 }}
                 className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
               >
@@ -904,7 +901,7 @@ export default function Settings() {
       {activeTab === 'budgets' && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <input type="month" value={budgetMonth} onChange={e => { setBudgetMonth(e.target.value); loadBudgets(e.target.value); }} className={inputClass + ' flex-1'} />
+            <MonthPicker value={budgetMonth} onChange={v => { setBudgetMonth(v); loadBudgets(v); }} className={inputClass} />
             <button onClick={() => openModal('budget')} className="px-4 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium whitespace-nowrap">+ Budget</button>
           </div>
           <div className="flex items-center justify-between">
@@ -969,13 +966,22 @@ export default function Settings() {
             <p className="text-sm text-gray-400 text-center py-6">No recurring transactions</p>
           ) : (
             [...recurring].sort((a, b) => b.amount - a.amount).map(r => (
-              <div key={r.id} className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatCurrency(r.amount)} - {r.category_name ?? r.type}
-                  </p>
+              <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                    <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
+                      {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
+                    </p>
+                  </div>
                   <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
                 </div>
+                <button
+                  onClick={() => editRecurring(r.id, { active: !r.active })}
+                  className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}
+                >
+                  {r.active ? 'Deactivate' : 'Activate'}
+                </button>
                 <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
                 <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
               </div>
@@ -1095,7 +1101,10 @@ export default function Settings() {
 
       <Modal open={showModal && modalType === 'recurring'} onClose={() => setShowModal(false)} title={editRecId ? 'Edit Recurring' : 'Add Recurring Transaction'}>
         <div className="space-y-3">
-          <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="Amount (₱)" className={inputClass} />
+          <div>
+            <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="Amount (₱) — leave blank for variable" className={inputClass} inputMode="decimal" />
+            {recAmount === '' && <p className="text-[10px] text-amber-500 mt-1">Variable amount — won't auto-generate, acts as a reminder</p>}
+          </div>
           <select value={recType} onChange={e => setRecType(e.target.value as TransactionType)} className={inputClass}>
             <option value="expense">Expense</option>
             <option value="income">Income</option>

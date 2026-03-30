@@ -39,6 +39,7 @@ export default function DebtTracker() {
   } | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState<number>(accounts[0]?.id ?? 1);
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
 
   // Mark full as paid confirm
@@ -149,7 +150,7 @@ export default function DebtTracker() {
     setSaving(true);
     try {
       const now = new Date();
-      const dateStr = `${now.toISOString().slice(0, 10)}T${now.toTimeString().slice(0, 5)}`;
+      const dateStr = `${paymentDate}T${now.toTimeString().slice(0, 5)}`;
 
       if (paymentModal.type === 'owed') {
         // They owe you → record as income (Lent Payment)
@@ -205,6 +206,7 @@ export default function DebtTracker() {
       type: markPaidConfirm.type,
     });
     setPaymentAccountId(accounts[0]?.id ?? 1);
+    setPaymentDate(new Date().toISOString().slice(0, 10));
     setMarkPaidConfirm(null);
   };
 
@@ -212,6 +214,7 @@ export default function DebtTracker() {
     setPaymentModal({ person, balance, mode: 'partial', type });
     setPaymentAmount('');
     setPaymentAccountId(accounts[0]?.id ?? 1);
+    setPaymentDate(new Date().toISOString().slice(0, 10));
   };
 
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
@@ -311,10 +314,10 @@ export default function DebtTracker() {
                     </button>
                     <button
                       onClick={() => dismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
-                      className="py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 rounded-lg text-[11px] font-medium transition-colors"
-                      title="Settle without recording entry"
+                      className="py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-500 dark:text-gray-400 hover:text-red-500 rounded-lg text-[11px] font-medium transition-colors"
+                      title="Mark inactive (no entry recorded)"
                     >
-                      🚫
+                      Inactive
                     </button>
                   </div>
                 </div>
@@ -364,14 +367,15 @@ export default function DebtTracker() {
               {(tab === 'owed' ? debtData.dismissedOwed : debtData.dismissedOwe).map(d => (
                 <div key={d.person} className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-xl opacity-60">
                   <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>
                     <span className="text-xs line-through text-gray-500">{d.person}</span>
                     <span className="text-[10px] text-gray-400 line-through">{formatCurrency(d.balance)}</span>
                   </div>
                   <button
                     onClick={() => undismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
-                    className="text-[10px] text-blue-500 hover:text-blue-600"
+                    className="text-[10px] text-emerald-500 hover:text-emerald-600 font-medium"
                   >
-                    Undo
+                    Set Active
                   </button>
                 </div>
               ))}
@@ -458,6 +462,16 @@ export default function DebtTracker() {
             </div>
 
             <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Date</label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={e => setPaymentDate(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
                 {paymentModal.type === 'owed' ? 'Receive to Account' : 'Pay from Account'}
               </label>
@@ -505,6 +519,16 @@ export default function DebtTracker() {
                 {paymentModal.type === 'owed' ? `${paymentModal.person} is paying you` : `You are paying ${paymentModal.person}`}
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatCurrency(paymentModal.balance)}</p>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Date</label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={e => setPaymentDate(e.target.value)}
+                className={inputClass}
+              />
             </div>
 
             <div>

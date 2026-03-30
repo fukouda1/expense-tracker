@@ -344,7 +344,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
   const editRecurring = async (id: number, data: Partial<Omit<RecurringTransaction, 'id' | 'category_name' | 'account_name'>>) => {
     if (isNative) {
-      // TODO: native update
+      await repo.updateRecurring(id, data);
     } else {
       await api.put(`/api/recurring/${id}`, data);
     }

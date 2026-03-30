@@ -9,8 +9,7 @@ const VALID_RECURRENCE = ['daily', 'weekly', 'monthly', 'yearly'];
 
 router.get('/', asyncHandler(async (_req, res) => {
   const items = await prisma.recurringTransaction.findMany({
-    where: { active: true },
-    orderBy: { next_date: 'asc' },
+    orderBy: { amount: 'desc' },
   });
 
   const categories = await prisma.category.findMany();
@@ -28,8 +27,8 @@ router.get('/', asyncHandler(async (_req, res) => {
 router.post('/', asyncHandler(async (req, res) => {
   const { amount, type, category_id, account_id, notes, recurrence_type, next_date } = req.body;
 
-  if (amount === undefined || Number(amount) <= 0) {
-    res.status(400).json({ error: 'amount must be a positive number' }); return;
+  if (amount === undefined || isNaN(Number(amount)) || Number(amount) < 0) {
+    res.status(400).json({ error: 'amount must be a non-negative number (0 = variable)' }); return;
   }
   if (!type || !VALID_TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(', ')}` }); return;
@@ -64,8 +63,8 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
   const { amount, type, category_id, account_id, notes, recurrence_type, next_date, active } = req.body;
 
-  if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) <= 0)) {
-    res.status(400).json({ error: 'amount must be a positive number' }); return;
+  if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) < 0)) {
+    res.status(400).json({ error: 'amount must be a non-negative number (0 = variable)' }); return;
   }
   if (type !== undefined && !VALID_TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${VALID_TYPES.join(', ')}` }); return;

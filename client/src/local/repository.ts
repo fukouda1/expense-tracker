@@ -474,8 +474,7 @@ export async function getRecurringTransactions(): Promise<RecurringTransaction[]
      FROM recurring_transactions r
      LEFT JOIN categories c ON r.category_id = c.id
      LEFT JOIN accounts a ON r.account_id = a.id
-     WHERE r.active = 1
-     ORDER BY r.next_date`
+     ORDER BY r.amount DESC`
   );
   return (result.values ?? []) as RecurringTransaction[];
 }
@@ -493,16 +492,58 @@ export async function insertRecurring(
   return result.changes?.lastId ?? 0;
 }
 
+export async function updateRecurring(
+  id: number, data: { amount?: number; type?: string; category_id?: number | null; account_id?: number; notes?: string; recurrence_type?: string; next_date?: string; active?: boolean }
+): Promise<void> {
+  const db = getDb();
+  const sets: string[] = [];
+  const vals: any[] = [];
+  if (data.amount !== undefined) { sets.push('amount=?'); vals.push(data.amount); }
+  if (data.type !== undefined) { sets.push('type=?'); vals.push(data.type); }
+  if (data.category_id !== undefined) { sets.push('category_id=?'); vals.push(data.category_id); }
+  if (data.account_id !== undefined) { sets.push('account_id=?'); vals.push(data.account_id); }
+  if (data.notes !== undefined) { sets.push('notes=?'); vals.push(data.notes); }
+  if (data.recurrence_type !== undefined) { sets.push('recurrence_type=?'); vals.push(data.recurrence_type); }
+  if (data.next_date !== undefined) { sets.push('next_date=?'); vals.push(data.next_date); }
+  if (data.active !== undefined) { sets.push('active=?'); vals.push(data.active ? 1 : 0); }
+  if (sets.length === 0) return;
+  vals.push(id);
+  await db.run(`UPDATE recurring_transactions SET ${sets.join(', ')} WHERE id=?`, vals);
+}
+
 export async function deleteRecurring(id: number): Promise<void> {
   const db = getDb();
   await db.run('DELETE FROM recurring_transactions WHERE id=?', [id]);
+}
+
+/** Advance a date by one recurrence period, clamping to last day of month */
+function advanceRecurrenceDate(dateStr: string, recurrenceType: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  let nextYear = year, nextMonth = month, nextDay = day;
+  if (recurrenceType === 'daily') {
+    const d = new Date(year, month - 1, day + 1);
+    nextYear = d.getFullYear(); nextMonth = d.getMonth() + 1; nextDay = d.getDate();
+  } else if (recurrenceType === 'weekly') {
+    const d = new Date(year, month - 1, day + 7);
+    nextYear = d.getFullYear(); nextMonth = d.getMonth() + 1; nextDay = d.getDate();
+  } else if (recurrenceType === 'monthly') {
+    nextMonth = month + 1;
+    if (nextMonth > 12) { nextMonth = 1; nextYear = year + 1; }
+    const lastDay = new Date(nextYear, nextMonth, 0).getDate(); // day 0 of next month = last day of nextMonth
+    nextDay = Math.min(day, lastDay);
+  } else if (recurrenceType === 'yearly') {
+    nextYear = year + 1;
+    const lastDay = new Date(nextYear, month, 0).getDate();
+    nextDay = Math.min(day, lastDay);
+  }
+  return `${nextYear}-${String(nextMonth).padStart(2,'0')}-${String(nextDay).padStart(2,'0')}`;
 }
 
 export async function processRecurringTransactions(): Promise<number> {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
   const result = await db.query(
-    'SELECT * FROM recurring_transactions WHERE active = 1 AND next_date <= ?',
+    'SELECT * FROM recurring_transactions WHERE active = 1 AND amount > 0 AND next_date <= ?',
     [today]
   );
   let count = 0;
@@ -512,17 +553,11 @@ export async function processRecurringTransactions(): Promise<number> {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [r.amount, r.type, r.category_id, r.account_id, r.next_date, r.notes]
     );
-    // Advance next_date
-    const next = new Date(r.next_date);
-    switch (r.recurrence_type) {
-      case 'daily': next.setDate(next.getDate() + 1); break;
-      case 'weekly': next.setDate(next.getDate() + 7); break;
-      case 'monthly': next.setMonth(next.getMonth() + 1); break;
-      case 'yearly': next.setFullYear(next.getFullYear() + 1); break;
-    }
+    // Advance next_date with last-day-of-month clamping
+    const nextDate = advanceRecurrenceDate(r.next_date, r.recurrence_type);
     await db.run(
       'UPDATE recurring_transactions SET next_date = ? WHERE id = ?',
-      [next.toISOString().slice(0, 10), r.id]
+      [nextDate, r.id]
     );
     count++;
   }
