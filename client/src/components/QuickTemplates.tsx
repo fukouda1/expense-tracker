@@ -342,6 +342,7 @@ export function TemplateManager() {
                       <option value="">None</option>
                       {categories
                         .filter(c => entry.type === 'transfer' ? false : c.type === entry.type || c.type === 'both')
+                        .filter(c => !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?')
                         .map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                     </select>
                   </div>
