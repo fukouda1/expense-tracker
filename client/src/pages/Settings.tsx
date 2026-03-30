@@ -1111,7 +1111,7 @@ export default function Settings() {
           </select>
           <select value={recCatId} onChange={e => setRecCatId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">No category</option>
-            {categories.filter(c => c.type === recType || c.type === 'both').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {categories.filter(c => c.active !== false).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           <select value={recAccId} onChange={e => setRecAccId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">Select account</option>
