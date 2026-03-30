@@ -1065,7 +1065,7 @@ export default function Settings() {
             <label className="text-xs text-gray-500 mb-1 block">Link to Category (optional)</label>
             <select value={tagCategoryId} onChange={e => setTagCategoryId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
               <option value="">🌐 Global — always shown</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              {categories.filter(c => !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
             </select>
             <p className="text-[10px] text-gray-400 mt-1">Category tags only appear when that category is selected</p>
           </div>
@@ -1111,7 +1111,7 @@ export default function Settings() {
           </select>
           <select value={recCatId} onChange={e => setRecCatId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">No category</option>
-            {categories.filter(c => c.active !== false).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {categories.filter(c => c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           <select value={recAccId} onChange={e => setRecAccId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">Select account</option>

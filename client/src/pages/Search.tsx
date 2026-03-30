@@ -186,7 +186,7 @@ export default function Search() {
               <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block uppercase tracking-wider">Category</label>
               <select value={categoryId} onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
                 <option value="">All Categories</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                {categories.filter(c => !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
               </select>
             </div>
             <div>

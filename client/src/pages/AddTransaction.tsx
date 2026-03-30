@@ -125,7 +125,8 @@ export default function AddTransaction() {
   }, [accounts]);
 
   const filteredCategories = categories.filter(c =>
-    c.active !== false && (type === 'transfer' ? false : c.type === type || c.type === 'both')
+    c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?' &&
+    (type === 'transfer' ? false : c.type === type || c.type === 'both')
   );
   const sortedCategories = useMemo(() => {
     const pinned = filteredCategories.filter(c => pinnedCats.includes(c.id));
