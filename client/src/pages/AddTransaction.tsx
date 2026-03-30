@@ -47,6 +47,7 @@ export default function AddTransaction() {
   const prefillTime = params.get('time');
   const prefillNotes = params.get('notes');
   const prefillToAccountId = params.get('toAccountId');
+  const recurringDismiss = params.get('recurringDismiss');
 
   const goBack = () => {
     if (returnTo) navigate(returnTo);
@@ -228,6 +229,15 @@ export default function AddTransaction() {
         goBack();
       } else {
         await addTransaction(data as any, selectedTags);
+        // Dismiss the recurring preview item only after successful save
+        if (recurringDismiss) {
+          try {
+            const DISMISSED_KEY = 'tracecash_recurring_dismissed';
+            const dismissed = JSON.parse(localStorage.getItem(DISMISSED_KEY) || '{}');
+            dismissed[recurringDismiss] = Date.now();
+            localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed));
+          } catch { /* ignore */ }
+        }
         if (stayOpen) {
           // Reset form but keep account, category, date
           setDisplay('0');

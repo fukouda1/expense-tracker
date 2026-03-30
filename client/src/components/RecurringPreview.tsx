@@ -84,10 +84,8 @@ export default function RecurringPreview() {
   };
 
   const handleCreate = (item: UpcomingItem) => {
-    // Dismiss immediately, then navigate to Add Transaction pre-filled
-    dismissItem(`${item.id}-${item.dueDate}`);
-    setDismissed({ ...getDismissed() });
-
+    // Don't dismiss here — only dismiss after the transaction is actually saved
+    // The item will remain in the list if the user cancels the form
     const params = new URLSearchParams();
     params.set('type', item.type);
     params.set('amount', String(item.amount));
@@ -97,6 +95,7 @@ export default function RecurringPreview() {
     params.set('time', new Date().toTimeString().slice(0, 5));
     if (item.notes) params.set('notes', item.notes);
     params.set('returnTo', '/');
+    params.set('recurringDismiss', `${item.id}-${item.dueDate}`);
     navigate(`/add?${params.toString()}`);
   };
 
