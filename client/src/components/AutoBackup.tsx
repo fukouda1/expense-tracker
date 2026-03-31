@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import * as repo from '../local/repository';
+import { useToast } from './Toast';
 
 const STORAGE_KEY = 'tracecash_auto_backup';
 const isNative = Capacitor.isNativePlatform();
@@ -111,6 +112,7 @@ export function useAutoBackupCheck(): void {
 export default function AutoBackupToggle() {
   const [settings, setSettings] = useState<AutoBackupSettings>(getSettings);
   const [backing, setBacking] = useState(false);
+  const { showToast } = useToast();
 
   const handleToggle = () => {
     const updated: AutoBackupSettings = {
@@ -131,6 +133,9 @@ export default function AutoBackupToggle() {
       };
       saveSettings(updated);
       setSettings(updated);
+      showToast(isNative ? 'Backup saved to Documents folder' : 'Backup downloaded', 'success');
+    } else {
+      showToast('Backup failed', 'error');
     }
     setBacking(false);
   };

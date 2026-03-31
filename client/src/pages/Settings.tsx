@@ -314,7 +314,7 @@ export default function Settings() {
         })) : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
 
         // Transactions sheet — structured data matching server format
-        const allTx = await getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59');
+        const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');
         const txData = allTx.sort((a, b) => a.date.localeCompare(b.date)).map(t => ({
           ID: t.id,
           DATE: t.date,
@@ -344,8 +344,8 @@ export default function Settings() {
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       }
-    } catch (err) {
-      showToast('Export failed', 'error');
+    } catch (err: any) {
+      showToast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
     }
   };
 
@@ -355,8 +355,8 @@ export default function Settings() {
       const base64 = btoa(unescape(encodeURIComponent(csv)));
       const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
       await saveAndShare(base64, fileName, 'text/csv');
-    } catch (err) {
-      showToast('Export failed', 'error');
+    } catch (err: any) {
+      showToast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
     }
   };
 
