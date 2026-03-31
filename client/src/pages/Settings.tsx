@@ -260,14 +260,8 @@ export default function Settings() {
 
   const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
     if (Capacitor.isNativePlatform()) {
-      // Try External first (visible in file manager), fallback to Cache
-      try {
-        await Filesystem.writeFile({ path: 'TraceCash/' + fileName, data: base64, directory: Directory.External, recursive: true });
-        showToast(`Saved to TraceCash/${fileName}`, 'success');
-      } catch {
-        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-        showToast(`Saved: ${fileName}`, 'success');
-      }
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Save ${fileName}` });
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
@@ -668,37 +662,6 @@ export default function Settings() {
               <button onClick={handleExportCsv} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium">
                 Download .csv
               </button>
-              {Capacitor.isNativePlatform() && (
-                <button
-                  onClick={async () => {
-                    try {
-                      showToast('Preparing backup...', 'success');
-                      const XLSX = await import('xlsx');
-                      const { utils, write } = XLSX;
-                      const wb = utils.book_new();
-                      const accs = await repo.getAllAccounts();
-                      utils.book_append_sheet(wb, utils.json_to_sheet(accs.map(a => ({ ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance }))), 'Accounts');
-                      const cats = await repo.getAllCategories();
-                      utils.book_append_sheet(wb, utils.json_to_sheet(cats.map(c => ({ ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type }))), 'Categories');
-                      const tgs = await repo.getAllTags();
-                      utils.book_append_sheet(wb, utils.json_to_sheet(tgs.length ? tgs.map(t => ({ ID: t.id, NAME: t.name, COLOR: t.color })) : [{ ID: '', NAME: '', COLOR: '' }]), 'Tags');
-                      const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');
-                      utils.book_append_sheet(wb, utils.json_to_sheet(allTx.sort((a, b) => a.date.localeCompare(b.date)).map(t => ({
-                        ID: t.id, DATE: t.date, TYPE: t.type, AMOUNT: t.amount, CATEGORY: t.category_name ?? '', ACCOUNT: t.account_name ?? '', TO_ACCOUNT: t.to_account_name ?? '', NOTES: t.notes ?? '', TAGS: '',
-                      }))), 'Transactions');
-                      const base64 = write(wb, { type: 'base64', bookType: 'xlsx' });
-                      const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-                      await Share.share({ title: fileName, url: written.uri, dialogTitle: 'Share Backup' });
-                    } catch (err: any) {
-                      showToast(`Share failed: ${err?.message || 'Unknown error'}`, 'error');
-                    }
-                  }}
-                  className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
-                >
-                  📤 Share Backup
-                </button>
-              )}
             </div>
           </div>
 
