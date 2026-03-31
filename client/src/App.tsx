@@ -76,13 +76,6 @@ export default function App() {
       <CurrencyProvider>
         <DataProvider>
           <AppContent />
-                  <Route element={<Layout />}>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/transactions" element={<Transactions />} />
-                    <Route path="/accounts" element={<Accounts />} />
-                    <Route path="/calendar" element={<CalendarView />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                  </Route>
         </DataProvider>
       </CurrencyProvider>
       </PinLock>
