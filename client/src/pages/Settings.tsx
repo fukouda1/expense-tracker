@@ -260,9 +260,14 @@ export default function Settings() {
 
   const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
     if (Capacitor.isNativePlatform()) {
-      // Write to Download folder via cache + move approach
-      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-      showToast(`Saved: ${fileName}`, 'success');
+      // Try External first (visible in file manager), fallback to Cache
+      try {
+        await Filesystem.writeFile({ path: 'TraceCash/' + fileName, data: base64, directory: Directory.External, recursive: true });
+        showToast(`Saved to TraceCash/${fileName}`, 'success');
+      } catch {
+        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+        showToast(`Saved: ${fileName}`, 'success');
+      }
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);

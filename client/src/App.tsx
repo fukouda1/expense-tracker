@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -85,8 +85,13 @@ export default function App() {
 
 function AppContent() {
   const { loading } = useData();
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
-  if (loading) return <SplashScreen />;
+  useEffect(() => {
+    if (!loading && !initialLoaded) setInitialLoaded(true);
+  }, [loading, initialLoaded]);
+
+  if (!initialLoaded && loading) return <SplashScreen />;
 
   return (
     <DisplayProvider>
