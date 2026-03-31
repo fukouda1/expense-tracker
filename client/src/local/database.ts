@@ -100,6 +100,13 @@ const CREATE_TABLES_SQL = [
   `CREATE INDEX IF NOT EXISTS idx_budgets_month ON budgets(month)`,
 ];
 
+// Migrations for adding columns to existing tables (safe to run multiple times)
+const MIGRATIONS_SQL = [
+  `ALTER TABLE accounts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+];
+
 const DEFAULT_CATEGORIES = [
   { name: 'Food', icon: '🍔', color: '#ef4444', type: 'expense' },
   { name: 'Food - Work', icon: '🍱', color: '#f97316', type: 'expense' },
@@ -154,6 +161,11 @@ export async function initDatabase(): Promise<void> {
   // Create all tables
   for (const sql of CREATE_TABLES_SQL) {
     await db.execute(sql);
+  }
+
+  // Run migrations (add missing columns to existing tables)
+  for (const sql of MIGRATIONS_SQL) {
+    try { await db.execute(sql); } catch { /* column already exists — ignore */ }
   }
 
   // Seed default data if empty
