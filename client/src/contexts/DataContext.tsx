@@ -291,7 +291,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Toggle active
   const toggleAccountActive = async (id: number) => {
     if (isNative) {
-      // TODO: native toggle
+      await repo.toggleAccountActive(id);
     } else {
       await api.patch(`/api/accounts/${id}/toggle`);
     }
@@ -299,7 +299,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
   const toggleCategoryActive = async (id: number) => {
     if (isNative) {
-      // TODO: native toggle
+      await repo.toggleCategoryActive(id);
     } else {
       await api.patch(`/api/categories/${id}/toggle`);
     }

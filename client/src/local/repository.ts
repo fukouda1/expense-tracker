@@ -395,6 +395,11 @@ export async function reorderAccounts(ids: number[]): Promise<void> {
   }
 }
 
+export async function toggleAccountActive(id: number): Promise<void> {
+  const db = getDb();
+  await db.run('UPDATE accounts SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?', [id]);
+}
+
 export async function insertAccount(name: string, icon: string, color: string, initialBalance: number): Promise<number> {
   const db = getDb();
   const result = await db.run(

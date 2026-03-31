@@ -240,9 +240,10 @@ export default function AddTransaction() {
           } catch { /* ignore */ }
         }
         if (stayOpen) {
-          // Reset form but keep account, category, date
+          // Reset form but keep account and date
           setDisplay('0');
           setNotes('');
+          setCategoryId(null);
           setSelectedTags([]);
           setFreshEntry(true);
           setPendingOp(null);
@@ -397,7 +398,7 @@ export default function AddTransaction() {
             onFocus={() => setShowNoteSuggestions(true)}
             onBlur={() => setTimeout(() => setShowNoteSuggestions(false), 150)}
             placeholder="Add notes"
-            rows={3}
+            rows={5}
             maxLength={NOTES_MAX}
             className="w-full p-2 sm:p-3 bg-gray-800 border border-gray-700 rounded-lg text-xs sm:text-sm text-gray-200 placeholder-gray-500 resize-none"
           />
