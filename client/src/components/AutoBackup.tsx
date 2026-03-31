@@ -55,7 +55,7 @@ async function nativeBackup(): Promise<boolean> {
 
     const base64 = write(wb, { type: 'base64', bookType: 'xlsx' });
     const fileName = `tracecash_autobackup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Documents, recursive: true });
+    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
     return true;
   } catch (e) {
     console.error('Native auto-backup failed:', e);
