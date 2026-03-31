@@ -343,8 +343,20 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
 
 export async function getAllCategories(): Promise<Category[]> {
   const db = getDb();
-  const result = await db.query('SELECT * FROM categories ORDER BY name');
+  const result = await db.query('SELECT * FROM categories ORDER BY sort_order, name');
   return (result.values ?? []) as Category[];
+}
+
+export async function reorderCategories(ids: number[]): Promise<void> {
+  const db = getDb();
+  for (let i = 0; i < ids.length; i++) {
+    await db.run('UPDATE categories SET sort_order=? WHERE id=?', [i, ids[i]]);
+  }
+}
+
+export async function toggleCategoryActive(id: number): Promise<void> {
+  const db = getDb();
+  await db.run('UPDATE categories SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?', [id]);
 }
 
 export async function insertCategory(name: string, icon: string, color: string, type: string): Promise<number> {
@@ -372,8 +384,15 @@ export async function deleteCategory(id: number): Promise<void> {
 
 export async function getAllAccounts(): Promise<Account[]> {
   const db = getDb();
-  const result = await db.query('SELECT * FROM accounts ORDER BY name');
+  const result = await db.query('SELECT * FROM accounts ORDER BY sort_order, name');
   return (result.values ?? []) as Account[];
+}
+
+export async function reorderAccounts(ids: number[]): Promise<void> {
+  const db = getDb();
+  for (let i = 0; i < ids.length; i++) {
+    await db.run('UPDATE accounts SET sort_order=? WHERE id=?', [i, ids[i]]);
+  }
 }
 
 export async function insertAccount(name: string, icon: string, color: string, initialBalance: number): Promise<number> {
@@ -401,14 +420,26 @@ export async function deleteAccount(id: number): Promise<void> {
 
 export async function getAllTags(): Promise<Tag[]> {
   const db = getDb();
-  const result = await db.query('SELECT * FROM tags ORDER BY name');
+  const result = await db.query('SELECT * FROM tags ORDER BY sort_order, name');
   return (result.values ?? []) as Tag[];
 }
 
-export async function insertTag(name: string, color: string): Promise<number> {
+export async function insertTag(name: string, color: string, categoryId: number | null = null): Promise<number> {
   const db = getDb();
-  const result = await db.run('INSERT INTO tags (name, color) VALUES (?, ?)', [name, color]);
+  const result = await db.run('INSERT INTO tags (name, color, category_id) VALUES (?, ?, ?)', [name, color, categoryId]);
   return result.changes?.lastId ?? 0;
+}
+
+export async function toggleTagActive(id: number): Promise<void> {
+  const db = getDb();
+  await db.run('UPDATE tags SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?', [id]);
+}
+
+export async function reorderTags(ids: number[]): Promise<void> {
+  const db = getDb();
+  for (let i = 0; i < ids.length; i++) {
+    await db.run('UPDATE tags SET sort_order=? WHERE id=?', [i, ids[i]]);
+  }
 }
 
 export async function deleteTag(id: number): Promise<void> {

@@ -275,18 +275,41 @@ export default function Settings() {
 
   const handleExportXlsx = async () => {
     try {
-      const response = await fetch('/api/export/xlsx');
-      const arrayBuffer = await response.arrayBuffer();
-      // Convert to base64 in chunks to avoid max call stack with large files
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+      if (Capacitor.isNativePlatform()) {
+        // Native: build XLSX from local CSV data using xlsx library
+        const csv = await exportCsv();
+        const { utils, write } = await import('xlsx');
+        const lines = csv.split('\n').filter(l => l.trim());
+        const rows = lines.map(l => {
+          const result: string[] = [];
+          let current = '', inQ = false;
+          for (const ch of l) {
+            if (ch === '"') { inQ = !inQ; }
+            else if (ch === ',' && !inQ) { result.push(current); current = ''; }
+            else current += ch;
+          }
+          result.push(current);
+          return result;
+        });
+        const ws = utils.aoa_to_sheet(rows);
+        const wb = utils.book_new();
+        utils.book_append_sheet(wb, ws, 'Transactions');
+        const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
+        const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        await saveAndShare(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      } else {
+        const response = await fetch('/api/export/xlsx');
+        const arrayBuffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+        }
+        const base64 = btoa(binary);
+        const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       }
-      const base64 = btoa(binary);
-      const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     } catch (err) {
       showToast('Export failed', 'error');
     }
@@ -963,7 +986,7 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Recurring Tab */}
+      {/* Recurring Tab — grouped by income/expense */}
       {activeTab === 'recurring' && (
         <div className="space-y-2">
           <button onClick={() => openModal('recurring')} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">
@@ -972,27 +995,64 @@ export default function Settings() {
           {recurring.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No recurring transactions</p>
           ) : (
-            [...recurring].sort((a, b) => b.amount - a.amount).map(r => (
-              <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
-                    <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
-                      {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
-                    </p>
+            <>
+              {/* Expense recurring */}
+              {recurring.filter(r => r.type === 'expense').length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                    <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Expenses</h3>
+                    <span className="text-[10px] text-gray-400">{recurring.filter(r => r.type === 'expense').length}</span>
                   </div>
-                  <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
+                  <div className="space-y-1.5">
+                    {[...recurring].filter(r => r.type === 'expense').sort((a, b) => b.amount - a.amount).map(r => (
+                      <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                            <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
+                              {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
+                        </div>
+                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}>{r.active ? 'Deactivate' : 'Activate'}</button>
+                        <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
+                        <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  onClick={() => editRecurring(r.id, { active: !r.active })}
-                  className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}
-                >
-                  {r.active ? 'Deactivate' : 'Activate'}
-                </button>
-                <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
-                <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
-              </div>
-            ))
+              )}
+              {/* Income recurring */}
+              {recurring.filter(r => r.type === 'income').length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5 mt-3">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Income</h3>
+                    <span className="text-[10px] text-gray-400">{recurring.filter(r => r.type === 'income').length}</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {[...recurring].filter(r => r.type === 'income').sort((a, b) => b.amount - a.amount).map(r => (
+                      <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                            <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
+                              {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
+                        </div>
+                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}>{r.active ? 'Deactivate' : 'Activate'}</button>
+                        <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
+                        <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -1118,7 +1178,7 @@ export default function Settings() {
           </select>
           <select value={recCatId} onChange={e => setRecCatId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">No category</option>
-            {categories.filter(c => c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {categories.filter(c => c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?' && (c.type === recType || c.type === 'both')).map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
           </select>
           <select value={recAccId} onChange={e => setRecAccId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">Select account</option>

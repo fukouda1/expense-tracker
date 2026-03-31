@@ -278,7 +278,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Tag CRUD
   const addTag = async (name: string, color: string, categoryId?: number | null) => {
-    if (isNative) await repo.insertTag(name, color);
+    if (isNative) await repo.insertTag(name, color, categoryId ?? null);
     else await api.post('/api/tags', { name, color, category_id: categoryId ?? null });
     await loadTags();
   };
@@ -307,7 +307,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
   const toggleTagActive = async (id: number) => {
     if (isNative) {
-      // TODO: native toggle
+      await repo.toggleTagActive(id);
     } else {
       await api.patch(`/api/tags/${id}/toggle`);
     }
@@ -358,15 +358,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Reorder
   const reorderAccounts = async (ids: number[]) => {
-    await api.post('/api/accounts/reorder', { ids });
+    if (isNative) await repo.reorderAccounts(ids);
+    else await api.post('/api/accounts/reorder', { ids });
     await loadAccounts();
   };
   const reorderCategories = async (ids: number[]) => {
-    await api.post('/api/categories/reorder', { ids });
+    if (isNative) await repo.reorderCategories(ids);
+    else await api.post('/api/categories/reorder', { ids });
     await loadCategories();
   };
   const reorderTags = async (ids: number[]) => {
-    await api.post('/api/tags/reorder', { ids });
+    if (isNative) await repo.reorderTags(ids);
+    else await api.post('/api/tags/reorder', { ids });
     await loadTags();
   };
 

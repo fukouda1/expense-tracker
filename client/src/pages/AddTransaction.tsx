@@ -121,7 +121,7 @@ export default function AddTransaction() {
   }, [editId]);
 
   useEffect(() => {
-    if (accounts.length > 0 && !editTx) setAccountId(accounts[0].id);
+    if (accounts.length > 0 && !editTx && !prefillAccountId) setAccountId(accounts[0].id);
   }, [accounts]);
 
   const filteredCategories = categories.filter(c =>
@@ -302,15 +302,23 @@ export default function AddTransaction() {
           </button>
           <div className="flex items-center gap-3">
             {!editTx && (
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={stayOpen}
-                  onChange={e => setStayOpen(e.target.checked)}
-                  className="w-3.5 h-3.5 rounded accent-emerald-500"
-                />
-                <span className="text-[10px] sm:text-xs text-gray-400">Stay open</span>
-              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setDisplay('0'); setNotes(''); setSelectedTags([]); setCategoryId(null); setFreshEntry(true); setPendingOp(null); setPrevValue(null); }}
+                  className="text-[10px] sm:text-xs text-gray-400 hover:text-amber-400 transition-colors"
+                >
+                  Clear
+                </button>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={stayOpen}
+                    onChange={e => setStayOpen(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded accent-emerald-500"
+                  />
+                  <span className="text-[10px] sm:text-xs text-gray-400">Stay open</span>
+                </label>
+              </div>
             )}
             <button
               onClick={handleSubmit}
@@ -389,7 +397,7 @@ export default function AddTransaction() {
             onFocus={() => setShowNoteSuggestions(true)}
             onBlur={() => setTimeout(() => setShowNoteSuggestions(false), 150)}
             placeholder="Add notes"
-            rows={2}
+            rows={3}
             maxLength={NOTES_MAX}
             className="w-full p-2 sm:p-3 bg-gray-800 border border-gray-700 rounded-lg text-xs sm:text-sm text-gray-200 placeholder-gray-500 resize-none"
           />
