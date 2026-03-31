@@ -454,7 +454,6 @@ export default function Settings() {
     try {
       if (isNative) {
         // ── Native mode: import directly into local SQLite ──
-        const text = await importFile.text();
         const ext = importFile.name.split('.').pop()?.toLowerCase();
 
         let data: repo.LocalImportResult;
@@ -468,13 +467,16 @@ export default function Settings() {
             sheets.set(name, XLSX.utils.sheet_to_json(wb.Sheets[name]) as Record<string, unknown>[]);
           }
           data = await repo.importFromSheets(sheets);
-        } else if (ext === 'csv' && text.includes('[SHEET:')) {
-          // Multi-sheet CSV
-          const sheets = parseMultiSheetCsvLocal(text);
-          data = await repo.importFromSheets(sheets);
         } else if (ext === 'csv') {
-          // Legacy format
-          data = await repo.importLegacyCsv(text);
+          const text = await importFile.text();
+          if (text.includes('[SHEET:')) {
+            // Multi-sheet CSV
+            const sheets = parseMultiSheetCsvLocal(text);
+            data = await repo.importFromSheets(sheets);
+          } else {
+            // Legacy format
+            data = await repo.importLegacyCsv(text);
+          }
         } else {
           setImportResult('Error: Unsupported file format. Use .xlsx or .csv');
           return;
@@ -487,7 +489,8 @@ export default function Settings() {
         if (data.budgets) parts.push(`${data.budgets} budgets`);
         if (data.recurring) parts.push(`${data.recurring} recurring`);
         if (data.transactions) parts.push(`${data.transactions} transactions`);
-        setImportResult(`Imported: ${parts.join(', ')}${data.errors.length ? ` (${data.errors.length} errors)` : ''}`);
+        const errDetail = data.errors.length ? `\nErrors: ${data.errors.slice(0, 5).join('; ')}` : '';
+        setImportResult(`Imported: ${parts.join(', ')}${data.errors.length ? ` (${data.errors.length} errors)` : ''}${errDetail}`);
         await refresh();
       } else {
         // ── Web mode: upload to server API ──
@@ -513,9 +516,9 @@ export default function Settings() {
           setImportResult(`Error: ${data.error || 'Import failed'}`);
         }
       }
-    } catch (err) {
-      setImportResult('Error: Import failed');
-      console.error(err);
+    } catch (err: any) {
+      setImportResult(`Error: ${err?.message || 'Import failed'}`);
+      console.error('Import error:', err);
     } finally {
       // Jump to 100% then clear
       if (importTimerRef.current) clearInterval(importTimerRef.current);
