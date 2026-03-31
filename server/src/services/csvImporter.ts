@@ -129,14 +129,6 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
   }
 
   // ── Transactions ──
-  // Build fingerprint set of existing transactions to skip duplicates on re-import
-  const existingTxs = await prisma.transaction.findMany({
-    select: { date: true, amount: true, type: true, account_id: true },
-  });
-  const existingFingerprints = new Set(
-    existingTxs.map(t => `${t.date}|${t.amount}|${t.type}|${t.account_id}`)
-  );
-  let duplicatesSkipped = 0;
 
   const txRows = sheets.get('Transactions') ?? [];
   for (let i = 0; i < txRows.length; i++) {
@@ -153,11 +145,6 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
       const catId = catName ? (catNameMap.get(catName) ?? null) : null;
       const txType = str(r, 'TYPE') || 'expense';
       const txDate = str(r, 'DATE');
-
-      // Skip exact duplicates (same date + amount + type + account)
-      const fp = `${txDate}|${amount}|${txType}|${accId}`;
-      if (existingFingerprints.has(fp)) { duplicatesSkipped++; continue; }
-      existingFingerprints.add(fp); // prevent within-file duplicates too
 
       const tx = await prisma.transaction.create({
         data: {
@@ -301,14 +288,6 @@ export async function parseLegacyCsvAndImport(csvContent: string): Promise<{ imp
   const accCache = new Map<string, number>();
   for (const c of await prisma.category.findMany()) catCache.set(c.name, c.id);
   for (const a of await prisma.account.findMany()) accCache.set(a.name, a.id);
-
-  // Build fingerprint set to prevent duplicate imports
-  const existingTxs = await prisma.transaction.findMany({
-    select: { date: true, amount: true, type: true, account_id: true },
-  });
-  const existingFingerprints = new Set(
-    existingTxs.map(t => `${t.date}|${t.amount}|${t.type}|${t.account_id}`)
-  );
 
   async function getOrCreateCat(orig: string): Promise<number | null> {
     const m = CATEGORY_MAP[orig];

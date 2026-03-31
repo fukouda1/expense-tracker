@@ -276,11 +276,47 @@ export default function Settings() {
   const handleExportXlsx = async () => {
     try {
       if (Capacitor.isNativePlatform()) {
-        // Native: build XLSX from local CSV data using xlsx library
+        // Native: build full multi-sheet XLSX from local SQLite
+        const XLSX = await import('xlsx');
+        const { utils, write } = XLSX;
+        const wb = utils.book_new();
+
+        // Accounts sheet
+        const accs = await repo.getAllAccounts();
+        utils.book_append_sheet(wb, utils.json_to_sheet(accs.map(a => ({
+          ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance,
+        }))), 'Accounts');
+
+        // Categories sheet
+        const cats = await repo.getAllCategories();
+        utils.book_append_sheet(wb, utils.json_to_sheet(cats.map(c => ({
+          ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type,
+        }))), 'Categories');
+
+        // Tags sheet
+        const tgs = await repo.getAllTags();
+        utils.book_append_sheet(wb, utils.json_to_sheet(tgs.length ? tgs.map(t => ({
+          ID: t.id, NAME: t.name, COLOR: t.color,
+        })) : [{ ID: '', NAME: '', COLOR: '' }]), 'Tags');
+
+        // Budgets sheet
+        const bdgs = budgets;
+        utils.book_append_sheet(wb, utils.json_to_sheet(bdgs.length ? bdgs.map(b => ({
+          ID: b.id, CATEGORY: categories.find(c => c.id === b.category_id)?.name ?? '', AMOUNT: b.amount, MONTH: b.month,
+        })) : [{ ID: '', CATEGORY: '', AMOUNT: '', MONTH: '' }]), 'Budgets');
+
+        // Recurring sheet
+        const recs = recurring;
+        utils.book_append_sheet(wb, utils.json_to_sheet(recs.length ? recs.map(r => ({
+          ID: r.id, AMOUNT: r.amount, TYPE: r.type, CATEGORY_ID: r.category_id,
+          ACCOUNT_ID: r.account_id, NOTES: r.notes, RECURRENCE: r.recurrence_type,
+          NEXT_DATE: r.next_date, ACTIVE: r.active ? 'Yes' : 'No',
+        })) : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
+
+        // Transactions sheet (from CSV export which includes joins)
         const csv = await exportCsv();
-        const { utils, write } = await import('xlsx');
         const lines = csv.split('\n').filter(l => l.trim());
-        const rows = lines.map(l => {
+        const csvRows = lines.map(l => {
           const result: string[] = [];
           let current = '', inQ = false;
           for (const ch of l) {
@@ -291,9 +327,9 @@ export default function Settings() {
           result.push(current);
           return result;
         });
-        const ws = utils.aoa_to_sheet(rows);
-        const wb = utils.book_new();
-        utils.book_append_sheet(wb, ws, 'Transactions');
+        const txWs = utils.aoa_to_sheet(csvRows);
+        utils.book_append_sheet(wb, txWs, 'Transactions');
+
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveAndShare(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -633,18 +669,22 @@ export default function Settings() {
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
               Generate a formatted financial report with summary, category breakdown, and transaction list
             </p>
-            <div className="flex gap-2 items-center">
-              <MonthPicker value={pdfMonth} onChange={setPdfMonth}
-                className="p-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
-              <button
-                onClick={() => {
-                  window.open(`/api/export/pdf?month=${pdfMonth}`, '_blank');
-                }}
-                className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
-              >
-                Download PDF
-              </button>
-            </div>
+            {Capacitor.isNativePlatform() ? (
+              <p className="text-[11px] text-amber-500">PDF reports are available in the web version only. Use XLSX or CSV export on mobile.</p>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <MonthPicker value={pdfMonth} onChange={setPdfMonth}
+                  className="p-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
+                <button
+                  onClick={() => {
+                    window.open(`/api/export/pdf?month=${pdfMonth}`, '_blank');
+                  }}
+                  className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
+                >
+                  Download PDF
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Import */}
