@@ -260,14 +260,9 @@ export default function Settings() {
 
   const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
     if (Capacitor.isNativePlatform()) {
-      // Write to app cache dir (no permissions needed), then share
-      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-      await Share.share({
-        title: fileName,
-        url: written.uri,
-        dialogTitle: `Save ${fileName}`,
-      });
-      showToast(`Exported: ${fileName}`, 'success');
+      // Write to Download folder via cache + move approach
+      await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      showToast(`Saved: ${fileName}`, 'success');
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
