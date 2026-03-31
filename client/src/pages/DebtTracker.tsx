@@ -315,9 +315,9 @@ export default function DebtTracker() {
                     <button
                       onClick={() => dismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
                       className="py-2 px-3 bg-gray-100 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-500 dark:text-gray-400 hover:text-red-500 rounded-lg text-[11px] font-medium transition-colors"
-                      title="Mark inactive (no entry recorded)"
+                      title="Settle without recording entry"
                     >
-                      Inactive
+                      Settle
                     </button>
                   </div>
                 </div>
@@ -328,7 +328,11 @@ export default function DebtTracker() {
                   {d.transactions.sort((a, b) => b.date.localeCompare(a.date)).map(t => {
                     const isReturn = t.category_name === 'Lent Payment' || t.category_name === 'Debt Payment';
                     return (
-                      <div key={t.id} className="flex items-center justify-between text-[11px] py-0.5">
+                      <button
+                        key={t.id}
+                        onClick={() => navigate(`/add?edit=${t.id}&returnTo=/debts`)}
+                        className="w-full flex items-center justify-between text-[11px] py-1 px-1 -mx-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      >
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isReturn ? 'bg-emerald-500' : 'bg-red-500'}`} />
                           <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{formatDate(t.date)}</span>
@@ -337,7 +341,7 @@ export default function DebtTracker() {
                         <span className={`font-medium flex-shrink-0 ml-2 ${isReturn ? 'text-emerald-500' : 'text-red-500'}`}>
                           {isReturn ? '+' : '-'}{formatCurrency(t.amount)}
                         </span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -367,7 +371,7 @@ export default function DebtTracker() {
               {(tab === 'owed' ? debtData.dismissedOwed : debtData.dismissedOwe).map(d => (
                 <div key={d.person} className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-xl opacity-60">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>
+                    <span className="text-[10px] bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Settled</span>
                     <span className="text-xs line-through text-gray-500">{d.person}</span>
                     <span className="text-[10px] text-gray-400 line-through">{formatCurrency(d.balance)}</span>
                   </div>
@@ -375,7 +379,7 @@ export default function DebtTracker() {
                     onClick={() => undismissDebt(d.person, tab === 'owed' ? 'owed' : 'owe')}
                     className="text-[10px] text-emerald-500 hover:text-emerald-600 font-medium"
                   >
-                    Set Active
+                    Restore
                   </button>
                 </div>
               ))}
@@ -480,7 +484,7 @@ export default function DebtTracker() {
                 onChange={e => setPaymentAccountId(Number(e.target.value))}
                 className={inputClass}
               >
-                {accounts.map(a => (
+                {accounts.filter(a => a.active !== false).map(a => (
                   <option key={a.id} value={a.id}>{a.icon} {a.name}</option>
                 ))}
               </select>
@@ -536,7 +540,7 @@ export default function DebtTracker() {
                 {paymentModal.type === 'owed' ? 'Receive to Account' : 'Pay from Account'}
               </label>
               <div className="space-y-1.5">
-                {accounts.map(a => (
+                {accounts.filter(a => a.active !== false).map(a => (
                   <button
                     key={a.id}
                     onClick={() => setPaymentAccountId(a.id)}

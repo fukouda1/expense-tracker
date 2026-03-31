@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import * as repo from '../local/repository';
 
 const STORAGE_KEY = 'tracecash_auto_backup';
 const isNative = Capacitor.isNativePlatform();
@@ -21,9 +23,48 @@ function saveSettings(settings: AutoBackupSettings): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
-/** Trigger an xlsx backup download (web only) */
+/** Generate XLSX backup on native using local SQLite data */
+async function nativeBackup(): Promise<boolean> {
+  try {
+    const XLSX = await import('xlsx');
+    const { utils, write } = XLSX;
+    const wb = utils.book_new();
+
+    const accs = await repo.getAllAccounts();
+    utils.book_append_sheet(wb, utils.json_to_sheet(accs.map(a => ({
+      ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance,
+    }))), 'Accounts');
+
+    const cats = await repo.getAllCategories();
+    utils.book_append_sheet(wb, utils.json_to_sheet(cats.map(c => ({
+      ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type,
+    }))), 'Categories');
+
+    const tgs = await repo.getAllTags();
+    utils.book_append_sheet(wb, utils.json_to_sheet(tgs.length ? tgs.map(t => ({
+      ID: t.id, NAME: t.name, COLOR: t.color,
+    })) : [{ ID: '', NAME: '', COLOR: '' }]), 'Tags');
+
+    const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');
+    utils.book_append_sheet(wb, utils.json_to_sheet(allTx.sort((a, b) => a.date.localeCompare(b.date)).map(t => ({
+      ID: t.id, DATE: t.date, TYPE: t.type, AMOUNT: t.amount,
+      CATEGORY: t.category_name ?? '', ACCOUNT: t.account_name ?? '',
+      TO_ACCOUNT: t.to_account_name ?? '', NOTES: t.notes ?? '', TAGS: '',
+    }))), 'Transactions');
+
+    const base64 = write(wb, { type: 'base64', bookType: 'xlsx' });
+    const fileName = `tracecash_autobackup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Documents, recursive: true });
+    return true;
+  } catch (e) {
+    console.error('Native auto-backup failed:', e);
+    return false;
+  }
+}
+
+/** Trigger an xlsx backup download (web) or save to Documents (native) */
 async function downloadBackup(): Promise<boolean> {
-  if (isNative) return false; // No Express server in APK mode
+  if (isNative) return nativeBackup();
   try {
     const response = await fetch('/api/export/xlsx');
     if (!response.ok) return false;
@@ -43,7 +84,7 @@ async function downloadBackup(): Promise<boolean> {
 
 /**
  * Hook to run on app load. Checks if auto-backup is enabled and
- * if the last backup was more than 7 days ago, triggers a download.
+ * if the last backup was more than 7 days ago, triggers a backup.
  */
 export function useAutoBackupCheck(): void {
   useEffect(() => {
@@ -69,6 +110,7 @@ export function useAutoBackupCheck(): void {
  */
 export default function AutoBackupToggle() {
   const [settings, setSettings] = useState<AutoBackupSettings>(getSettings);
+  const [backing, setBacking] = useState(false);
 
   const handleToggle = () => {
     const updated: AutoBackupSettings = {
@@ -80,6 +122,7 @@ export default function AutoBackupToggle() {
   };
 
   const handleBackupNow = async () => {
+    setBacking(true);
     const success = await downloadBackup();
     if (success) {
       const updated: AutoBackupSettings = {
@@ -89,6 +132,7 @@ export default function AutoBackupToggle() {
       saveSettings(updated);
       setSettings(updated);
     }
+    setBacking(false);
   };
 
   const lastBackupDisplay = settings.lastBackup
@@ -97,8 +141,6 @@ export default function AutoBackupToggle() {
         hour: '2-digit', minute: '2-digit',
       })
     : 'Never';
-
-  if (isNative) return null; // Auto-backup requires Express server — web only
 
   return (
     <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
@@ -112,7 +154,9 @@ export default function AutoBackupToggle() {
         </button>
       </div>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-        Automatically downloads an .xlsx backup every 7 days when you open the app
+        {isNative
+          ? 'Automatically saves an .xlsx backup to Documents every 7 days when you open the app'
+          : 'Automatically downloads an .xlsx backup every 7 days when you open the app'}
       </p>
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-gray-500 dark:text-gray-400">
@@ -120,9 +164,10 @@ export default function AutoBackupToggle() {
         </p>
         <button
           onClick={handleBackupNow}
-          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-[11px] font-medium hover:bg-gray-200 dark:hover:bg-gray-600"
+          disabled={backing}
+          className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-[11px] font-medium hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
         >
-          Backup now
+          {backing ? 'Saving...' : 'Backup now'}
         </button>
       </div>
     </div>

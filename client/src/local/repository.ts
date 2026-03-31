@@ -378,6 +378,21 @@ export async function deleteCategory(id: number): Promise<void> {
   await db.run('DELETE FROM categories WHERE id=?', [id]);
 }
 
+export async function mergeCategory(sourceId: number, targetId: number): Promise<number> {
+  const db = getDb();
+  // Move all transactions from source to target
+  const txResult = await db.run('UPDATE transactions SET category_id=? WHERE category_id=?', [targetId, sourceId]);
+  // Move budgets
+  await db.run('UPDATE budgets SET category_id=? WHERE category_id=?', [targetId, sourceId]);
+  // Move recurring
+  await db.run('UPDATE recurring_transactions SET category_id=? WHERE category_id=?', [targetId, sourceId]);
+  // Move tags linked to source category
+  await db.run('UPDATE tags SET category_id=? WHERE category_id=?', [targetId, sourceId]);
+  // Delete source category
+  await db.run('DELETE FROM categories WHERE id=?', [sourceId]);
+  return txResult.changes?.changes ?? 0;
+}
+
 // ============================================================
 // ACCOUNTS CRUD
 // ============================================================

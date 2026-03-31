@@ -50,8 +50,7 @@ export default function AddTransaction() {
   const recurringDismiss = params.get('recurringDismiss');
 
   const goBack = () => {
-    if (returnTo) navigate(returnTo);
-    else navigate(-1);
+    navigate(-1);
   };
 
   const [type, setType] = useState<TransactionType>(editTx?.type ?? prefillType ?? 'expense');
@@ -85,6 +84,8 @@ export default function AddTransaction() {
 
   // Inline create states
   const [showNewAccount, setShowNewAccount] = useState(false);
+  const [catSearch, setCatSearch] = useState('');
+  const [accSearch, setAccSearch] = useState('');
   const [newAccName, setNewAccName] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCatName, setNewCatName] = useState('');
@@ -540,9 +541,16 @@ export default function AddTransaction() {
       )}
 
       {/* Account Picker Modal */}
-      <Modal open={showAccountPicker} onClose={() => { setShowAccountPicker(false); setShowNewAccount(false); }} title="Select Account">
+      <Modal open={showAccountPicker} onClose={() => { setShowAccountPicker(false); setShowNewAccount(false); setAccSearch(''); }} title="Select Account">
         <div className="space-y-1.5">
-          {activeAccounts.map(a => (
+          <input
+            value={accSearch}
+            onChange={e => setAccSearch(e.target.value)}
+            placeholder="Search accounts..."
+            className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
+            autoFocus
+          />
+          {activeAccounts.filter(a => !accSearch || a.name.toLowerCase().includes(accSearch.toLowerCase())).map(a => (
             <button
               key={a.id}
               onClick={() => { setAccountId(a.id); setShowAccountPicker(false); }}
@@ -606,10 +614,17 @@ export default function AddTransaction() {
       </Modal>
 
       {/* Category Picker Modal */}
-      <Modal open={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setShowNewCategory(false); }} title="Select Category">
+      <Modal open={showCategoryPicker} onClose={() => { setShowCategoryPicker(false); setShowNewCategory(false); setCatSearch(''); }} title="Select Category">
         <div className="space-y-3">
+          <input
+            value={catSearch}
+            onChange={e => setCatSearch(e.target.value)}
+            placeholder="Search categories..."
+            className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
+            autoFocus
+          />
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {sortedCategories.map(c => (
+            {sortedCategories.filter(c => !catSearch || c.name.toLowerCase().includes(catSearch.toLowerCase())).map(c => (
               <div key={c.id} className="relative">
                 <button
                   onClick={() => { setCategoryId(c.id); setShowCategoryPicker(false); }}

@@ -844,10 +844,17 @@ export default function Settings() {
         onToggleActive={toggleCategoryActive}
         onReorder={reorderCategories}
         onMerge={async (sourceId: number, targetId: number) => {
-          const res = await post<{ merged: number }>('/api/categories/merge', { sourceId, targetId });
-          await refresh();
-          getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions);
-          showToast(`Merged ${res.merged} transactions`, 'success');
+          if (Capacitor.isNativePlatform()) {
+            const merged = await repo.mergeCategory(sourceId, targetId);
+            await refresh();
+            getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions);
+            showToast(`Merged ${merged} transactions`, 'success');
+          } else {
+            const res = await post<{ merged: number }>('/api/categories/merge', { sourceId, targetId });
+            await refresh();
+            getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions);
+            showToast(`Merged ${res.merged} transactions`, 'success');
+          }
         }}
         navigate={navigate}
       />}
@@ -1232,7 +1239,7 @@ export default function Settings() {
           </select>
           <select value={recAccId} onChange={e => setRecAccId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
             <option value="">Select account</option>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+            {accounts.filter(a => a.active !== false).map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
           </select>
           <input value={recNotes} onChange={e => setRecNotes(e.target.value)} placeholder="Notes (optional)" className={inputClass} />
           <select value={recurrence} onChange={e => setRecurrence(e.target.value as RecurrenceType)} className={inputClass}>

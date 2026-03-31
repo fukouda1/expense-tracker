@@ -21,6 +21,8 @@ export interface Template {
   id: string;
   name: string;
   entries: TemplateEntry[];
+  active?: boolean; // default true
+  lastApplied?: string; // ISO date of last apply
 }
 
 const STORAGE_KEY = 'tracecash_templates_v2';
@@ -56,7 +58,28 @@ export function useTemplates() {
     saveTemplates(updated);
   };
 
-  return { templates, addTemplate, updateTemplate, removeTemplate };
+  const toggleTemplateActive = (id: string) => {
+    const updated = templates.map(t => t.id === id ? { ...t, active: t.active === false ? true : false } : t);
+    setTemplates(updated);
+    saveTemplates(updated);
+  };
+
+  const reorderTemplates = (fromIdx: number, dir: -1 | 1) => {
+    const toIdx = fromIdx + dir;
+    if (toIdx < 0 || toIdx >= templates.length) return;
+    const updated = [...templates];
+    [updated[fromIdx], updated[toIdx]] = [updated[toIdx], updated[fromIdx]];
+    setTemplates(updated);
+    saveTemplates(updated);
+  };
+
+  const markApplied = (id: string, date: string) => {
+    const updated = templates.map(t => t.id === id ? { ...t, lastApplied: date } : t);
+    setTemplates(updated);
+    saveTemplates(updated);
+  };
+
+  return { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplates, markApplied };
 }
 
 // ── Apply Template (creates all entries at once) ──
@@ -92,29 +115,49 @@ export function useApplyTemplate() {
 // ── Template List (for Dashboard / quick access) ──
 
 export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void } = {}) {
-  const { templates } = useTemplates();
+  const { templates, markApplied } = useTemplates();
   const { apply } = useApplyTemplate();
   const { categories, accounts } = useData();
   const [applyConfirm, setApplyConfirm] = useState<Template | null>(null);
   const [applyDate, setApplyDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dupWarning, setDupWarning] = useState(false);
 
-  if (templates.length === 0) return null;
+  const activeTemplates = templates.filter(t => t.active !== false);
+  if (activeTemplates.length === 0) return null;
+
+  const handleApplyClick = (t: Template) => {
+    const today = new Date().toISOString().slice(0, 10);
+    setApplyConfirm(t);
+    setApplyDate(today);
+    // Check if already applied today
+    setDupWarning(t.lastApplied === today);
+  };
 
   return (
     <>
       <div>
         <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">Quick Templates</p>
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-          {templates.map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setApplyConfirm(t); setApplyDate(new Date().toISOString().slice(0, 10)); }}
-              className="flex-shrink-0 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-500 transition-colors"
-            >
-              <p className="text-xs font-semibold text-gray-900 dark:text-white whitespace-nowrap">{t.name}</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">{t.entries.length} entries · {formatCurrency(t.entries.reduce((s, e) => s + e.amount, 0))}</p>
-            </button>
-          ))}
+          {activeTemplates.map(t => {
+            const appliedToday = t.lastApplied === new Date().toISOString().slice(0, 10);
+            return (
+              <button
+                key={t.id}
+                onClick={() => handleApplyClick(t)}
+                className={`flex-shrink-0 px-3 py-2 border rounded-xl transition-colors ${
+                  appliedToday
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-500'
+                }`}
+              >
+                <p className="text-xs font-semibold text-gray-900 dark:text-white whitespace-nowrap">{t.name}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {t.entries.length} entries · {formatCurrency(t.entries.reduce((s, e) => s + e.amount, 0))}
+                  {appliedToday && <span className="ml-1 text-emerald-500">✓</span>}
+                </p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -157,19 +200,26 @@ export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void
                 <span className="text-gray-900 dark:text-white">{formatCurrency(applyConfirm.entries.reduce((s, e) => s + e.amount, 0))}</span>
               </div>
             </div>
+            {dupWarning && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-2.5">
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">⚠️ You already applied this template today. Apply again?</p>
+              </div>
+            )}
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Date for entries</label>
               <input
                 type="date"
                 value={applyDate}
-                onChange={e => setApplyDate(e.target.value)}
+                onChange={e => { setApplyDate(e.target.value); setDupWarning(applyConfirm.lastApplied === e.target.value); }}
                 className="w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white"
               />
             </div>
             <button
               onClick={async () => {
                 await apply(applyConfirm, `${applyDate}T${new Date().toTimeString().slice(0, 5)}`);
+                markApplied(applyConfirm.id, applyDate);
                 setApplyConfirm(null);
+                setDupWarning(false);
                 onApplied?.();
               }}
               className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium"
@@ -186,7 +236,7 @@ export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void
 // ── Full Template Manager (for Settings or standalone page) ──
 
 export function TemplateManager() {
-  const { templates, addTemplate, updateTemplate, removeTemplate } = useTemplates();
+  const { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplates } = useTemplates();
   const { categories, accounts } = useData();
   const { showToast } = useToast();
 
@@ -258,14 +308,26 @@ export function TemplateManager() {
               <p className="text-[10px] mt-1">Create a template for repeating sets of entries (e.g. "Work Day")</p>
             </div>
           ) : (
-            templates.map(t => (
-              <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 p-3">
+            templates.map((t, idx) => (
+              <div key={t.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 p-3 ${t.active === false ? 'opacity-50' : ''}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{t.name}</p>
-                    <p className="text-[10px] text-gray-400">{t.entries.length} entries · {formatCurrency(t.entries.reduce((s, e) => s + e.amount, 0))}</p>
+                  <div className="flex items-center gap-2">
+                    {t.active === false && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                    <div>
+                      <p className={`text-sm font-semibold ${t.active === false ? 'text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>{t.name}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {t.entries.length} entries · {formatCurrency(t.entries.reduce((s, e) => s + e.amount, 0))}
+                        {t.lastApplied && <span className="ml-1">· Last: {t.lastApplied}</span>}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => reorderTemplates(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-30">▲</button>
+                    <button onClick={() => reorderTemplates(idx, 1)} disabled={idx === templates.length - 1} className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-30">▼</button>
+                    <button onClick={() => toggleTemplateActive(t.id)}
+                      className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${t.active !== false ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                      <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${t.active !== false ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                    </button>
                     <button onClick={() => openEdit(t)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
                     <button onClick={() => setDeleteConfirm(t.id)} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
                   </div>
@@ -372,7 +434,7 @@ export function TemplateManager() {
                       onChange={e => updateEntry(idx, 'accountId', Number(e.target.value))}
                       className={inputClass}
                     >
-                      {accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+                      {accounts.filter(a => a.active !== false).map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
                     </select>
                   </div>
                 </div>

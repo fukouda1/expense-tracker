@@ -186,14 +186,14 @@ export default function Search() {
               <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block uppercase tracking-wider">Category</label>
               <select value={categoryId} onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
                 <option value="">All Categories</option>
-                {categories.filter(c => !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                {categories.filter(c => c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?').map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block uppercase tracking-wider">Account</label>
               <select value={accountId} onChange={e => setAccountId(e.target.value ? Number(e.target.value) : '')} className={inputClass}>
                 <option value="">All Accounts</option>
-                {accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
+                {accounts.filter(a => a.active !== false).map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
               </select>
             </div>
           </div>
