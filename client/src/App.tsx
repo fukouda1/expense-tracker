@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { DataProvider } from './contexts/DataContext';
+import { DataProvider, useData } from './contexts/DataContext';
 import { DisplayProvider } from './contexts/DisplayContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { ToastProvider } from './components/Toast';
@@ -26,6 +26,17 @@ function Loading() {
   return (
     <div className="flex items-center justify-center h-40">
       <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function SplashScreen() {
+  return (
+    <div className="fixed inset-0 z-[200] bg-gradient-to-br from-[#082f23] via-[#0f766e] to-[#065f46] flex flex-col items-center justify-center">
+      <img src="/favicon.svg" alt="TraceCash" className="w-28 h-28 mb-4 animate-pulse" />
+      <h1 className="text-2xl font-bold text-white tracking-wide">TraceCash</h1>
+      <p className="text-sm text-emerald-300/60 mt-1">Trace your cash</p>
+      <div className="mt-8 w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
@@ -64,14 +75,7 @@ export default function App() {
       <PinLock>
       <CurrencyProvider>
         <DataProvider>
-          <DisplayProvider>
-            <ToastProvider>
-            <OfflineIndicator />
-            <AutoBackupRunner />
-            <BrowserRouter>
-              <BackButtonHandler />
-              <Suspense fallback={<Loading />}>
-                <Routes>
+          <AppContent />
                   <Route element={<Layout />}>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/transactions" element={<Transactions />} />
@@ -79,18 +83,42 @@ export default function App() {
                     <Route path="/calendar" element={<CalendarView />} />
                     <Route path="/analytics" element={<Analytics />} />
                   </Route>
-                  <Route path="/add" element={<AddTransaction />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/debts" element={<DebtTracker />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-            </ToastProvider>
-          </DisplayProvider>
         </DataProvider>
       </CurrencyProvider>
       </PinLock>
     </ThemeProvider>
+  );
+}
+
+function AppContent() {
+  const { loading } = useData();
+
+  if (loading) return <SplashScreen />;
+
+  return (
+    <DisplayProvider>
+      <ToastProvider>
+        <OfflineIndicator />
+        <AutoBackupRunner />
+        <BrowserRouter>
+          <BackButtonHandler />
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/accounts" element={<Accounts />} />
+                <Route path="/calendar" element={<CalendarView />} />
+                <Route path="/analytics" element={<Analytics />} />
+              </Route>
+              <Route path="/add" element={<AddTransaction />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/debts" element={<DebtTracker />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </ToastProvider>
+    </DisplayProvider>
   );
 }
