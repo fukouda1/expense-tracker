@@ -137,38 +137,37 @@
   </radialGradient>
   <rect width="512" height="512" rx="108" ry="108" fill="url(#bgGlow)"/>
 
-  <!-- ═══ STACKED BILLS (3 widely fanned, bigger, flying away) ═══ -->
-  <g transform="translate(376,56) rotate(-15) scale(0.58)" filter="url(#shadow)">
-    <!-- Wings on the stack -->
-    <path d="M-90,0 C-126,-30 -170,-34 -192,-14 C-170,-20 -128,-6 -106,8Z" fill="white" opacity="0.65"/>
-    <path d="M-90,14 C-120,-6 -164,-4 -186,18 C-162,8 -122,18 -100,30Z" fill="white" opacity="0.4"/>
-    <path d="M90,0 C126,-30 170,-34 192,-14 C170,-20 128,-6 106,8Z" fill="white" opacity="0.65"/>
-    <path d="M90,14 C120,-6 164,-4 186,18 C162,8 122,18 100,30Z" fill="white" opacity="0.4"/>
+  <!-- ═══ STACKED BILLS (larger, brighter for small icon visibility) ═══ -->
+  <g transform="translate(362,62) rotate(-15) scale(0.78)" filter="url(#shadow)">
+    <!-- Wings — brighter -->
+    <path d="M-90,0 C-126,-30 -170,-34 -192,-14 C-170,-20 -128,-6 -106,8Z" fill="white" opacity="0.8"/>
+    <path d="M-90,14 C-120,-6 -164,-4 -186,18 C-162,8 -122,18 -100,30Z" fill="white" opacity="0.5"/>
+    <path d="M90,0 C126,-30 170,-34 192,-14 C170,-20 128,-6 106,8Z" fill="white" opacity="0.8"/>
+    <path d="M90,14 C120,-6 164,-4 186,18 C162,8 122,18 100,30Z" fill="white" opacity="0.5"/>
 
-    <!-- Bill 3 (back — widely fanned, darker green) -->
-    <g transform="translate(-16,-22) rotate(12)">
-      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="#15803d"/>
-      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="2" opacity="0.45"/>
-      <rect x="-72" y="-34" width="144" height="68" rx="8" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+    <!-- Bill 3 (back — brighter green) -->
+    <g transform="translate(-14,-20) rotate(10)">
+      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="#22c55e"/>
+      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="2.5" opacity="0.6"/>
     </g>
 
-    <!-- Bill 2 (middle — medium fan) -->
-    <g transform="translate(-8,-11) rotate(6)">
-      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="#16a34a"/>
-      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="2" opacity="0.55"/>
-      <rect x="-86" y="-48" width="172" height="48" rx="13" fill="url(#billShine)" opacity="0.4"/>
-      <rect x="-72" y="-34" width="144" height="68" rx="8" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
+    <!-- Bill 2 (middle) -->
+    <g transform="translate(-7,-10) rotate(5)">
+      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="#4ade80"/>
+      <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="2.5" opacity="0.65"/>
+      <rect x="-86" y="-48" width="172" height="48" rx="13" fill="url(#billShine)" opacity="0.5"/>
     </g>
 
-    <!-- Bill 1 (front — full detail) -->
+    <!-- Bill 1 (front — full detail, brighter) -->
+    <rect x="-86" y="-48" width="172" height="96" rx="13" fill="#4ade80"/>
     <rect x="-86" y="-48" width="172" height="96" rx="13" fill="url(#billGrad)"/>
-    <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="2.5" opacity="0.75"/>
+    <rect x="-86" y="-48" width="172" height="96" rx="13" fill="none" stroke="#fbbf24" stroke-width="3" opacity="0.85"/>
     <rect x="-86" y="-48" width="172" height="48" rx="13" fill="url(#billShine)"/>
-    <rect x="-72" y="-34" width="144" height="68" rx="8" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.5"/>
-    <circle cx="0" cy="0" r="34" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.28)" stroke-width="2"/>
-    <text x="0" y="14" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="42" fill="white" fill-opacity="0.95" text-anchor="middle">₱</text>
-    <text x="-58" y="-26" font-family="Arial" font-weight="700" font-size="14" fill="rgba(255,255,255,0.7)">100</text>
-    <text x="58" y="40" font-family="Arial" font-weight="700" font-size="14" fill="rgba(255,255,255,0.7)" text-anchor="end">100</text>
+    <rect x="-72" y="-34" width="144" height="68" rx="8" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+    <circle cx="0" cy="0" r="34" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" stroke-width="2.5"/>
+    <text x="0" y="14" font-family="'Arial Black',Arial,sans-serif" font-weight="900" font-size="42" fill="white" text-anchor="middle">₱</text>
+    <text x="-58" y="-26" font-family="Arial" font-weight="700" font-size="16" fill="rgba(255,255,255,0.85)">100</text>
+    <text x="58" y="40" font-family="Arial" font-weight="700" font-size="16" fill="rgba(255,255,255,0.85)" text-anchor="end">100</text>
   </g>
 
   <!-- ═══ TRACE ═══ -->
