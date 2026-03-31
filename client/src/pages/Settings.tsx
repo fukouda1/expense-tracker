@@ -313,22 +313,20 @@ export default function Settings() {
           NEXT_DATE: r.next_date, ACTIVE: r.active ? 'Yes' : 'No',
         })) : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
 
-        // Transactions sheet (from CSV export which includes joins)
-        const csv = await exportCsv();
-        const lines = csv.split('\n').filter(l => l.trim());
-        const csvRows = lines.map(l => {
-          const result: string[] = [];
-          let current = '', inQ = false;
-          for (const ch of l) {
-            if (ch === '"') { inQ = !inQ; }
-            else if (ch === ',' && !inQ) { result.push(current); current = ''; }
-            else current += ch;
-          }
-          result.push(current);
-          return result;
-        });
-        const txWs = utils.aoa_to_sheet(csvRows);
-        utils.book_append_sheet(wb, txWs, 'Transactions');
+        // Transactions sheet — structured data matching server format
+        const allTx = await getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59');
+        const txData = allTx.sort((a, b) => a.date.localeCompare(b.date)).map(t => ({
+          ID: t.id,
+          DATE: t.date,
+          TYPE: t.type,
+          AMOUNT: t.amount,
+          CATEGORY: t.category_name ?? '',
+          ACCOUNT: t.account_name ?? '',
+          TO_ACCOUNT: t.to_account_name ?? '',
+          NOTES: t.notes ?? '',
+          TAGS: '',
+        }));
+        utils.book_append_sheet(wb, utils.json_to_sheet(txData), 'Transactions');
 
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -669,22 +667,31 @@ export default function Settings() {
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
               Generate a formatted financial report with summary, category breakdown, and transaction list
             </p>
-            {Capacitor.isNativePlatform() ? (
-              <p className="text-[11px] text-amber-500">PDF reports are available in the web version only. Use XLSX or CSV export on mobile.</p>
-            ) : (
-              <div className="flex gap-2 items-center">
-                <MonthPicker value={pdfMonth} onChange={setPdfMonth}
-                  className="p-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
-                <button
-                  onClick={() => {
+            <div className="flex gap-2 items-center">
+              <MonthPicker value={pdfMonth} onChange={setPdfMonth}
+                className="p-1.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
+              <button
+                onClick={async () => {
+                  if (Capacitor.isNativePlatform()) {
+                    try {
+                      showToast('Generating PDF...', 'success');
+                      const allTx = await getTransactionsByDate(`${pdfMonth}-01`, `${pdfMonth}-31T23:59:59`);
+                      const { generateMonthlyPdf } = await import('../utils/pdfExport');
+                      const base64 = await generateMonthlyPdf({ month: pdfMonth, transactions: allTx, categories, budgets });
+                      const fileName = `TraceCash_Report_${pdfMonth}.pdf`;
+                      await saveAndShare(base64, fileName, 'application/pdf');
+                    } catch (err) {
+                      showToast('PDF generation failed', 'error');
+                    }
+                  } else {
                     window.open(`/api/export/pdf?month=${pdfMonth}`, '_blank');
-                  }}
-                  className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
-                >
-                  Download PDF
-                </button>
-              </div>
-            )}
+                  }
+                }}
+                className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium"
+              >
+                Download PDF
+              </button>
+            </div>
           </div>
 
           {/* Import */}
