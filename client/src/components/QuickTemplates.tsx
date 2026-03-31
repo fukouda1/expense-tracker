@@ -94,6 +94,7 @@ export function useApplyTemplate() {
 export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void } = {}) {
   const { templates } = useTemplates();
   const { apply } = useApplyTemplate();
+  const { categories, accounts } = useData();
   const [applyConfirm, setApplyConfirm] = useState<Template | null>(null);
   const [applyDate, setApplyDate] = useState(new Date().toISOString().slice(0, 10));
 
@@ -123,15 +124,33 @@ export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void
           <div className="space-y-3">
             <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">This will create {applyConfirm.entries.length} entries:</p>
-              <div className="space-y-1">
-                {applyConfirm.entries.map((e, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-700 dark:text-gray-300">{e.notes || e.type}</span>
-                    <span className={`font-medium ${e.type === 'income' ? 'text-emerald-500' : e.type === 'transfer' ? 'text-blue-500' : 'text-red-500'}`}>
-                      {formatCurrency(e.amount)}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                {applyConfirm.entries.map((e, i) => {
+                  const cat = categories.find(c => c.id === e.categoryId);
+                  const acc = accounts.find(a => a.id === e.accountId);
+                  const toAcc = e.toAccountId ? accounts.find(a => a.id === e.toAccountId) : null;
+                  return (
+                    <div key={i} className="flex items-center gap-2 text-xs bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-100 dark:border-gray-600">
+                      <span className="text-base flex-shrink-0">{cat?.icon ?? (e.type === 'transfer' ? '🔄' : '📦')}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${e.type === 'income' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : e.type === 'transfer' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}>
+                            {e.type === 'income' ? 'INC' : e.type === 'transfer' ? 'TRF' : 'EXP'}
+                          </span>
+                          <span className="text-gray-900 dark:text-white font-medium truncate">{cat?.name ?? (e.notes || 'No category')}</span>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-400">
+                          <span>{acc?.icon ?? '💰'} {acc?.name ?? 'Unknown'}</span>
+                          {toAcc && <span>→ {toAcc.icon} {toAcc.name}</span>}
+                          {e.notes && cat?.name && <span>· {e.notes}</span>}
+                        </div>
+                      </div>
+                      <span className={`font-bold flex-shrink-0 ${e.type === 'income' ? 'text-emerald-500' : e.type === 'transfer' ? 'text-blue-500' : 'text-red-500'}`}>
+                        {formatCurrency(e.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               <div className="border-t border-gray-200 dark:border-gray-600 mt-2 pt-2 flex justify-between text-xs font-bold">
                 <span className="text-gray-700 dark:text-gray-300">Total</span>
