@@ -8,7 +8,7 @@ const PROTECTED_NAMES = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment'];
 const VALID_TYPES = ['income', 'expense', 'transfer'];
 
 router.get('/', asyncHandler(async (_req, res) => {
-  const categories = await prisma.category.findMany({ orderBy: [{ sort_order: 'asc' }, { name: 'asc' }] });
+  const categories = await prisma.category.findMany({ orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] });
   res.json(categories);
 }));
 

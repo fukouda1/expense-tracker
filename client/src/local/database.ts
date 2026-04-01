@@ -107,6 +107,13 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
 ];
 
+// Initialize sort_order for existing rows that all have 0
+const INIT_SORT_ORDER_SQL = [
+  `UPDATE categories SET sort_order = id WHERE sort_order = 0 AND id > 0`,
+  `UPDATE accounts SET sort_order = id WHERE sort_order = 0 AND id > 0`,
+  `UPDATE tags SET sort_order = id WHERE sort_order = 0 AND id > 0`,
+];
+
 const DEFAULT_CATEGORIES = [
   { name: 'Food', icon: '🍔', color: '#ef4444', type: 'expense' },
   { name: 'Food - Work', icon: '🍱', color: '#f97316', type: 'expense' },
@@ -166,6 +173,11 @@ export async function initDatabase(): Promise<void> {
   // Run migrations (add missing columns to existing tables)
   for (const sql of MIGRATIONS_SQL) {
     try { await db.execute(sql); } catch { /* column already exists — ignore */ }
+  }
+
+  // Initialize sort_order for existing rows (one-time fix for rows with sort_order=0)
+  for (const sql of INIT_SORT_ORDER_SQL) {
+    try { await db.execute(sql); } catch { /* ignore */ }
   }
 
   // Seed default data if empty

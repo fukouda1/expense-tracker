@@ -13,17 +13,6 @@ const isNative = Capacitor.isNativePlatform();
 
 const NOTES_MAX = 300;
 
-const PINNED_CATS_KEY = 'tracecash_pinned_cats';
-function getPinnedCats(): number[] {
-  try { return JSON.parse(localStorage.getItem(PINNED_CATS_KEY) || '[]'); } catch { return []; }
-}
-function togglePinnedCat(id: number): number[] {
-  const current = getPinnedCats();
-  const next = current.includes(id) ? current.filter(c => c !== id) : [...current, id];
-  localStorage.setItem(PINNED_CATS_KEY, JSON.stringify(next));
-  return next;
-}
-
 export default function AddTransaction() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -72,7 +61,6 @@ export default function AddTransaction() {
   const [freshEntry, setFreshEntry] = useState(true);
 
   // Pinned categories
-  const [pinnedCats, setPinnedCats] = useState<number[]>(getPinnedCats);
 
   // Batch entry mode
   const [stayOpen, setStayOpen] = useState(false);
@@ -620,7 +608,7 @@ export default function AddTransaction() {
           />
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {sortedCategories.filter(c => !catSearch || c.name.toLowerCase().includes(catSearch.toLowerCase())).map(c => (
-              <div key={c.id} className="relative">
+              <div key={c.id}>
                 <button
                   onClick={() => { setCategoryId(c.id); setShowCategoryPicker(false); }}
                   className={`w-full flex flex-col items-center gap-1 sm:gap-1.5 p-2 sm:p-3 rounded-xl transition-all ${
@@ -631,17 +619,8 @@ export default function AddTransaction() {
                 >
                   <span className="text-xl sm:text-2xl">{c.icon}</span>
                   <span className="text-[10px] sm:text-[11px] text-gray-700 dark:text-gray-300 truncate w-full text-center">
-                    {pinnedCats.includes(c.id) && <span className="mr-0.5">⭐</span>}{c.name}
+                    {c.name}
                   </span>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setPinnedCats(togglePinnedCat(c.id)); }}
-                  className={`absolute top-0.5 right-0.5 w-5 h-5 flex items-center justify-center rounded-full text-[9px] transition-colors ${
-                    pinnedCats.includes(c.id) ? 'bg-amber-400 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-400 hover:bg-amber-300 hover:text-white'
-                  }`}
-                  title={pinnedCats.includes(c.id) ? 'Unpin' : 'Pin'}
-                >
-                  📌
                 </button>
               </div>
             ))}
