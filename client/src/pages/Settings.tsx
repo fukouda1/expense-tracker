@@ -258,20 +258,27 @@ export default function Settings() {
     setShowModal(true);
   };
 
-  const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
-    // Both native and web: use Blob download (saves to Downloads on Android WebView)
-    const byteChars = atob(base64);
-    const byteArr = new Uint8Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-    const blob = new Blob([byteArr], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = fileName; a.click();
-    URL.revokeObjectURL(url);
-    showToast(`Downloading: ${fileName}`, 'success');
+  const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
+    if (Capacitor.isNativePlatform()) {
+      // Native: write to cache then share (lets user save to Downloads/Drive/etc)
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Save ${fileName}` });
+    } else {
+      // Web: Blob download
+      const byteChars = atob(base64);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Downloaded: ${fileName}`, 'success');
+    }
   };
 
   const handleExportXlsx = async () => {
+    setExportingXlsx(true);
     try {
       if (Capacitor.isNativePlatform()) {
         // Native: build full multi-sheet XLSX from local SQLite
@@ -328,7 +335,7 @@ export default function Settings() {
 
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        await saveAndShare(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        await saveToDownloads(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       } else {
         const response = await fetch('/api/export/xlsx');
         const arrayBuffer = await response.arrayBuffer();
@@ -340,24 +347,31 @@ export default function Settings() {
         }
         const base64 = btoa(binary);
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-        await saveAndShare(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        await saveToDownloads(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       }
     } catch (err: any) {
       showToast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
+    } finally {
+      setExportingXlsx(false);
     }
   };
 
   const handleExportCsv = async () => {
+    setExportingCsv(true);
     try {
       const csv = await exportCsv();
       const base64 = btoa(unescape(encodeURIComponent(csv)));
       const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
-      await saveAndShare(base64, fileName, 'text/csv');
+      await saveToDownloads(base64, fileName, 'text/csv');
     } catch (err: any) {
       showToast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
+    } finally {
+      setExportingCsv(false);
     }
   };
 
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -653,11 +667,11 @@ export default function Settings() {
               All data in one file: Accounts, Categories, Tags, Budgets, Recurring, Transactions — each in its own sheet
             </p>
             <div className="flex flex-wrap gap-2">
-              <button onClick={handleExportXlsx} className="px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-medium">
-                Download .xlsx
+              <button onClick={handleExportXlsx} disabled={exportingXlsx} className="px-4 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-medium disabled:opacity-50">
+                {exportingXlsx ? '⏳ Exporting...' : '📥 Download .xlsx'}
               </button>
-              <button onClick={handleExportCsv} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium">
-                Download .csv
+              <button onClick={handleExportCsv} disabled={exportingCsv} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium disabled:opacity-50">
+                {exportingCsv ? '⏳ Exporting...' : '📥 Download .csv'}
               </button>
             </div>
           </div>
@@ -680,7 +694,7 @@ export default function Settings() {
                       const { generateMonthlyPdf } = await import('../utils/pdfExport');
                       const base64 = await generateMonthlyPdf({ month: pdfMonth, transactions: allTx, categories, budgets });
                       const fileName = `TraceCash_Report_${pdfMonth}.pdf`;
-                      await saveAndShare(base64, fileName, 'application/pdf');
+                      await saveToDownloads(base64, fileName, 'application/pdf');
                     } catch (err) {
                       showToast('PDF generation failed', 'error');
                     }
