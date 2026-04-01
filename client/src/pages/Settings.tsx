@@ -957,80 +957,42 @@ export default function Settings() {
           <button onClick={() => openModal('tag')} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">
             + Add Tag
           </button>
-          {/* Global Tags */}
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Global Tags</h3>
-              <span className="text-[10px] text-gray-400">Always shown</span>
-            </div>
-            <div className="space-y-1.5">
-              {tags.filter(t => !t.category_id).map(t => {
-                const linkedCat = t.category_id ? categories.find(c => c.id === t.category_id) : null;
-                return (
-                  <div key={t.id} className={`flex items-center gap-2 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!t.active ? 'opacity-50' : ''}`}>
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</span>
-                    </div>
-                    {!t.active && <span className="text-[10px] text-red-400">Off</span>}
-                    <button onClick={() => toggleTagActive(t.id)}
-                      className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </button>
-                    <button onClick={async () => {
-                      if (!confirm('Delete this tag?')) return;
+          <SortableList
+            items={tags}
+            onReorder={(ids) => reorderTags(ids as number[])}
+            renderItem={(t) => {
+              const linkedCat = t.category_id ? categories.find(c => c.id === t.category_id) : null;
+              return (
+                <div className={`flex items-center gap-2 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!t.active ? 'opacity-50' : ''}`}>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</span>
+                    {linkedCat ? (
+                      <span className="text-[10px] text-gray-400 ml-1.5">{linkedCat.icon} {linkedCat.name}</span>
+                    ) : (
+                      <span className="text-[10px] text-blue-400 ml-1.5">Global</span>
+                    )}
+                  </div>
+                  {!t.active && <span className="text-[10px] text-red-400">Off</span>}
+                  <button onClick={() => toggleTagActive(t.id)}
+                    className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                  <button onClick={async () => {
+                    if (!confirm('Delete this tag?')) return;
                       try { await removeTag(t.id); showToast('Tag deleted', 'success'); }
                       catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete', 'error'); }
                     }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
                   </div>
                 );
-              })}
-              {tags.filter(t => !t.category_id).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">No global tags yet</p>
-              )}
-            </div>
-          </div>
-          {/* Category-Linked Tags */}
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Category Tags</h3>
-              <span className="text-[10px] text-gray-400">Shown when category is selected</span>
-            </div>
-            <div className="space-y-1.5">
-              {tags.filter(t => t.category_id).map(t => {
-                const linkedCat = categories.find(c => c.id === t.category_id);
-                return (
-                  <div key={t.id} className={`flex items-center gap-2 p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!t.active ? 'opacity-50' : ''}`}>
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{t.name}</span>
-                      {linkedCat && (
-                        <span className="text-[10px] text-gray-400 ml-1.5">{linkedCat.icon} {linkedCat.name}</span>
-                      )}
-                    </div>
-                    {!t.active && <span className="text-[10px] text-red-400">Off</span>}
-                    <button onClick={() => toggleTagActive(t.id)}
-                      className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                    </button>
-                    <button onClick={async () => {
-                      if (!confirm('Delete this tag?')) return;
-                      try { await removeTag(t.id); showToast('Tag deleted', 'success'); }
-                      catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete', 'error'); }
-                    }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
-                  </div>
-                );
-              })}
-              {tags.filter(t => t.category_id).length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">No category-linked tags yet</p>
-              )}
-            </div>
-          </div>
+              }}
+          />
+          {tags.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-2">No tags yet</p>
+          )}
           <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 border border-amber-200 dark:border-amber-800">
             <p className="text-[11px] text-amber-700 dark:text-amber-300">
-              💡 <strong>Global tags</strong> always appear when adding a transaction. <strong>Category tags</strong> only appear when their linked category is selected.
+              💡 <strong>Global tags</strong> always appear when adding a transaction. <strong>Category tags</strong> only appear when their linked category is selected. Drag to reorder.
             </p>
           </div>
         </div>
@@ -1324,40 +1286,22 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
   const [mergeCat, setMergeCat] = useState<Category | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<number | ''>('');
 
-  const expenseCats = categories.filter(c => c.type === 'expense' || c.type === 'both');
-  const incomeCats = categories.filter(c => c.type === 'income' || c.type === 'both');
+  const expenseCats = categories.filter(c => c.type === 'expense');
+  const incomeCats = categories.filter(c => c.type === 'income');
 
   const selectedCatTx = selectedCat
     ? transactions.filter(t => t.category_id === selectedCat.id)
     : [];
   const selectedCatTotal = selectedCatTx.reduce((s, t) => s + t.amount, 0);
 
-  const moveInList = async (list: Category[], index: number, dir: -1 | 1) => {
-    const newIdx = index + dir;
-    if (newIdx < 0 || newIdx >= list.length) return;
-    // Build full ID order: all categories in current order, with these two swapped
-    const allIds = categories.map(cat => cat.id);
-    const aIdx = allIds.indexOf(list[index].id);
-    const bIdx = allIds.indexOf(list[newIdx].id);
-    [allIds[aIdx], allIds[bIdx]] = [allIds[bIdx], allIds[aIdx]];
-    await onReorder(allIds);
-  };
-
   const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment'];
 
-  const renderCat = (c: Category, list: Category[], index: number) => {
+  const renderCat = (c: Category) => {
     const isProtected = PROTECTED_CATS.includes(c.name);
     const txCount = transactions.filter(t => t.category_id === c.id).length;
     const total = transactions.filter(t => t.category_id === c.id).reduce((s, t) => s + t.amount, 0);
     return (
-      <div key={c.id} className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!c.active ? 'opacity-50' : ''}`}>
-        {/* Sort buttons */}
-        <div className="flex flex-col gap-0 flex-shrink-0">
-          <button onClick={() => moveInList(list, index, -1)} disabled={index === 0}
-            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 px-0.5 leading-none">▲</button>
-          <button onClick={() => moveInList(list, index, 1)} disabled={index === list.length - 1}
-            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 px-0.5 leading-none">▼</button>
-        </div>
+      <div className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!c.active ? 'opacity-50' : ''}`}>
         <button
           onClick={() => setSelectedCat(c)}
           className="flex items-center gap-3 flex-1 min-w-0"
@@ -1405,7 +1349,11 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
           </h3>
           <span className="text-xs text-gray-400">({expenseCats.length})</span>
         </div>
-        <div className="space-y-1.5">{expenseCats.map((c, i) => renderCat(c, expenseCats, i))}</div>
+        <SortableList
+          items={expenseCats}
+          onReorder={(ids) => onReorder([...ids as number[], ...incomeCats.map(c => c.id)])}
+          renderItem={(c) => renderCat(c)}
+        />
       </div>
 
       {/* Income Categories */}
@@ -1417,7 +1365,11 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
           </h3>
           <span className="text-xs text-gray-400">({incomeCats.length})</span>
         </div>
-        <div className="space-y-1.5">{incomeCats.map((c, i) => renderCat(c, incomeCats, i))}</div>
+        <SortableList
+          items={incomeCats}
+          onReorder={(ids) => onReorder([...expenseCats.map(c => c.id), ...ids as number[]])}
+          renderItem={(c) => renderCat(c)}
+        />
       </div>
 
       {/* Category Transactions Modal */}
