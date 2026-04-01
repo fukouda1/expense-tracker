@@ -129,11 +129,8 @@ export default function AddTransaction() {
     c.active !== false && !c.name.startsWith('_') && c.icon !== '??' && c.icon !== '?' &&
     (type === 'transfer' ? false : c.type === type || c.type === 'both')
   );
-  const sortedCategories = useMemo(() => {
-    const pinned = filteredCategories.filter(c => pinnedCats.includes(c.id));
-    const unpinned = filteredCategories.filter(c => !pinnedCats.includes(c.id));
-    return [...pinned, ...unpinned];
-  }, [filteredCategories, pinnedCats]);
+  // Use sort_order from Settings (drag-and-drop order)
+  const sortedCategories = filteredCategories;
 
   // Unique notes for autocomplete
   const uniqueNotes = useMemo(() => {
