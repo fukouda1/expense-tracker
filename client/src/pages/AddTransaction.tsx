@@ -548,7 +548,6 @@ export default function AddTransaction() {
             onChange={e => setAccSearch(e.target.value)}
             placeholder="Search accounts..."
             className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
-            autoFocus
           />
           {activeAccounts.filter(a => !accSearch || a.name.toLowerCase().includes(accSearch.toLowerCase())).map(a => (
             <button
@@ -621,7 +620,6 @@ export default function AddTransaction() {
             onChange={e => setCatSearch(e.target.value)}
             placeholder="Search categories..."
             className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
-            autoFocus
           />
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {sortedCategories.filter(c => !catSearch || c.name.toLowerCase().includes(catSearch.toLowerCase())).map(c => (
