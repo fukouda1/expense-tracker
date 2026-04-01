@@ -361,9 +361,11 @@ export async function toggleCategoryActive(id: number): Promise<void> {
 
 export async function insertCategory(name: string, icon: string, color: string, type: string): Promise<number> {
   const db = getDb();
+  const maxOrder = await db.query('SELECT COALESCE(MAX(sort_order), -1) + 1 as next FROM categories');
+  const nextOrder = maxOrder.values?.[0]?.next ?? 0;
   const result = await db.run(
-    'INSERT INTO categories (name, icon, color, type) VALUES (?, ?, ?, ?)',
-    [name, icon, color, type]
+    'INSERT INTO categories (name, icon, color, type, sort_order) VALUES (?, ?, ?, ?, ?)',
+    [name, icon, color, type, nextOrder]
   );
   return result.changes?.lastId ?? 0;
 }
@@ -417,9 +419,11 @@ export async function toggleAccountActive(id: number): Promise<void> {
 
 export async function insertAccount(name: string, icon: string, color: string, initialBalance: number): Promise<number> {
   const db = getDb();
+  const maxOrder = await db.query('SELECT COALESCE(MAX(sort_order), -1) + 1 as next FROM accounts');
+  const nextOrder = maxOrder.values?.[0]?.next ?? 0;
   const result = await db.run(
-    'INSERT INTO accounts (name, icon, color, initial_balance) VALUES (?, ?, ?, ?)',
-    [name, icon, color, initialBalance]
+    'INSERT INTO accounts (name, icon, color, initial_balance, sort_order) VALUES (?, ?, ?, ?, ?)',
+    [name, icon, color, initialBalance, nextOrder]
   );
   return result.changes?.lastId ?? 0;
 }
@@ -446,7 +450,9 @@ export async function getAllTags(): Promise<Tag[]> {
 
 export async function insertTag(name: string, color: string, categoryId: number | null = null): Promise<number> {
   const db = getDb();
-  const result = await db.run('INSERT INTO tags (name, color, category_id) VALUES (?, ?, ?)', [name, color, categoryId]);
+  const maxOrder = await db.query('SELECT COALESCE(MAX(sort_order), -1) + 1 as next FROM tags');
+  const nextOrder = maxOrder.values?.[0]?.next ?? 0;
+  const result = await db.run('INSERT INTO tags (name, color, category_id, sort_order) VALUES (?, ?, ?, ?)', [name, color, categoryId, nextOrder]);
   return result.changes?.lastId ?? 0;
 }
 
