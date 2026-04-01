@@ -219,7 +219,7 @@ export default function Dashboard() {
         <SpendingAlerts />
 
         {/* Average Daily Spend + Biggest Expense */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className={`grid ${biggestExpense ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
             <p className="text-[10px] text-gray-400 uppercase">Avg Daily Spend</p>
             <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(avgDaily)}</p>
@@ -254,15 +254,13 @@ export default function Dashboard() {
           const hasDebts = theyOwe > 0 || iOwe > 0;
           if (!hasSavings && !hasDebts) return null;
           return (
-            <div className="grid grid-cols-2 gap-2">
+            <div className={`grid ${hasSavings && hasDebts ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
               {/* Savings */}
-              {hasSavings ? (
+              {hasSavings && (
                 <SavingsGauge income={monthlyTotal.income} expense={monthlyTotal.expense} compact />
-              ) : (
-                <div />
               )}
               {/* Debts */}
-              {hasDebts ? (
+              {hasDebts && (
                 <Link to="/debts" className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 flex flex-col justify-between">
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className="text-sm">💰</span>
@@ -284,8 +282,6 @@ export default function Dashboard() {
                     )}
                   </div>
                 </Link>
-              ) : (
-                <div />
               )}
             </div>
           );
