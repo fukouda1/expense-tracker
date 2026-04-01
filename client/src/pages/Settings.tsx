@@ -258,13 +258,23 @@ export default function Settings() {
     setShowModal(true);
   };
 
+  // Store last exported data so Share can reuse it
+  const lastExportRef = useRef<{ base64: string; fileName: string; mimeType: string } | null>(null);
+
   const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
+    lastExportRef.current = { base64, fileName, mimeType };
     if (Capacitor.isNativePlatform()) {
-      // Native: write to cache then share (lets user save to Downloads/Drive/etc)
-      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Save ${fileName}` });
+      // Native: Blob download triggers system download manager
+      const byteChars = atob(base64);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Saved: ${fileName}`, 'success');
     } else {
-      // Web: Blob download
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
@@ -274,6 +284,17 @@ export default function Settings() {
       a.href = url; a.download = fileName; a.click();
       URL.revokeObjectURL(url);
       showToast(`Downloaded: ${fileName}`, 'success');
+    }
+  };
+
+  const shareLastExport = async () => {
+    if (!lastExportRef.current) { showToast('Export first, then share', 'error'); return; }
+    const { base64, fileName } = lastExportRef.current;
+    try {
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Share ${fileName}` });
+    } catch (err: any) {
+      showToast(`Share failed: ${err?.message || 'Unknown error'}`, 'error');
     }
   };
 
@@ -491,6 +512,8 @@ export default function Settings() {
           }
         } else {
           setImportResult('Error: Unsupported file format. Use .xlsx or .csv');
+          if (importTimerRef.current) clearInterval(importTimerRef.current);
+          setImporting(false); setImportProgress(0);
           return;
         }
 
@@ -673,6 +696,11 @@ export default function Settings() {
               <button onClick={handleExportCsv} disabled={exportingCsv} className="px-4 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium disabled:opacity-50">
                 {exportingCsv ? '⏳ Exporting...' : '📥 Download .csv'}
               </button>
+              {Capacitor.isNativePlatform() && (
+                <button onClick={shareLastExport} disabled={!lastExportRef.current} className="px-4 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-medium disabled:opacity-30">
+                  📤 Share
+                </button>
+              )}
             </div>
           </div>
 
