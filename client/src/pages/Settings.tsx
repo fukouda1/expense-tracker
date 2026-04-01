@@ -259,19 +259,16 @@ export default function Settings() {
   };
 
   const saveAndShare = async (base64: string, fileName: string, mimeType: string) => {
-    if (Capacitor.isNativePlatform()) {
-      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Save ${fileName}` });
-    } else {
-      const byteChars = atob(base64);
-      const byteArr = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArr], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
-    }
+    // Both native and web: use Blob download (saves to Downloads on Android WebView)
+    const byteChars = atob(base64);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Downloading: ${fileName}`, 'success');
   };
 
   const handleExportXlsx = async () => {
