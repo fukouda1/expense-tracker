@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { Browser } from '@capacitor/browser';
 import { useData } from '../contexts/DataContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../components/Toast';
@@ -280,8 +281,21 @@ export default function Settings() {
       const written = await Filesystem.writeFile({ path: `${folder}/${fileName}`, data: base64, directory: Directory.External, recursive: true });
       lastExportUriRef.current = written.uri;
       showToast(`Saved to ${folder}/${fileName}`, 'success', {
-        onClick: () => openLastExport(),
-        actionLabel: 'OPEN',
+        onClick: async () => {
+          try {
+            // Open file with system handler (triggers file manager or app chooser)
+            await Browser.open({ url: written.uri });
+          } catch {
+            // Fallback: use content:// intent for Android
+            try {
+              const folderUri = written.uri.substring(0, written.uri.lastIndexOf('/'));
+              await Browser.open({ url: folderUri });
+            } catch {
+              openLastExport();
+            }
+          }
+        },
+        actionLabel: 'OPEN FILE LOCATION',
         duration: 6000,
       });
     } else {
@@ -719,6 +733,9 @@ export default function Settings() {
                 </button>
               )}
             </div>
+            {Capacitor.isNativePlatform() && (
+              <p className="text-[10px] text-gray-400 mt-1.5">📁 Files saved to: Android/data/com.tracecash.app/files/TraceCash/</p>
+            )}
           </div>
 
           {/* PDF Report */}
