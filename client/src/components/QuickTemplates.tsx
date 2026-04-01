@@ -3,6 +3,7 @@ import { useData } from '../contexts/DataContext';
 import { useToast } from './Toast';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
+import SortableList from './SortableList';
 import { formatCurrency } from '../utils/formatters';
 import type { TransactionType } from '../types';
 
@@ -73,13 +74,20 @@ export function useTemplates() {
     saveTemplates(updated);
   };
 
+  const reorderTemplatesByIds = (ids: (string | number)[]) => {
+    const idMap = new Map(templates.map(t => [t.id, t]));
+    const updated = ids.map(id => idMap.get(String(id))!).filter(Boolean);
+    setTemplates(updated);
+    saveTemplates(updated);
+  };
+
   const markApplied = (id: string, date: string) => {
     const updated = templates.map(t => t.id === id ? { ...t, lastApplied: date } : t);
     setTemplates(updated);
     saveTemplates(updated);
   };
 
-  return { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplates, markApplied };
+  return { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplates, reorderTemplatesByIds, markApplied };
 }
 
 // ── Apply Template (creates all entries at once) ──
@@ -236,7 +244,7 @@ export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void
 // ── Full Template Manager (for Settings or standalone page) ──
 
 export function TemplateManager() {
-  const { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplates } = useTemplates();
+  const { templates, addTemplate, updateTemplate, removeTemplate, toggleTemplateActive, reorderTemplatesByIds } = useTemplates();
   const { categories, accounts } = useData();
   const { showToast } = useToast();
 
@@ -308,8 +316,11 @@ export function TemplateManager() {
               <p className="text-[10px] mt-1">Create a template for repeating sets of entries (e.g. "Work Day")</p>
             </div>
           ) : (
-            templates.map((t, idx) => (
-              <div key={t.id} className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 p-3 ${t.active === false ? 'opacity-50' : ''}`}>
+            <SortableList
+              items={templates}
+              onReorder={(ids) => reorderTemplatesByIds(ids)}
+              renderItem={(t) => (
+              <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-600 p-3 ${t.active === false ? 'opacity-50' : ''}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {t.active === false && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
@@ -322,8 +333,6 @@ export function TemplateManager() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => reorderTemplates(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-30">▲</button>
-                    <button onClick={() => reorderTemplates(idx, 1)} disabled={idx === templates.length - 1} className="text-gray-400 hover:text-gray-600 text-xs disabled:opacity-30">▼</button>
                     <button onClick={() => toggleTemplateActive(t.id)}
                       className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${t.active !== false ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
                       <div className={`w-3.5 h-3.5 bg-white rounded-full transition-transform ${t.active !== false ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
@@ -352,7 +361,8 @@ export function TemplateManager() {
                   })}
                 </div>
               </div>
-            ))
+            )}
+            />
           )}
         </>
       )}

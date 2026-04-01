@@ -11,6 +11,7 @@ import TransactionCard from '../components/TransactionCard';
 import BudgetProgress from '../components/BudgetProgress';
 import { TemplateManager } from '../components/QuickTemplates';
 import AutoBackupToggle from '../components/AutoBackup';
+import SortableList from '../components/SortableList';
 import { PinLockSettings } from '../components/PinLock';
 import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatters';
 import { post } from '../services/api';
@@ -274,10 +275,11 @@ export default function Settings() {
   const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
     lastExportRef.current = { base64, fileName, mimeType };
     if (Capacitor.isNativePlatform()) {
-      // Write to cache (reliable on all Android), show toast with OPEN action
-      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      // Write to app's external files dir (accessible via file manager)
+      const folder = 'TraceCash';
+      const written = await Filesystem.writeFile({ path: `${folder}/${fileName}`, data: base64, directory: Directory.External, recursive: true });
       lastExportUriRef.current = written.uri;
-      showToast(`Exported: ${fileName}`, 'success', {
+      showToast(`Saved to ${folder}/${fileName}`, 'success', {
         onClick: () => openLastExport(),
         actionLabel: 'OPEN',
         duration: 6000,
@@ -920,37 +922,32 @@ export default function Settings() {
           <button onClick={() => openModal('account')} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">
             + Add Account
           </button>
-          {accounts.map((a, idx) => (
-            <div key={a.id} className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!a.active ? 'opacity-50' : ''}`}>
-              {/* Sort arrows */}
-              <div className="flex flex-col gap-0.5 flex-shrink-0">
-                <button onClick={() => moveItem(accounts, idx, -1, reorderAccounts)}
-                  disabled={idx === 0}
-                  className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▲</button>
-                <button onClick={() => moveItem(accounts, idx, 1, reorderAccounts)}
-                  disabled={idx === accounts.length - 1}
-                  className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▼</button>
+          <SortableList
+            items={accounts}
+            onReorder={(ids) => reorderAccounts(ids as number[])}
+            renderItem={(a) => (
+              <div className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!a.active ? 'opacity-50' : ''}`}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: a.color + '20' }}>
+                  {a.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.name}</p>
+                  {!a.active && <p className="text-[10px] text-red-400">Inactive</p>}
+                </div>
+                <button onClick={() => toggleAccountActive(a.id)}
+                  className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${a.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  title={a.active ? 'Deactivate' : 'Activate'}>
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform ${a.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+                <button onClick={() => handleEditAcc(a)} className="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0">✏️</button>
+                <button onClick={async () => {
+                  if (!confirm('Delete this account?')) return;
+                  try { await removeAccount(a.id); showToast('Account deleted', 'success'); }
+                  catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete: account is in use', 'error'); }
+                }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
               </div>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: a.color + '20' }}>
-                {a.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.name}</p>
-                {!a.active && <p className="text-[10px] text-red-400">Inactive</p>}
-              </div>
-              <button onClick={() => toggleAccountActive(a.id)}
-                className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${a.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                title={a.active ? 'Deactivate' : 'Activate'}>
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${a.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-              <button onClick={() => handleEditAcc(a)} className="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0">✏️</button>
-              <button onClick={async () => {
-                if (!confirm('Delete this account?')) return;
-                try { await removeAccount(a.id); showToast('Account deleted', 'success'); }
-                catch (e: any) { showToast(e?.response?.data?.error || 'Cannot delete: account is in use', 'error'); }
-              }} className="text-gray-400 hover:text-red-500 text-sm flex-shrink-0">🗑️</button>
-            </div>
-          ))}
+            )}
+          />
         </div>
       )}
 
@@ -1354,12 +1351,12 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
     const total = transactions.filter(t => t.category_id === c.id).reduce((s, t) => s + t.amount, 0);
     return (
       <div key={c.id} className={`flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40 ${!c.active ? 'opacity-50' : ''}`}>
-        {/* Sort arrows */}
-        <div className="flex flex-col gap-0.5 flex-shrink-0">
+        {/* Sort buttons */}
+        <div className="flex flex-col gap-0 flex-shrink-0">
           <button onClick={() => moveInList(list, index, -1)} disabled={index === 0}
-            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▲</button>
+            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 px-0.5 leading-none">▲</button>
           <button onClick={() => moveInList(list, index, 1)} disabled={index === list.length - 1}
-            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 disabled:cursor-default leading-none">▼</button>
+            className="text-[10px] text-gray-400 hover:text-emerald-500 disabled:opacity-20 px-0.5 leading-none">▼</button>
         </div>
         <button
           onClick={() => setSelectedCat(c)}

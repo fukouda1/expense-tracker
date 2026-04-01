@@ -32,12 +32,13 @@ interface AccountAnalysis {
 }
 
 export default function Analytics() {
-  const { categories, accounts, getCategoryBreakdown, getMonthlyTrend, getTopCategories,
+  const { categories, accounts, tags, getCategoryBreakdown, getMonthlyTrend, getTopCategories,
     getWeeklyComparison, getDailySummaries, getAccountBalances, getTransactionsByDate } = useData();
   const { dark } = useTheme();
   const { period, viewMode, getPeriodRange, periodLabel } = useDisplay();
 
   const [tab, setTab] = useState<Tab>('expense');
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [trendMonths, setTrendMonths] = useState<6 | 12 | 24>(6);
   const [showDisplayOpts, setShowDisplayOpts] = useState(false);
   const [yoyData, setYoyData] = useState<{ thisYear: number; lastYear: number; pctChange: number } | null>(null);
@@ -328,6 +329,34 @@ export default function Analytics() {
           </button>
         ))}
       </div>
+
+      {/* Tag Filter */}
+      {tags.filter(t => t.active !== false).length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+          <button
+            onClick={() => setSelectedTagIds([])}
+            className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${
+              selectedTagIds.length === 0 ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            All Tags
+          </button>
+          {tags.filter(t => t.active !== false).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setSelectedTagIds(prev =>
+                prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+              )}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors ${
+                selectedTagIds.includes(t.id) ? 'text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+              }`}
+              style={selectedTagIds.includes(t.id) ? { backgroundColor: t.color } : undefined}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ═══ EXPENSE OVERVIEW ═══ */}
       {tab === 'expense' && (
