@@ -261,19 +261,27 @@ export default function Settings() {
   // Store last exported data so Share can reuse it
   const lastExportRef = useRef<{ base64: string; fileName: string; mimeType: string } | null>(null);
 
+  const lastExportUriRef = useRef<string | null>(null);
+
+  const openLastExport = async () => {
+    if (lastExportUriRef.current && lastExportRef.current) {
+      try {
+        await Share.share({ title: lastExportRef.current.fileName, url: lastExportUriRef.current, dialogTitle: `Open ${lastExportRef.current.fileName}` });
+      } catch { /* user cancelled share */ }
+    }
+  };
+
   const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
     lastExportRef.current = { base64, fileName, mimeType };
     if (Capacitor.isNativePlatform()) {
-      // Native: Blob download triggers system download manager
-      const byteChars = atob(base64);
-      const byteArr = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArr], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Saved: ${fileName}`, 'success');
+      // Write to cache (reliable on all Android), show toast with OPEN action
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+      lastExportUriRef.current = written.uri;
+      showToast(`Exported: ${fileName}`, 'success', {
+        onClick: () => openLastExport(),
+        actionLabel: 'OPEN',
+        duration: 6000,
+      });
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
@@ -291,8 +299,13 @@ export default function Settings() {
     if (!lastExportRef.current) { showToast('Export first, then share', 'error'); return; }
     const { base64, fileName } = lastExportRef.current;
     try {
-      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
-      await Share.share({ title: fileName, url: written.uri, dialogTitle: `Share ${fileName}` });
+      let uri = lastExportUriRef.current;
+      if (!uri) {
+        const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
+        uri = written.uri;
+        lastExportUriRef.current = uri;
+      }
+      await Share.share({ title: fileName, url: uri, dialogTitle: `Share ${fileName}` });
     } catch (err: any) {
       showToast(`Share failed: ${err?.message || 'Unknown error'}`, 'error');
     }

@@ -5,11 +5,13 @@ interface ToastItem {
   message: string;
   type: 'success' | 'error' | 'info' | 'undo';
   onUndo?: () => void;
+  onClick?: () => void;
+  actionLabel?: string;
   duration: number;
 }
 
 interface ToastContextType {
-  showToast: (message: string, type?: ToastItem['type'], opts?: { onUndo?: () => void; duration?: number }) => void;
+  showToast: (message: string, type?: ToastItem['type'], opts?: { onUndo?: () => void; onClick?: () => void; actionLabel?: string; duration?: number }) => void;
 }
 
 const ToastContext = createContext<ToastContextType>(null!);
@@ -19,10 +21,10 @@ let toastId = 0;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const showToast = useCallback((message: string, type: ToastItem['type'] = 'success', opts?: { onUndo?: () => void; duration?: number }) => {
+  const showToast = useCallback((message: string, type: ToastItem['type'] = 'success', opts?: { onUndo?: () => void; onClick?: () => void; actionLabel?: string; duration?: number }) => {
     const id = ++toastId;
-    const duration = opts?.duration ?? (type === 'undo' ? 5000 : 3000);
-    setToasts(prev => [...prev, { id, message, type, onUndo: opts?.onUndo, duration }]);
+    const duration = opts?.duration ?? (opts?.onClick ? 5000 : type === 'undo' ? 5000 : 3000);
+    setToasts(prev => [...prev, { id, message, type, onUndo: opts?.onUndo, onClick: opts?.onClick, actionLabel: opts?.actionLabel, duration }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
   }, []);
 
@@ -42,6 +44,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           }`}>
             <span className="text-sm font-medium truncate">{t.message}</span>
             <div className="flex items-center gap-2 flex-shrink-0">
+              {t.onClick && (
+                <button onClick={() => { t.onClick!(); dismiss(t.id); }} className="text-amber-300 font-bold text-xs hover:text-amber-200 uppercase">
+                  {t.actionLabel || 'OPEN'}
+                </button>
+              )}
               {t.type === 'undo' && t.onUndo && (
                 <button onClick={() => { t.onUndo!(); dismiss(t.id); }} className="text-amber-300 font-bold text-sm hover:text-amber-200">
                   UNDO
