@@ -761,10 +761,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
 
   // ── Transactions ──
   const txRows = sheets.get('Transactions') ?? [];
+  if (txRows.length > 0 && txRows[0]) {
+    // Log first row keys for debugging
+    const firstRow = txRows[0];
+    const keys = Object.keys(firstRow);
+    console.log('Import TX first row keys:', keys, 'sample:', JSON.stringify(firstRow).slice(0, 200));
+  }
   for (let i = 0; i < txRows.length; i++) {
     const r = txRows[i];
     const amount = num(r, 'AMOUNT');
-    if (!amount) continue;
+    if (!amount) { if (i < 3) result.errors.push(`Tx row ${i + 1}: amount=0 or missing (raw: ${r['AMOUNT']})`); continue; }
     try {
       const accName = str(r, 'ACCOUNT');
       const accId = accountNameToId.get(accName);

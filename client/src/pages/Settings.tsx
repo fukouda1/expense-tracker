@@ -525,8 +525,10 @@ export default function Settings() {
         if (data.recurring) parts.push(`${data.recurring} recurring`);
         if (data.transactions) parts.push(`${data.transactions} transactions`);
         const errDetail = data.errors.length ? `\nErrors: ${data.errors.slice(0, 5).join('; ')}` : '';
-        setImportResult(`Imported: ${parts.join(', ')}${data.errors.length ? ` (${data.errors.length} errors)` : ''}${errDetail}`);
-        await refresh();
+        const msg = parts.length ? `Imported: ${parts.join(', ')}` : 'Import completed but no data was imported';
+        setImportResult(`${msg}${data.errors.length ? ` (${data.errors.length} errors)` : ''}${errDetail}`);
+        // Reload all data from DB
+        try { await refresh(); } catch { /* ignore refresh errors */ }
       } else {
         // ── Web mode: upload to server API ──
         const formData = new FormData();
