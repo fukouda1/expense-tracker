@@ -275,11 +275,19 @@ export default function Settings() {
   const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
     lastExportRef.current = { base64, fileName, mimeType };
     if (Capacitor.isNativePlatform()) {
-      // Write to app's external files dir (accessible via file manager)
-      const folder = 'TraceCash';
-      const written = await Filesystem.writeFile({ path: `${folder}/${fileName}`, data: base64, directory: Directory.External, recursive: true });
+      // Save to cache for share, AND trigger blob download to Downloads folder
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
       lastExportUriRef.current = written.uri;
-      showToast(`Saved to ${folder}/${fileName}`, 'success', {
+      // Blob download — saves to device Downloads folder
+      const byteChars = atob(base64);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      showToast(`Saved to Downloads: ${fileName}`, 'success', {
         onClick: () => openLastExport(),
         actionLabel: 'SHARE',
         duration: 6000,
@@ -720,7 +728,7 @@ export default function Settings() {
               )}
             </div>
             {Capacitor.isNativePlatform() && (
-              <p className="text-[10px] text-gray-400 mt-1.5">📁 Files saved to: Android/data/com.tracecash.app/files/TraceCash/</p>
+              <p className="text-[10px] text-gray-400 mt-1.5">📁 Files saved to Downloads folder</p>
             )}
           </div>
 
