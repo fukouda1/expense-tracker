@@ -126,17 +126,39 @@ export default function Settings() {
 
   const handleSaveCategory = async () => {
     if (!catName.trim()) { showToast('Category name is required', 'error'); return; }
-    if (!editCatId && categories.some(c => c.name.toLowerCase() === catName.trim().toLowerCase())) {
-      showToast(`Category "${catName.trim()}" already exists`, 'error');
-      return;
-    }
     try {
       if (editCatId) {
-        await editCategory(editCatId, catName.trim(), catIcon, catColor, catType);
-        showToast('Category updated', 'success');
+        // Editing: if changing to "both", split into two
+        if (catType === 'both') {
+          const expName = `${catName.trim()} - Expense`;
+          const incName = `${catName.trim()} - Income`;
+          await editCategory(editCatId, expName, catIcon, catColor, 'expense');
+          if (!categories.some(c => c.name.toLowerCase() === incName.toLowerCase())) {
+            await addCategory(incName, catIcon, catColor, 'income');
+          }
+          showToast(`Split into "${expName}" and "${incName}"`, 'success');
+        } else {
+          await editCategory(editCatId, catName.trim(), catIcon, catColor, catType);
+          showToast('Category updated', 'success');
+        }
       } else {
-        await addCategory(catName.trim(), catIcon, catColor, catType);
-        showToast('Category created', 'success');
+        // New category
+        if (catType === 'both') {
+          const expName = `${catName.trim()} - Expense`;
+          const incName = `${catName.trim()} - Income`;
+          if (categories.some(c => c.name.toLowerCase() === expName.toLowerCase())) {
+            showToast(`"${expName}" already exists`, 'error'); return;
+          }
+          await addCategory(expName, catIcon, catColor, 'expense');
+          await addCategory(incName, catIcon, catColor, 'income');
+          showToast(`Created "${expName}" and "${incName}"`, 'success');
+        } else {
+          if (categories.some(c => c.name.toLowerCase() === catName.trim().toLowerCase())) {
+            showToast(`Category "${catName.trim()}" already exists`, 'error'); return;
+          }
+          await addCategory(catName.trim(), catIcon, catColor, catType);
+          showToast('Category created', 'success');
+        }
       }
       setShowModal(false);
     } catch (err: any) {
@@ -1171,7 +1193,7 @@ export default function Settings() {
           <select value={catType} onChange={e => setCatType(e.target.value)} className={inputClass}>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
-            <option value="both">Both</option>
+            <option value="both">Both (creates 2: expense + income)</option>
           </select>
           <button onClick={handleSaveCategory} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
@@ -1411,7 +1433,7 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
                   <TransactionCard
                     key={t.id}
                     transaction={t}
-                    onEdit={() => { setSelectedCat(null); navigate(`/add?edit=${t.id}`); }}
+                    onEdit={() => { setSelectedCat(null); navigate(`/add?edit=${t.id}&returnTo=/settings?tab=categories`); }}
                   />
                 ))
               )}
