@@ -39,7 +39,8 @@ export default function AddTransaction() {
   const recurringDismiss = params.get('recurringDismiss');
 
   const goBack = () => {
-    navigate(-1);
+    if (returnTo) navigate(returnTo, { replace: true });
+    else navigate(-1);
   };
 
   const [type, setType] = useState<TransactionType>(editTx?.type ?? prefillType ?? 'expense');
