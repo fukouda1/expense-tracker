@@ -1091,7 +1091,7 @@ export default function Settings() {
                     <span className="text-[10px] text-gray-400">{recurring.filter(r => r.type === 'expense').length}</span>
                   </div>
                   <div className="space-y-1.5">
-                    {[...recurring].filter(r => r.type === 'expense').sort((a, b) => b.amount - a.amount).map(r => (
+                    {[...recurring].filter(r => r.type === 'expense').sort((a, b) => a.next_date.localeCompare(b.next_date)).map(r => (
                       <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -1119,7 +1119,7 @@ export default function Settings() {
                     <span className="text-[10px] text-gray-400">{recurring.filter(r => r.type === 'income').length}</span>
                   </div>
                   <div className="space-y-1.5">
-                    {[...recurring].filter(r => r.type === 'income').sort((a, b) => b.amount - a.amount).map(r => (
+                    {[...recurring].filter(r => r.type === 'income').sort((a, b) => a.next_date.localeCompare(b.next_date)).map(r => (
                       <div key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border ${r.active ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-500/40' : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700 opacity-60'}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
