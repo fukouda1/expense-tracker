@@ -14,6 +14,7 @@ import DisplayOptionsModal from '../components/DisplayOptionsModal';
 import PullToRefresh from '../components/PullToRefresh';
 import EmptyState from '../components/EmptyState';
 import RecurringPreview from '../components/RecurringPreview';
+import SavingsGoals from '../components/SavingsGoals';
 import QuickTemplateBar from '../components/QuickTemplates';
 import SavingsGauge from '../components/SavingsGauge';
 import SpendingAlerts from '../components/SpendingAlerts';
@@ -362,6 +363,9 @@ export default function Dashboard() {
 
         {/* Quick Templates */}
         <QuickTemplateBar />
+
+        {/* Savings Goals */}
+        <SavingsGoals />
 
         {/* Upcoming Recurring */}
         <RecurringPreview />

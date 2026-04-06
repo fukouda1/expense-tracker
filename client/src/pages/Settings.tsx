@@ -689,13 +689,13 @@ export default function Settings() {
   const icons = ['📦','🍔','🍱','🚌','🚆','🏠','📡','🦷','🍚','💊','🛒','🛍️','📱','🎉','💪','🐾','👕','💵','🎁','🏦','💸','🎮','📚','✈️','🎬','☕','🍕','🚗','💡','💰','🌊','📱'];
 
   const tabs = [
-    { key: 'general', label: '⚙️ General' },
-    { key: 'categories', label: '📂 Categories' },
-    { key: 'accounts', label: '🏦 Accounts' },
-    { key: 'tags', label: '🏷️ Tags' },
-    { key: 'budgets', label: '🎯 Budgets' },
-    { key: 'recurring', label: '🔄 Recurring' },
-    { key: 'templates', label: '📋 Templates' },
+    { key: 'general', label: 'General', icon: '⚙️' },
+    { key: 'categories', label: 'Categories', icon: '📂' },
+    { key: 'accounts', label: 'Accounts', icon: '🏦' },
+    { key: 'tags', label: 'Tags', icon: '🏷️' },
+    { key: 'budgets', label: 'Budgets', icon: '🎯' },
+    { key: 'recurring', label: 'Recurring', icon: '🔄' },
+    { key: 'templates', label: 'Templates', icon: '📋' },
   ] as const;
 
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
@@ -707,17 +707,20 @@ export default function Settings() {
         <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Settings</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4">
+      {/* Tabs — icon grid */}
+      <div className="grid grid-cols-4 gap-1.5 bg-white dark:bg-gray-800 rounded-2xl p-2 border border-gray-200 dark:border-gray-700 shadow-sm">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => { setActiveTab(tab.key); if (tab.key === 'budgets') loadBudgets(budgetMonth); if (tab.key === 'recurring') loadRecurring(); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
-              activeTab === tab.key ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl text-center transition-all ${
+              activeTab === tab.key
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
-            {tab.label}
+            <span className="text-base leading-none">{tab.icon}</span>
+            <span className="text-[9px] font-medium leading-tight">{tab.label}</span>
           </button>
         ))}
       </div>

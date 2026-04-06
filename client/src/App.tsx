@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-ro
 import { App as CapacitorApp } from '@capacitor/app';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider, useData } from './contexts/DataContext';
+import Onboarding, { useOnboarding } from './components/Onboarding';
 import { DisplayProvider } from './contexts/DisplayContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import { ToastProvider } from './components/Toast';
@@ -86,12 +87,14 @@ export default function App() {
 function AppContent() {
   const { loading } = useData();
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const { showOnboarding, markDone } = useOnboarding();
 
   useEffect(() => {
     if (!loading && !initialLoaded) setInitialLoaded(true);
   }, [loading, initialLoaded]);
 
   if (!initialLoaded && loading) return <SplashScreen />;
+  if (showOnboarding) return <Onboarding onComplete={markDone} />;
 
   return (
     <DisplayProvider>
