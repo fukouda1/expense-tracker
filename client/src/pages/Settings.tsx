@@ -416,15 +416,32 @@ export default function Settings() {
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveToDownloads(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       } else {
+        // Web: fetch server XLSX, then add localStorage sheets (Templates, SettledDebts)
+        const XLSX = await import('xlsx');
         const response = await fetch('/api/export/xlsx');
         const arrayBuffer = await response.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
-        }
-        const base64 = btoa(binary);
+        const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+
+        // Add SettledDebts sheet
+        try {
+          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+          if (dismissed.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dismissed.map(k => ({ KEY: k }))), 'SettledDebts');
+        } catch { /* ignore */ }
+
+        // Add Templates sheet
+        try {
+          const tpls = JSON.parse(localStorage.getItem('tracecash_templates_v2') || '[]');
+          if (tpls.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ DATA: JSON.stringify(tpls) }]), 'Templates');
+        } catch { /* ignore */ }
+
+        // Add PinLock sheet
+        try {
+          const pin = localStorage.getItem('tracecash_pin');
+          const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
+          if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+        } catch { /* ignore */ }
+
+        const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveToDownloads(base64, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       }
