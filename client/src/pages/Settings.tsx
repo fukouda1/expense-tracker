@@ -412,6 +412,37 @@ export default function Settings() {
           if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
         } catch { /* ignore */ }
 
+        // Receipts sheet — compressed thumbnails (200px)
+        try {
+          const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
+          const entries = Object.entries(receipts);
+          if (entries.length > 0) {
+            const thumbs: { KEY: string; THUMBNAIL: string }[] = [];
+            for (const [key, dataUrl] of entries) {
+              try {
+                // Resize to 200px thumbnail using canvas
+                const thumb = await new Promise<string>((resolve) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxSize = 200;
+                    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d')!;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.5));
+                  };
+                  img.onerror = () => resolve('');
+                  img.src = dataUrl;
+                });
+                if (thumb) thumbs.push({ KEY: key, THUMBNAIL: thumb });
+              } catch { /* skip this receipt */ }
+            }
+            if (thumbs.length > 0) utils.book_append_sheet(wb, utils.json_to_sheet(thumbs), 'Receipts');
+          }
+        } catch { /* ignore */ }
+
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveToDownloads(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -439,6 +470,36 @@ export default function Settings() {
           const pin = localStorage.getItem('tracecash_pin');
           const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
           if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+        } catch { /* ignore */ }
+
+        // Add Receipts sheet (thumbnails)
+        try {
+          const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
+          const entries = Object.entries(receipts);
+          if (entries.length > 0) {
+            const thumbs: { KEY: string; THUMBNAIL: string }[] = [];
+            for (const [key, dataUrl] of entries) {
+              try {
+                const thumb = await new Promise<string>((resolve) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxSize = 200;
+                    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    const ctx = canvas.getContext('2d')!;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.5));
+                  };
+                  img.onerror = () => resolve('');
+                  img.src = dataUrl;
+                });
+                if (thumb) thumbs.push({ KEY: key, THUMBNAIL: thumb });
+              } catch { /* skip */ }
+            }
+            if (thumbs.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(thumbs), 'Receipts');
+          }
         } catch { /* ignore */ }
 
         const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
@@ -670,6 +731,19 @@ export default function Settings() {
           if (pinSheet?.[0]?.PIN) {
             localStorage.setItem('tracecash_pin', String(pinSheet[0].PIN));
             localStorage.setItem('tracecash_pin_enabled', String(pinSheet[0].ENABLED ?? 'true'));
+          }
+          // Restore receipts (thumbnails)
+          const receiptsSheet = sheets.get('Receipts');
+          if (receiptsSheet && receiptsSheet.length > 0) {
+            try {
+              const existing = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+              for (const r of receiptsSheet) {
+                const key = String(r.KEY || '');
+                const thumb = String(r.THUMBNAIL || '');
+                if (key && thumb) existing[key] = thumb;
+              }
+              localStorage.setItem('tracecash_receipts', JSON.stringify(existing));
+            } catch { /* storage full */ }
           }
         } else if (ext === 'csv') {
           const text = await importFile.text();
