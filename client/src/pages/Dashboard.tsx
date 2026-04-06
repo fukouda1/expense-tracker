@@ -383,10 +383,6 @@ export default function Dashboard() {
                   onDelete={id => handleDeleteTx(id)}
                 />
               ))}
-              <Link to="/transactions"
-                className="w-full block py-2 text-center text-[11px] text-emerald-600 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors">
-                View more transactions →
-              </Link>
             </div>
           )}
         </div>
