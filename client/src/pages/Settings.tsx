@@ -37,7 +37,7 @@ export default function Settings() {
     categories, accounts, tags, budgets, recurring,
     addCategory, editCategory, removeCategory, getTransactionsByDate,
     addAccount, editAccount, removeAccount,
-    addTag, removeTag,
+    addTag, removeTag, removeTransaction,
     toggleAccountActive, toggleCategoryActive, toggleTagActive,
     reorderAccounts, reorderCategories, reorderTags,
     loadBudgets, saveBudget, editBudget, removeBudget,
@@ -1198,6 +1198,11 @@ export default function Settings() {
           }
         }}
         navigate={navigate}
+        onDeleteTransaction={async (id: number) => {
+          await removeTransaction(id);
+          showToast('Transaction deleted', 'success');
+        }}
+        onRefreshTransactions={() => getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(setAllTransactions)}
       />}
 
       {/* Accounts Tab */}
@@ -1555,7 +1560,7 @@ export default function Settings() {
 }
 
 // ── Categories Tab with modal transaction list ──
-function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onToggleActive, onReorder, onMerge, navigate }: {
+function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onToggleActive, onReorder, onMerge, navigate, onDeleteTransaction, onRefreshTransactions }: {
   categories: Category[];
   transactions: Transaction[];
   onAdd: () => void;
@@ -1565,6 +1570,8 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
   onReorder: (ids: number[]) => Promise<void>;
   onMerge: (sourceId: number, targetId: number) => Promise<void>;
   navigate: (path: string) => void;
+  onDeleteTransaction: (id: number) => Promise<void>;
+  onRefreshTransactions: () => void;
 }) {
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [mergeCat, setMergeCat] = useState<Category | null>(null);
@@ -1681,6 +1688,11 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
                     key={t.id}
                     transaction={t}
                     onEdit={() => { setSelectedCat(null); navigate(`/add?edit=${t.id}&returnTo=/settings?tab=categories`); }}
+                    onDelete={async (id) => {
+                      if (!confirm('Delete this transaction?')) return;
+                      await onDeleteTransaction(id);
+                      onRefreshTransactions();
+                    }}
                   />
                 ))
               )}
