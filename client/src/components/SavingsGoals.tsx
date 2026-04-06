@@ -63,7 +63,7 @@ export default function SavingsGoals() {
   };
 
   const handleAddToGoal = (id: string, amount: number) => {
-    const updated = goals.map(g => g.id === id ? { ...g, saved: Math.min(g.saved + amount, g.target) } : g);
+    const updated = goals.map(g => g.id === id ? { ...g, saved: g.saved + amount } : g);
     setGoals(updated); saveGoals(updated);
     setAddAmount(null);
   };
