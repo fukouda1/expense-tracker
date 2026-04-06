@@ -466,6 +466,16 @@ export default function Settings() {
         for (const r of recurring) {
           csv += `"${r.id}","${r.amount}","${r.type}","${r.category_id ?? ''}","${r.account_id}","${(r.notes ?? '').replace(/"/g, '""')}","${r.recurrence_type}","${r.next_date}","${r.active ? 'Yes' : 'No'}"\n`;
         }
+        // SettledDebts
+        try {
+          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+          if (dismissed.length) { csv += '[SHEET:SettledDebts]\n"KEY"\n'; for (const k of dismissed) csv += `"${k}"\n`; }
+        } catch { /* ignore */ }
+        // Templates
+        try {
+          const tpls = localStorage.getItem('tracecash_templates_v2');
+          if (tpls && tpls !== '[]') { csv += '[SHEET:Templates]\n"DATA"\n'; csv += `"${tpls.replace(/"/g, '""')}"\n`; }
+        } catch { /* ignore */ }
         // Transactions
         csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
         for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
@@ -493,6 +503,16 @@ export default function Settings() {
         for (const r of recurring) {
           csv += `"${r.id}","${r.amount}","${r.type}","${r.category_id ?? ''}","${r.account_id}","${(r.notes ?? '').replace(/"/g, '""')}","${r.recurrence_type}","${r.next_date}","${r.active ? 'Yes' : 'No'}"\n`;
         }
+        // SettledDebts
+        try {
+          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+          if (dismissed.length) { csv += '[SHEET:SettledDebts]\n"KEY"\n'; for (const k of dismissed) csv += `"${k}"\n`; }
+        } catch { /* ignore */ }
+        // Templates
+        try {
+          const tpls = localStorage.getItem('tracecash_templates_v2');
+          if (tpls && tpls !== '[]') { csv += '[SHEET:Templates]\n"DATA"\n'; csv += `"${tpls.replace(/"/g, '""')}"\n`; }
+        } catch { /* ignore */ }
         csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
         for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
           csv += `"${t.id}","${t.date}","${t.type}","${t.amount}","${(t.category_name ?? '').replace(/"/g, '""')}","${t.account_name ?? ''}","${t.to_account_name ?? ''}","${(t.notes ?? '').replace(/"/g, '""')}",""\n`;
