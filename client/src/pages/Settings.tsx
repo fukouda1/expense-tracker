@@ -855,6 +855,34 @@ export default function Settings() {
             </div>
           </div>
 
+          {/* Google Sheets Export */}
+          <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
+            <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">📊 Export to Google Sheets</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
+              Export your data as CSV, then import it into Google Sheets for cloud access and sharing
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  showToast('Preparing CSV...', 'success');
+                  const csv = await exportCsv();
+                  const base64 = btoa(unescape(encodeURIComponent(csv)));
+                  const fileName = `tracecash_sheets_${new Date().toISOString().slice(0, 10)}.csv`;
+                  await saveToDownloads(base64, fileName, 'text/csv');
+                  // Open Google Sheets import page
+                  window.open('https://sheets.google.com/create', '_blank');
+                  showToast('CSV saved! Open Google Sheets → File → Import → Upload the CSV', 'info', { duration: 8000 });
+                } catch (err: any) {
+                  showToast(`Export failed: ${err?.message || 'Unknown'}`, 'error');
+                }
+              }}
+              className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium"
+            >
+              📊 Export & Open Google Sheets
+            </button>
+            <p className="text-[9px] text-gray-400 mt-1.5">Steps: 1) Click to export CSV 2) In Google Sheets: File → Import → Upload</p>
+          </div>
+
           {/* Import */}
           <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
             <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">📤 Import Backup</p>

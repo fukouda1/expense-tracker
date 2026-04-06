@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -8,6 +9,8 @@ import QuickTemplateBar from '../components/QuickTemplates';
 import { get } from '../services/api';
 import * as repo from '../local/repository';
 import { formatCurrency } from '../utils/formatters';
+import CurrencyConverter from '../components/CurrencyConverter';
+import SplitTransaction from '../components/SplitTransaction';
 import type { Transaction, TransactionType } from '../types';
 
 const isNative = Capacitor.isNativePlatform();
@@ -52,6 +55,9 @@ export default function AddTransaction() {
   const [date, setDate] = useState(editTx?.date?.slice(0, 10) ?? prefillDate ?? new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(editTx?.date?.slice(11, 16) ?? prefillTime ?? new Date().toTimeString().slice(0, 5));
   const [notes, setNotes] = useState(editTx?.notes ?? prefillNotes ?? '');
+  const [receiptPhoto, setReceiptPhoto] = useState<string | null>(null);
+  const [showConverter, setShowConverter] = useState(false);
+  const [showSplit, setShowSplit] = useState(false);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [amountError, setAmountError] = useState(false);
@@ -230,6 +236,14 @@ export default function AddTransaction() {
         goBack();
       } else {
         await addTransaction(data as any, selectedTags);
+        // Save receipt photo if attached
+        if (receiptPhoto) {
+          try {
+            const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+            receipts[`${data.date}|${data.amount}|${data.type}`] = receiptPhoto;
+            localStorage.setItem('tracecash_receipts', JSON.stringify(receipts));
+          } catch { /* storage full */ }
+        }
         // Dismiss the recurring preview item only after successful save
         if (recurringDismiss) {
           try {
@@ -421,6 +435,39 @@ export default function AddTransaction() {
           )}
         </div>
 
+        {/* Receipt photo + Split */}
+        <div className="px-3 sm:px-4 py-0.5 flex items-center gap-2">
+          {!editTx && type !== 'transfer' && parseFloat(display) > 0 && (
+            <button onClick={() => setShowSplit(true)}
+              className="text-[10px] px-2.5 py-1 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors">
+              ✂️ Split
+            </button>
+          )}
+          <button
+            onClick={async () => {
+              try {
+                const photo = await Camera.getPhoto({
+                  quality: 70,
+                  allowEditing: false,
+                  resultType: CameraResultType.Base64,
+                  source: CameraSource.Prompt,
+                  width: 800,
+                });
+                if (photo.base64String) setReceiptPhoto(`data:image/${photo.format};base64,${photo.base64String}`);
+              } catch { /* user cancelled */ }
+            }}
+            className="text-[10px] px-2.5 py-1 bg-gray-800 border border-gray-700 rounded-lg text-gray-400 hover:text-white transition-colors"
+          >
+            📷 {receiptPhoto ? 'Change Receipt' : 'Attach Receipt'}
+          </button>
+          {receiptPhoto && (
+            <>
+              <img src={receiptPhoto} alt="Receipt" className="w-8 h-8 rounded object-cover border border-gray-600" onClick={() => window.open(receiptPhoto!, '_blank')} />
+              <button onClick={() => setReceiptPhoto(null)} className="text-[10px] text-red-400">✕</button>
+            </>
+          )}
+        </div>
+
         {/* Tags row */}
         <div className="px-3 sm:px-4 py-0.5 sm:py-1 flex gap-1.5 overflow-x-auto">
           {tags.filter(t => t.active !== false && (t.category_id === null || t.category_id === categoryId)).map(tag => (
@@ -489,7 +536,10 @@ export default function AddTransaction() {
               <span className="text-gray-500 text-[10px] mt-0.5">Pending: {pendingOp}</span>
             )}
           </div>
-          <button onClick={handleBackspace} className="text-gray-400 text-lg sm:text-xl p-1 flex-shrink-0">⌫</button>
+          <div className="flex flex-col gap-1 flex-shrink-0">
+            <button onClick={handleBackspace} className="text-gray-400 text-lg sm:text-xl p-1">⌫</button>
+            <button onClick={() => setShowConverter(true)} className="text-gray-500 text-[9px] p-1 hover:text-emerald-400">💱</button>
+          </div>
         </div>
 
         {/* Calculator Keypad */}
@@ -671,6 +721,28 @@ export default function AddTransaction() {
           )}
         </div>
       </Modal>
+
+      {/* Currency Converter */}
+      <CurrencyConverter open={showConverter} onClose={() => setShowConverter(false)}
+        onConvert={(phpAmount) => setDisplay(String(phpAmount))} />
+
+      {/* Split Transaction */}
+      <SplitTransaction
+        open={showSplit} onClose={() => setShowSplit(false)}
+        totalAmount={parseFloat(display) || 0}
+        categories={sortedCategories}
+        onSplit={async (entries) => {
+          for (const entry of entries) {
+            await addTransaction({
+              amount: entry.amount, type, category_id: entry.categoryId,
+              account_id: accountId, to_account_id: null,
+              date: `${date}T${time}`, notes: entry.notes,
+            } as any, []);
+          }
+          showToast(`Split into ${entries.length} entries`, 'success');
+          goBack();
+        }}
+      />
     </div>
   );
 }
