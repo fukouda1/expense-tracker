@@ -86,7 +86,18 @@ router.get('/search', asyncHandler(async (req, res) => {
   const offset = Number(req.query.offset) || 0;
   const where: any = {};
 
-  if (search) where.notes = { contains: search as string };
+  if (search) {
+    const s = search as string;
+    where.OR = [
+      { notes: { contains: s } },
+      { category: { name: { contains: s } } },
+      { account: { name: { contains: s } } },
+    ];
+    // If search is a number, also match by amount
+    if (!isNaN(Number(s))) {
+      where.OR.push({ amount: Number(s) });
+    }
+  }
   if (from && to) where.date = { gte: from as string, lte: to as string };
   if (categoryId) {
     const id = Number(categoryId);

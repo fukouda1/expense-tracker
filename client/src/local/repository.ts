@@ -114,8 +114,10 @@ export async function searchTransactions(filters: TransactionFilters): Promise<T
   const params: unknown[] = [];
 
   if (filters.search) {
-    conditions.push('t.notes LIKE ?');
-    params.push(`%${filters.search}%`);
+    const s = filters.search;
+    // Search notes, category name, account name, and amount
+    conditions.push('(t.notes LIKE ? OR c.name LIKE ? OR a.name LIKE ? OR CAST(t.amount AS TEXT) LIKE ?)');
+    params.push(`%${s}%`, `%${s}%`, `%${s}%`, `%${s}%`);
   }
   if (filters.dateRange) {
     conditions.push('t.date >= ? AND t.date <= ?');
