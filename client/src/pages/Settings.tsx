@@ -297,27 +297,21 @@ export default function Settings() {
   const saveToDownloads = async (base64: string, fileName: string, mimeType: string) => {
     lastExportRef.current = { base64, fileName, mimeType };
     if (Capacitor.isNativePlatform()) {
-      // Save to TraceCash folder + trigger blob download to Downloads
-      try {
-        await Filesystem.writeFile({ path: `TraceCash/${fileName}`, data: base64, directory: Directory.External, recursive: true });
-      } catch { /* External might fail on some devices */ }
-      // Also save to cache for share button
+      // Write to cache, then immediately open Share sheet so user can save to Downloads/Drive/etc
       const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache, recursive: true });
       lastExportUriRef.current = written.uri;
-      // Blob download → Downloads folder
-      const byteChars = atob(base64);
-      const byteArr = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArr], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Saved to Downloads`, 'success', {
-        onClick: () => openLastExport(),
-        actionLabel: 'SHARE',
-        duration: 5000,
-      });
+      // Open share sheet — user picks where to save (Downloads, Google Drive, email, etc.)
+      try {
+        await Share.share({ title: fileName, url: written.uri, dialogTitle: `Save ${fileName}` });
+        showToast(`Exported: ${fileName}`, 'success');
+      } catch {
+        // User cancelled share — file is still in cache
+        showToast(`File ready — tap Share to save`, 'success', {
+          onClick: () => openLastExport(),
+          actionLabel: 'SHARE',
+          duration: 6000,
+        });
+      }
     } else {
       const byteChars = atob(base64);
       const byteArr = new Uint8Array(byteChars.length);
@@ -855,8 +849,8 @@ export default function Settings() {
             </div>
             {Capacitor.isNativePlatform() && (
               <div>
-                <p className="text-[10px] text-gray-400 mt-1.5">📁 Saved to Downloads folder (survives app reinstall)</p>
-                <p className="text-[10px] text-red-400 mt-0.5">⚠️ App folder is deleted on uninstall. Keep backups in Downloads.</p>
+                <p className="text-[10px] text-gray-400 mt-1.5">📁 Choose "Save to Files" → Downloads in the share dialog</p>
+                <p className="text-[10px] text-red-400 mt-0.5">⚠️ Always save to Downloads or Google Drive — app data is deleted on uninstall</p>
               </div>
             )}
           </div>
