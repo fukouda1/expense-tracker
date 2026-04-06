@@ -448,10 +448,38 @@ export default function Settings() {
   const handleExportCsv = async () => {
     setExportingCsv(true);
     try {
-      const csv = await exportCsv();
-      const base64 = btoa(unescape(encodeURIComponent(csv)));
-      const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
-      await saveToDownloads(base64, fileName, 'text/csv');
+      if (Capacitor.isNativePlatform()) {
+        // Build multi-sheet CSV from local data
+        const accs = await repo.getAllAccounts();
+        const cats = await repo.getAllCategories();
+        const tgs = await repo.getAllTags();
+        const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');
+
+        let csv = '';
+        // Accounts
+        csv += '[SHEET:Accounts]\n"ID","NAME","ICON","COLOR","INITIAL_BALANCE"\n';
+        for (const a of accs) csv += `"${a.id}","${a.name}","${a.icon}","${a.color}","${a.initial_balance}"\n`;
+        // Categories
+        csv += '[SHEET:Categories]\n"ID","NAME","ICON","COLOR","TYPE"\n';
+        for (const c of cats) csv += `"${c.id}","${c.name}","${c.icon}","${c.color}","${c.type}"\n`;
+        // Tags
+        csv += '[SHEET:Tags]\n"ID","NAME","COLOR"\n';
+        for (const t of tgs) csv += `"${t.id}","${t.name}","${t.color}"\n`;
+        // Transactions
+        csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
+        for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
+          csv += `"${t.id}","${t.date}","${t.type}","${t.amount}","${(t.category_name ?? '').replace(/"/g, '""')}","${t.account_name ?? ''}","${t.to_account_name ?? ''}","${(t.notes ?? '').replace(/"/g, '""')}",""\n`;
+        }
+        const base64 = btoa(unescape(encodeURIComponent(csv)));
+        const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.csv`;
+        await saveToDownloads(base64, fileName, 'text/csv');
+      } else {
+        // Web: use server multi-sheet CSV endpoint or build from XLSX
+        const csv = await exportCsv();
+        const base64 = btoa(unescape(encodeURIComponent(csv)));
+        const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        await saveToDownloads(base64, fileName, 'text/csv');
+      }
     } catch (err: any) {
       showToast(`Export failed: ${err?.message || 'Unknown error'}`, 'error');
     } finally {
@@ -859,19 +887,15 @@ export default function Settings() {
           <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
             <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">📊 Export to Google Sheets</p>
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
-              Export your data as CSV, then import it into Google Sheets for cloud access and sharing
+              Export the same full backup (.xlsx) and import it into Google Sheets. Google Sheets supports XLSX with multiple sheets.
             </p>
             <button
               onClick={async () => {
                 try {
-                  showToast('Preparing CSV...', 'success');
-                  const csv = await exportCsv();
-                  const base64 = btoa(unescape(encodeURIComponent(csv)));
-                  const fileName = `tracecash_sheets_${new Date().toISOString().slice(0, 10)}.csv`;
-                  await saveToDownloads(base64, fileName, 'text/csv');
-                  // Open Google Sheets import page
+                  showToast('Preparing backup...', 'success');
+                  await handleExportXlsx();
                   window.open('https://sheets.google.com/create', '_blank');
-                  showToast('CSV saved! Open Google Sheets → File → Import → Upload the CSV', 'info', { duration: 8000 });
+                  showToast('XLSX saved! In Google Sheets: File → Import → Upload the .xlsx file', 'info', { duration: 8000 });
                 } catch (err: any) {
                   showToast(`Export failed: ${err?.message || 'Unknown'}`, 'error');
                 }
@@ -880,7 +904,7 @@ export default function Settings() {
             >
               📊 Export & Open Google Sheets
             </button>
-            <p className="text-[9px] text-gray-400 mt-1.5">Steps: 1) Click to export CSV 2) In Google Sheets: File → Import → Upload</p>
+            <p className="text-[9px] text-gray-400 mt-1.5">Steps: 1) Click to export .xlsx 2) Open Google Sheets → File → Import → Upload the .xlsx file</p>
           </div>
 
           {/* Import */}
