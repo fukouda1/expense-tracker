@@ -247,6 +247,29 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Expected Monthly Income */}
+        {(() => {
+          const multipliers: Record<string, number> = { daily: 30, weekly: 4.33, monthly: 1, yearly: 1/12 };
+          const expectedIncome = recurring.filter(r => r.active && r.type === 'income').reduce((s, r) => s + r.amount * (multipliers[r.recurrence_type] ?? 1), 0);
+          if (expectedIncome <= 0) return null;
+          const actualIncome = monthlyTotal.income;
+          const pct = expectedIncome > 0 ? Math.round(actualIncome / expectedIncome * 100) : 0;
+          return (
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-wide">💰 Expected Income</p>
+                <span className={`text-[10px] font-bold ${pct >= 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-500' : 'text-red-500'}`}>{pct}% received</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(actualIncome)} <span className="text-[10px] font-normal text-emerald-500">/ {formatCurrency(expectedIncome)}</span></p>
+              </div>
+              <div className="w-full h-1.5 bg-emerald-200 dark:bg-emerald-800 rounded-full mt-2 overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Savings Rate + Debts Card */}
         {(() => {
           const { theyOwe, iOwe } = debtSummary;

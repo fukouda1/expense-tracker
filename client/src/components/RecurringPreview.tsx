@@ -103,7 +103,19 @@ export default function RecurringPreview() {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-      <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">📅 Upcoming Recurring</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">📅 Upcoming Recurring</h2>
+        {(() => {
+          const dueToday = upcoming.filter(r => r.daysUntil === 0 && !r.isPast).length;
+          const overdue = upcoming.filter(r => r.isPast).length;
+          return (dueToday > 0 || overdue > 0) ? (
+            <div className="flex gap-1.5">
+              {dueToday > 0 && <span className="text-[9px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">{dueToday} due today</span>}
+              {overdue > 0 && <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold">{overdue} overdue</span>}
+            </div>
+          ) : null;
+        })()}
+      </div>
       <div className="space-y-2">
         {upcoming.map((r, i) => {
           const itemKey = `${r.id}-${r.dueDate}`;

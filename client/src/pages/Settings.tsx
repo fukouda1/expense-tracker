@@ -32,7 +32,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
-  const { dark, toggle } = useTheme();
+  const { dark, mode, setMode, toggle, schedule, setSchedule } = useTheme();
   const {
     categories, accounts, tags, budgets, recurring,
     addCategory, editCategory, removeCategory, getTransactionsByDate,
@@ -403,6 +403,25 @@ export default function Settings() {
         }));
         utils.book_append_sheet(wb, utils.json_to_sheet(txData), 'Transactions');
 
+        // SettledDebts sheet — preserve dismissed/settled debt state
+        try {
+          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+          if (dismissed.length) utils.book_append_sheet(wb, utils.json_to_sheet(dismissed.map(k => ({ KEY: k }))), 'SettledDebts');
+        } catch { /* ignore */ }
+
+        // Templates sheet — preserve quick templates
+        try {
+          const templates = JSON.parse(localStorage.getItem('tracecash_templates_v2') || '[]');
+          if (templates.length) utils.book_append_sheet(wb, utils.json_to_sheet([{ DATA: JSON.stringify(templates) }]), 'Templates');
+        } catch { /* ignore */ }
+
+        // PinLock sheet — preserve pin settings
+        try {
+          const pin = localStorage.getItem('tracecash_pin');
+          const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
+          if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+        } catch { /* ignore */ }
+
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
         await saveToDownloads(wbOut, fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -549,6 +568,23 @@ export default function Settings() {
             sheets.set(name, XLSX.utils.sheet_to_json(wb.Sheets[name]) as Record<string, unknown>[]);
           }
           data = await repo.importFromSheets(sheets);
+          // Restore settled debts
+          const settledSheet = sheets.get('SettledDebts');
+          if (settledSheet) {
+            const keys = settledSheet.map(r => String(r.KEY || '')).filter(Boolean);
+            if (keys.length > 0) localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(keys));
+          }
+          // Restore templates
+          const templatesSheet = sheets.get('Templates');
+          if (templatesSheet?.[0]?.DATA) {
+            try { localStorage.setItem('tracecash_templates_v2', String(templatesSheet[0].DATA)); } catch { /* ignore */ }
+          }
+          // Restore pin lock
+          const pinSheet = sheets.get('PinLock');
+          if (pinSheet?.[0]?.PIN) {
+            localStorage.setItem('tracecash_pin', String(pinSheet[0].PIN));
+            localStorage.setItem('tracecash_pin_enabled', String(pinSheet[0].ENABLED ?? 'true'));
+          }
         } else if (ext === 'csv') {
           const text = await importFile.text();
           if (text.includes('[SHEET:')) {
@@ -689,11 +725,33 @@ export default function Settings() {
       {/* General Tab */}
       {activeTab === 'general' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
-            <span className="text-sm text-gray-900 dark:text-white">Dark Mode</span>
-            <button onClick={toggle} className={`w-12 h-6 rounded-full transition-colors ${dark ? 'bg-emerald-500' : 'bg-gray-300'}`}>
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform ${dark ? 'translate-x-6' : 'translate-x-0.5'}`} />
-            </button>
+          <div className="p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">🌙 Theme</span>
+              <span className="text-[10px] text-gray-400">{dark ? 'Dark' : 'Light'}</span>
+            </div>
+            <div className="flex gap-1.5">
+              {(['light', 'dark', 'auto', 'schedule'] as const).map(m => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${mode === m ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                  {m === 'light' ? '☀️ Light' : m === 'dark' ? '🌙 Dark' : m === 'auto' ? '📱 Auto' : '🕐 Schedule'}
+                </button>
+              ))}
+            </div>
+            {mode === 'schedule' && (
+              <div className="flex gap-2 mt-2">
+                <div className="flex-1">
+                  <label className="text-[9px] text-gray-400 block mb-0.5">Dark from</label>
+                  <input type="time" value={schedule.darkFrom} onChange={e => setSchedule({ ...schedule, darkFrom: e.target.value })}
+                    className="w-full p-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[9px] text-gray-400 block mb-0.5">Light from</label>
+                  <input type="time" value={schedule.darkTo} onChange={e => setSchedule({ ...schedule, darkTo: e.target.value })}
+                    className="w-full p-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs text-gray-900 dark:text-white" />
+                </div>
+              </div>
+            )}
           </div>
           {/* PIN Lock */}
           <PinLockSettings />
@@ -754,7 +812,10 @@ export default function Settings() {
               )}
             </div>
             {Capacitor.isNativePlatform() && (
-              <p className="text-[10px] text-gray-400 mt-1.5">📁 Saved to Downloads + Android/data/com.tracecash.app/files/TraceCash/</p>
+              <div>
+                <p className="text-[10px] text-gray-400 mt-1.5">📁 Saved to Downloads folder (survives app reinstall)</p>
+                <p className="text-[10px] text-red-400 mt-0.5">⚠️ App folder is deleted on uninstall. Keep backups in Downloads.</p>
+              </div>
             )}
           </div>
 

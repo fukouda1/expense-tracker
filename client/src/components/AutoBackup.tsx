@@ -53,9 +53,31 @@ async function nativeBackup(): Promise<boolean> {
       TO_ACCOUNT: t.to_account_name ?? '', NOTES: t.notes ?? '', TAGS: '',
     }))), 'Transactions');
 
+    // Include settled debts
+    try {
+      const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+      if (dismissed.length) utils.book_append_sheet(wb, utils.json_to_sheet(dismissed.map(k => ({ KEY: k }))), 'SettledDebts');
+    } catch { /* ignore */ }
+
+    // Include templates
+    try {
+      const templates = JSON.parse(localStorage.getItem('tracecash_templates_v2') || '[]');
+      if (templates.length) utils.book_append_sheet(wb, utils.json_to_sheet([{ DATA: JSON.stringify(templates) }]), 'Templates');
+    } catch { /* ignore */ }
+
     const base64 = write(wb, { type: 'base64', bookType: 'xlsx' });
     const fileName = `tracecash_autobackup_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    await Filesystem.writeFile({ path: `TraceCash/${fileName}`, data: base64, directory: Directory.External, recursive: true });
+    // Save to Downloads via Blob (survives app reinstall)
+    const byteChars = atob(base64);
+    const byteArr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+    // Also save to app external (for easy access while app is installed)
+    try { await Filesystem.writeFile({ path: `TraceCash/${fileName}`, data: base64, directory: Directory.External, recursive: true }); } catch { /* may fail */ }
     return true;
   } catch (e) {
     console.error('Native auto-backup failed:', e);
@@ -133,7 +155,7 @@ export default function AutoBackupToggle() {
       };
       saveSettings(updated);
       setSettings(updated);
-      showToast(isNative ? 'Backup saved to Documents folder' : 'Backup downloaded', 'success');
+      showToast(isNative ? 'Backup saved to Downloads' : 'Backup downloaded', 'success');
     } else {
       showToast('Backup failed', 'error');
     }
@@ -160,8 +182,8 @@ export default function AutoBackupToggle() {
       </div>
       <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-2">
         {isNative
-          ? 'Automatically saves an .xlsx backup to Documents every 7 days when you open the app'
-          : 'Automatically downloads an .xlsx backup every 7 days when you open the app'}
+          ? 'Auto-saves .xlsx backup to Downloads every 7 days (survives app reinstall)'
+          : 'Auto-downloads .xlsx backup every 7 days when you open the app'}
       </p>
       <div className="flex items-center justify-between">
         <p className="text-[11px] text-gray-500 dark:text-gray-400">

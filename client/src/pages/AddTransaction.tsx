@@ -7,6 +7,7 @@ import Modal from '../components/Modal';
 import QuickTemplateBar from '../components/QuickTemplates';
 import { get } from '../services/api';
 import * as repo from '../local/repository';
+import { formatCurrency } from '../utils/formatters';
 import type { Transaction, TransactionType } from '../types';
 
 const isNative = Capacitor.isNativePlatform();
@@ -201,6 +202,18 @@ export default function AddTransaction() {
       return;
     }
     setAmountError(false);
+
+    // Duplicate detection: check if similar transaction exists within last hour
+    if (!editTx) {
+      const recent = transactions.filter(t => {
+        const timeDiff = Math.abs(new Date().getTime() - new Date(t.date).getTime());
+        return timeDiff < 3600000 && t.amount === amount && t.type === type && t.account_id === accountId && t.category_id === categoryId;
+      });
+      if (recent.length > 0 && !confirm(`A similar ${type} of ${formatCurrency(amount)} was recorded in the last hour. Save anyway?`)) {
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const data = {
