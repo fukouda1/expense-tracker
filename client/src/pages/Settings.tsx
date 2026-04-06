@@ -474,10 +474,21 @@ export default function Settings() {
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.csv`;
         await saveToDownloads(base64, fileName, 'text/csv');
       } else {
-        // Web: use server multi-sheet CSV endpoint or build from XLSX
-        const csv = await exportCsv();
+        // Web: build multi-sheet CSV from context + server data
+        const allTx = await getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59');
+        let csv = '';
+        csv += '[SHEET:Accounts]\n"ID","NAME","ICON","COLOR","INITIAL_BALANCE"\n';
+        for (const a of accounts) csv += `"${a.id}","${a.name}","${a.icon}","${a.color}","${a.initial_balance}"\n`;
+        csv += '[SHEET:Categories]\n"ID","NAME","ICON","COLOR","TYPE"\n';
+        for (const c of categories) csv += `"${c.id}","${c.name}","${c.icon}","${c.color}","${c.type}"\n`;
+        csv += '[SHEET:Tags]\n"ID","NAME","COLOR"\n';
+        for (const t of tags) csv += `"${t.id}","${t.name}","${t.color}"\n`;
+        csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
+        for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
+          csv += `"${t.id}","${t.date}","${t.type}","${t.amount}","${(t.category_name ?? '').replace(/"/g, '""')}","${t.account_name ?? ''}","${t.to_account_name ?? ''}","${(t.notes ?? '').replace(/"/g, '""')}",""\n`;
+        }
         const base64 = btoa(unescape(encodeURIComponent(csv)));
-        const fileName = `tracecash_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.csv`;
         await saveToDownloads(base64, fileName, 'text/csv');
       }
     } catch (err: any) {
