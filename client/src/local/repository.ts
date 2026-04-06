@@ -749,17 +749,37 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     } catch (e: any) { result.errors.push(`Budget: ${e.message}`); }
   }
 
+  // ── Build old ID → new ID maps for recurring ──
+  const oldAccIdToNew = new Map<number, number>();
+  const oldCatIdToNew = new Map<number, number>();
+  // Map old account IDs from the Accounts sheet
+  for (const r of accountRows) {
+    const oldId = num(r, 'ID');
+    const name = str(r, 'NAME');
+    if (oldId && name && accountNameToId.has(name)) oldAccIdToNew.set(oldId, accountNameToId.get(name)!);
+  }
+  // Map old category IDs from the Categories sheet
+  for (const r of catRows) {
+    const oldId = num(r, 'ID');
+    const name = str(r, 'NAME');
+    if (oldId && name && catNameToId.has(name)) oldCatIdToNew.set(oldId, catNameToId.get(name)!);
+  }
+
   // ── Recurring ──
   const recRows = sheets.get('Recurring') ?? [];
   for (const r of recRows) {
     const amount = num(r, 'AMOUNT');
-    if (!amount) continue;
+    if (!amount && amount !== 0) continue;
+    if (str(r, 'ID') === '') continue; // skip empty placeholder rows
     try {
-      const accId = num(r, 'ACCOUNT_ID') || 1;
-      const catId = num(r, 'CATEGORY_ID') || null;
+      const oldAccId = num(r, 'ACCOUNT_ID');
+      const oldCatId = num(r, 'CATEGORY_ID');
+      const accId = oldAccIdToNew.get(oldAccId) ?? oldAccId ?? 1;
+      const catId = oldCatId ? (oldCatIdToNew.get(oldCatId) ?? oldCatId) : null;
+      const active = str(r, 'ACTIVE') === 'No' ? 0 : 1;
       await db.run(
         'INSERT INTO recurring_transactions (amount, type, category_id, account_id, notes, recurrence_type, next_date, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [amount, str(r, 'TYPE') || 'expense', catId, accId, str(r, 'NOTES'), str(r, 'RECURRENCE') || 'monthly', str(r, 'NEXT_DATE'), 1]
+        [amount, str(r, 'TYPE') || 'expense', catId, accId, str(r, 'NOTES'), str(r, 'RECURRENCE') || 'monthly', str(r, 'NEXT_DATE'), active]
       );
       result.recurring++;
     } catch (e: any) { result.errors.push(`Recurring: ${e.message}`); }
