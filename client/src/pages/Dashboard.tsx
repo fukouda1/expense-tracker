@@ -21,7 +21,7 @@ import SpendingAlerts from '../components/SpendingAlerts';
 import { formatCurrency } from '../utils/formatters';
 import { get } from '../services/api';
 import { Capacitor } from '@capacitor/core';
-import type { CategorySummary, AccountBalance, Transaction } from '../types';
+import type { CategorySummary, AccountBalance, Transaction, Budget } from '../types';
 
 interface DebtSummary { theyOwe: number; iOwe: number }
 
@@ -313,15 +313,8 @@ export default function Dashboard() {
 
         {/* Budgets */}
         {budgets.length > 0 ? (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Budgets</h2>
-              <Link to="/settings?tab=budgets" className="text-xs text-emerald-600">Manage</Link>
-            </div>
-            <div className="space-y-2">
-              {budgets.slice(0, 3).map(b => <BudgetProgress key={b.id} budget={b} />)}
-            </div>
-          </div>
+          <BudgetSection budgets={budgets} />
+
         ) : (
           <Link
             to="/settings?tab=budgets"
@@ -407,5 +400,34 @@ export default function Dashboard() {
         />
       </div>
     </PullToRefresh>
+  );
+}
+
+function BudgetSection({ budgets }: { budgets: Budget[] }) {
+  const [showAll, setShowAll] = useState(false);
+  // Sort by spent percentage descending (highest usage first)
+  const sorted = [...budgets].sort((a, b) => {
+    const pctA = a.amount > 0 ? ((a.spent ?? 0) / a.amount) : 0;
+    const pctB = b.amount > 0 ? ((b.spent ?? 0) / b.amount) : 0;
+    return pctB - pctA;
+  });
+  const visible = showAll ? sorted : sorted.slice(0, 3);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Budgets</h2>
+        <Link to="/settings?tab=budgets" className="text-xs text-emerald-600">Manage</Link>
+      </div>
+      <div className="space-y-2">
+        {visible.map(b => <BudgetProgress key={b.id} budget={b} />)}
+      </div>
+      {sorted.length > 3 && (
+        <button onClick={() => setShowAll(!showAll)}
+          className="w-full mt-2 py-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors">
+          {showAll ? `Show less ▲` : `Show all ${sorted.length} budgets ▼`}
+        </button>
+      )}
+    </div>
   );
 }
