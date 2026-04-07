@@ -604,6 +604,7 @@ export default function AddTransaction() {
           <input
             value={accSearch}
             onChange={e => setAccSearch(e.target.value)}
+            onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
             placeholder="Search accounts..."
             className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
           />
@@ -683,6 +684,7 @@ export default function AddTransaction() {
           <input
             value={catSearch}
             onChange={e => setCatSearch(e.target.value)}
+            onFocus={e => setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)}
             placeholder="Search categories..."
             className="w-full p-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400"
           />

@@ -1585,7 +1585,7 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
     : [];
   const selectedCatTotal = selectedCatTx.reduce((s, t) => s + t.amount, 0);
 
-  const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment'];
+  const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment', 'Debt - Income'];
 
   const renderCat = (c: Category) => {
     const isProtected = PROTECTED_CATS.includes(c.name);
