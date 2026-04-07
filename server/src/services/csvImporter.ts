@@ -108,7 +108,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
   const recRows = sheets.get('Recurring') ?? [];
   for (const r of recRows) {
     const amount = num(r, 'AMOUNT');
-    if (!amount) continue;
+    if (amount === undefined || (str(r, 'ID') === '' && amount === 0)) continue; // skip empty placeholder rows only
     try {
       const accId = accountIdMap.get(int(r, 'ACCOUNT_ID')) ?? int(r, 'ACCOUNT_ID');
       const catId = catIdMap.get(int(r, 'CATEGORY_ID')) ?? (int(r, 'CATEGORY_ID') || null);
