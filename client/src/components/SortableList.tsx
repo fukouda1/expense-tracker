@@ -46,8 +46,8 @@ interface SortableListProps<T extends { id: number | string }> {
 export default function SortableList<T extends { id: number | string }>({ items, onReorder, renderItem }: SortableListProps<T>) {
   const [activeItems, setActiveItems] = useState(items);
 
-  // Sync when items change from outside
-  if (items.length !== activeItems.length || items.some((item, i) => item.id !== activeItems[i]?.id)) {
+  // Always sync from props — items reference changes when context updates
+  if (items !== activeItems) {
     setActiveItems(items);
   }
 
