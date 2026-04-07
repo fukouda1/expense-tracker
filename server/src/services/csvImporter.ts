@@ -173,7 +173,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     }
   }
 
-  result.duplicatesSkipped = duplicatesSkipped;
+  result.duplicatesSkipped = 0;
   return result;
 }
 
