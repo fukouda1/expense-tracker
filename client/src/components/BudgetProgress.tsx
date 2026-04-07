@@ -5,9 +5,10 @@ interface Props {
   budget: Budget;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleActive?: () => void;
 }
 
-export default function BudgetProgress({ budget, onEdit, onDelete }: Props) {
+export default function BudgetProgress({ budget, onEdit, onDelete, onToggleActive }: Props) {
   const spent = budget.spent ?? 0;
   const pct = percentOf(spent, budget.amount);
   const isOver = pct >= 100;
@@ -30,6 +31,12 @@ export default function BudgetProgress({ budget, onEdit, onDelete }: Props) {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
           <span className={`text-xs font-bold ${pctColor}`}>{pct}%</span>
+          {onToggleActive && (
+            <button onClick={onToggleActive}
+              className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 touch-manipulation ${budget.active !== false ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${budget.active !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          )}
           {(onEdit || onDelete) && (
             <div className="flex gap-1 ml-1">
               {onEdit && (

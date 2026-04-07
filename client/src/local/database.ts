@@ -105,6 +105,7 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE accounts ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
 ];
 
 // Initialize sort_order for existing rows that all have 0

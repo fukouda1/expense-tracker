@@ -88,6 +88,7 @@ model Budget {
   category_id Int?
   amount      Float
   month       String    @db.VarChar(7)
+  active      Boolean   @default(true)
   category    Category? @relation(fields: [category_id], references: [id])
 
   @@unique([category_id, month])

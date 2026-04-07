@@ -532,6 +532,11 @@ export async function deleteBudget(id: number): Promise<void> {
   await db.run('DELETE FROM budgets WHERE id=?', [id]);
 }
 
+export async function toggleBudgetActive(id: number): Promise<void> {
+  const db = getDb();
+  await db.run('UPDATE budgets SET active = CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?', [id]);
+}
+
 // ============================================================
 // RECURRING TRANSACTIONS
 // ============================================================

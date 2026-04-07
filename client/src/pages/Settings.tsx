@@ -40,7 +40,7 @@ export default function Settings() {
     addTag, removeTag, removeTransaction,
     toggleAccountActive, toggleCategoryActive, toggleTagActive,
     reorderAccounts, reorderCategories, reorderTags,
-    loadBudgets, saveBudget, editBudget, removeBudget,
+    loadBudgets, saveBudget, editBudget, removeBudget, toggleBudgetActive,
     loadRecurring, addRecurring, editRecurring, removeRecurring,
     exportCsv, refresh,
   } = useData();
@@ -1372,6 +1372,7 @@ export default function Settings() {
                   budget={b}
                   onEdit={() => handleEditBudget(b)}
                   onDelete={() => { if (confirm('Delete this budget?')) removeBudget(b.id); }}
+                  onToggleActive={() => toggleBudgetActive(b.id)}
                 />
               ))}
             </div>

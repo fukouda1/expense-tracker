@@ -56,6 +56,7 @@ interface DataContextType {
   saveBudget: (categoryId: number | null, amount: number, month: string) => Promise<void>;
   editBudget: (id: number, categoryId: number | null, amount: number, month: string) => Promise<void>;
   removeBudget: (id: number) => Promise<void>;
+  toggleBudgetActive: (id: number) => Promise<void>;
   // Recurring
   loadRecurring: () => Promise<void>;
   addRecurring: (r: Omit<RecurringTransaction, 'id' | 'active' | 'category_name' | 'account_name'>) => Promise<void>;
@@ -122,12 +123,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const loadBudgets = useCallback(async (month?: string) => {
     const m = month ?? getCurrentMonth();
+    let budgetList: Budget[];
     if (isNative) {
-      setBudgets(await repo.getBudgets(m));
+      budgetList = await repo.getBudgets(m);
     } else {
-      const res = await api.get<Budget[]>(`/api/budgets?month=${m}`);
-      setBudgets(res);
+      budgetList = await api.get<Budget[]>(`/api/budgets?month=${m}`);
     }
+    // Auto-copy from previous month if current month has no budgets
+    if (budgetList.length === 0) {
+      const [y, mo] = m.split('-').map(Number);
+      const prevDate = new Date(y, mo - 2, 1);
+      const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      let prevBudgets: Budget[];
+      if (isNative) {
+        prevBudgets = await repo.getBudgets(prevMonth);
+      } else {
+        prevBudgets = await api.get<Budget[]>(`/api/budgets?month=${prevMonth}`);
+      }
+      if (prevBudgets.length > 0) {
+        for (const b of prevBudgets.filter(pb => pb.active !== false)) {
+          if (isNative) {
+            await repo.upsertBudget(b.category_id, b.amount, m);
+          } else {
+            await api.post('/api/budgets', { categoryId: b.category_id, amount: b.amount, month: m });
+          }
+        }
+        // Reload the newly created budgets
+        if (isNative) {
+          budgetList = await repo.getBudgets(m);
+        } else {
+          budgetList = await api.get<Budget[]>(`/api/budgets?month=${m}`);
+        }
+      }
+    }
+    setBudgets(budgetList);
   }, []);
 
   const loadRecurring = useCallback(async () => {
@@ -335,6 +364,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     else await api.del(`/api/budgets/${id}`);
     await loadBudgets();
   };
+  const toggleBudgetActive = async (id: number) => {
+    if (isNative) {
+      await repo.toggleBudgetActive(id);
+    } else {
+      await api.patch(`/api/budgets/${id}/toggle`);
+    }
+    await loadBudgets();
+  };
 
   // Recurring CRUD
   const addRecurring = async (r: Omit<RecurringTransaction, 'id' | 'active' | 'category_name' | 'account_name'>) => {
@@ -409,7 +446,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addAccount, editAccount, removeAccount,
       addTag, removeTag,
       toggleAccountActive, toggleCategoryActive, toggleTagActive,
-      loadBudgets, saveBudget, editBudget, removeBudget,
+      loadBudgets, saveBudget, editBudget, removeBudget, toggleBudgetActive,
       loadRecurring, addRecurring, editRecurring, removeRecurring,
       reorderAccounts, reorderCategories, reorderTags,
       copyDayTransactions, exportCsv, refresh,

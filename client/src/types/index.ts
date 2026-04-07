@@ -62,6 +62,7 @@ export interface Budget {
   category_name?: string;
   category_color?: string;
   spent?: number;
+  active?: boolean;
 }
 
 export interface RecurringTransaction {

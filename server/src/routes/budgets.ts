@@ -86,4 +86,12 @@ router.delete('/:id', asyncHandler(async (req, res) => {
   res.json({ ok: true });
 }));
 
+router.patch('/:id/toggle', asyncHandler(async (req, res) => {
+  const id = Number(req.params.id);
+  const budget = await prisma.budget.findUnique({ where: { id } });
+  if (!budget) { res.status(404).json({ error: 'Not found' }); return; }
+  await prisma.budget.update({ where: { id }, data: { active: !budget.active } });
+  res.json({ ok: true });
+}));
+
 export default router;
