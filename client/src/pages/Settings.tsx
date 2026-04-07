@@ -1409,7 +1409,7 @@ export default function Settings() {
                           </div>
                           <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
                         </div>
-                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}>{r.active ? 'Deactivate' : 'Activate'}</button>
+                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 touch-manipulation ${r.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${r.active ? 'translate-x-5' : 'translate-x-0.5'}`} /></button>
                         <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
                         <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
                       </div>
@@ -1437,7 +1437,7 @@ export default function Settings() {
                           </div>
                           <p className="text-xs text-gray-500">{r.recurrence_type} · {r.account_name} · Next: {r.next_date}</p>
                         </div>
-                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`text-[10px] px-2 py-1 rounded-lg font-medium transition-colors ${r.active ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200'}`}>{r.active ? 'Deactivate' : 'Activate'}</button>
+                        <button onClick={() => editRecurring(r.id, { active: !r.active })} className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 touch-manipulation ${r.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${r.active ? 'translate-x-5' : 'translate-x-0.5'}`} /></button>
                         <button onClick={() => handleEditRecurring(r)} className="text-gray-400 hover:text-blue-500 text-sm">✏️</button>
                         <button onClick={() => { if (confirm('Delete?')) removeRecurring(r.id); }} className="text-gray-400 hover:text-red-500 text-sm">🗑️</button>
                       </div>
