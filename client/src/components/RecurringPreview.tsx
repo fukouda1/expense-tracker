@@ -50,7 +50,7 @@ export default function RecurringPreview() {
     past5.setDate(today.getDate() - 5);
 
     const items: UpcomingItem[] = [];
-    for (const r of recurring) {
+    for (const r of recurring.filter(r => r.active)) {
       let nextDate = new Date(r.next_date);
 
       if (nextDate < today && nextDate >= past5) {

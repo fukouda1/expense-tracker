@@ -51,7 +51,7 @@ export default function AddTransaction() {
   const [type, setType] = useState<TransactionType>(editTx?.type ?? prefillType ?? 'expense');
   const [display, setDisplay] = useState(editTx ? String(editTx.amount) : prefillAmount ?? '0');
   const [categoryId, setCategoryId] = useState<number | null>(editTx?.category_id ?? (prefillCategoryId ? Number(prefillCategoryId) : null));
-  const [accountId, setAccountId] = useState<number>(editTx?.account_id ?? (prefillAccountId ? Number(prefillAccountId) : accounts[0]?.id ?? 1));
+  const [accountId, setAccountId] = useState<number>(editTx?.account_id ?? (prefillAccountId ? Number(prefillAccountId) : accounts.find(a => a.active !== false)?.id ?? accounts[0]?.id ?? 1));
   const [toAccountId, setToAccountId] = useState<number | null>(editTx?.to_account_id ?? (prefillToAccountId ? Number(prefillToAccountId) : null));
   const [date, setDate] = useState(editTx?.date?.slice(0, 10) ?? prefillDate ?? new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(editTx?.date?.slice(11, 16) ?? prefillTime ?? new Date().toTimeString().slice(0, 5));
@@ -119,7 +119,7 @@ export default function AddTransaction() {
   }, [editId]);
 
   useEffect(() => {
-    if (accounts.length > 0 && !editTx && !prefillAccountId) setAccountId(accounts[0].id);
+    if (accounts.length > 0 && !editTx && !prefillAccountId) setAccountId(accounts.find(a => a.active !== false)?.id ?? accounts[0].id);
   }, [accounts]);
 
   const filteredCategories = categories.filter(c =>
