@@ -976,7 +976,7 @@ export default function Settings() {
             </div>
             {Capacitor.isNativePlatform() && (
               <div>
-                <p className="text-[10px] text-gray-400 mt-1.5">📁 Saved to TraceCash folder. Use Share button to save to Downloads/Drive.</p>
+                <p className="text-[10px] text-gray-400 mt-1.5">📁 Android/data/com.tracecash.app/files/TraceCash/ — Use Share to save to Downloads/Drive.</p>
               </div>
             )}
           </div>
@@ -1585,7 +1585,7 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
     : [];
   const selectedCatTotal = selectedCatTx.reduce((s, t) => s + t.amount, 0);
 
-  const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt - Income', 'Debt Payment'];
+  const PROTECTED_CATS = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment'];
 
   const renderCat = (c: Category) => {
     const isProtected = PROTECTED_CATS.includes(c.name);
