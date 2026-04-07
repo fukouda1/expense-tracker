@@ -685,14 +685,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
   const existingAccs = await db.query('SELECT id, name FROM accounts');
   for (const a of existingAccs.values ?? []) accountNameToId.set(a.name, a.id);
 
-  for (const r of accountRows) {
+  for (let index = 0; index < accountRows.length; index++) {
+    const r = accountRows[index];
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
       if (accountNameToId.has(name)) { result.accounts++; continue; }
+      const sortOrder = num(r, 'SORT_ORDER') || index;
       const res = await db.run(
-        'INSERT INTO accounts (name, icon, color, initial_balance) VALUES (?, ?, ?, ?)',
-        [name, str(r, 'ICON') || '💰', str(r, 'COLOR') || '#10b981', num(r, 'INITIAL_BALANCE')]
+        'INSERT INTO accounts (name, icon, color, initial_balance, sort_order) VALUES (?, ?, ?, ?, ?)',
+        [name, str(r, 'ICON') || '💰', str(r, 'COLOR') || '#10b981', num(r, 'INITIAL_BALANCE'), sortOrder]
       );
       accountNameToId.set(name, res.changes?.lastId ?? 0);
       result.accounts++;
@@ -708,14 +710,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
   const existingCats = await db.query('SELECT id, name FROM categories');
   for (const c of existingCats.values ?? []) catNameToId.set(c.name, c.id);
 
-  for (const r of catRows) {
+  for (let ci = 0; ci < catRows.length; ci++) {
+    const r = catRows[ci];
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
       if (catNameToId.has(name)) { result.categories++; continue; }
+      const sortOrder = num(r, 'SORT_ORDER') || ci;
       const res = await db.run(
-        'INSERT INTO categories (name, icon, color, type) VALUES (?, ?, ?, ?)',
-        [name, str(r, 'ICON') || '📦', str(r, 'COLOR') || '#6b7280', str(r, 'TYPE') || 'expense']
+        'INSERT INTO categories (name, icon, color, type, sort_order) VALUES (?, ?, ?, ?, ?)',
+        [name, str(r, 'ICON') || '📦', str(r, 'COLOR') || '#6b7280', str(r, 'TYPE') || 'expense', sortOrder]
       );
       catNameToId.set(name, res.changes?.lastId ?? 0);
       result.categories++;
@@ -730,14 +734,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
   const existingTags = await db.query('SELECT id, name FROM tags');
   for (const t of existingTags.values ?? []) tagNameToId.set(t.name, t.id);
 
-  for (const r of tagRows) {
+  for (let ti = 0; ti < tagRows.length; ti++) {
+    const r = tagRows[ti];
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
       if (tagNameToId.has(name)) { result.tags++; continue; }
+      const sortOrder = num(r, 'SORT_ORDER') || ti;
       const res = await db.run(
-        'INSERT INTO tags (name, color) VALUES (?, ?)',
-        [name, str(r, 'COLOR') || '#3b82f6']
+        'INSERT INTO tags (name, color, sort_order) VALUES (?, ?, ?)',
+        [name, str(r, 'COLOR') || '#3b82f6', sortOrder]
       );
       tagNameToId.set(name, res.changes?.lastId ?? 0);
       result.tags++;

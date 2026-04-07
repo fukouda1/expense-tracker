@@ -349,19 +349,19 @@ export default function Settings() {
         // Accounts sheet
         const accs = await repo.getAllAccounts();
         utils.book_append_sheet(wb, utils.json_to_sheet(accs.map(a => ({
-          ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance,
+          ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance, SORT_ORDER: a.sort_order ?? 0,
         }))), 'Accounts');
 
         // Categories sheet
         const cats = await repo.getAllCategories();
         utils.book_append_sheet(wb, utils.json_to_sheet(cats.map(c => ({
-          ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type,
+          ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type, SORT_ORDER: c.sort_order ?? 0,
         }))), 'Categories');
 
         // Tags sheet
         const tgs = await repo.getAllTags();
         utils.book_append_sheet(wb, utils.json_to_sheet(tgs.length ? tgs.map(t => ({
-          ID: t.id, NAME: t.name, COLOR: t.color,
+          ID: t.id, NAME: t.name, COLOR: t.color, SORT_ORDER: t.sort_order ?? 0,
         })) : [{ ID: '', NAME: '', COLOR: '' }]), 'Tags');
 
         // Budgets sheet

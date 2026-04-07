@@ -27,6 +27,7 @@ export interface Category {
   color: string;
   type: 'income' | 'expense' | 'both';
   active: boolean;
+  sort_order?: number;
 }
 
 export interface Account {
@@ -36,6 +37,7 @@ export interface Account {
   color: string;
   initial_balance: number;
   active: boolean;
+  sort_order?: number;
 }
 
 export interface Tag {
@@ -44,6 +46,7 @@ export interface Tag {
   color: string;
   active: boolean;
   category_id: number | null; // null = global tag, number = category-specific
+  sort_order?: number;
 }
 
 export interface TransactionTag {
