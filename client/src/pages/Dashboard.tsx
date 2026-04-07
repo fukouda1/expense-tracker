@@ -406,7 +406,7 @@ export default function Dashboard() {
 function BudgetSection({ budgets }: { budgets: Budget[] }) {
   const [showAll, setShowAll] = useState(false);
   // Sort by spent percentage descending (highest usage first)
-  const sorted = [...budgets].sort((a, b) => {
+  const sorted = [...budgets].filter(b => b.active !== false).sort((a, b) => {
     const pctA = a.amount > 0 ? ((a.spent ?? 0) / a.amount) : 0;
     const pctB = b.amount > 0 ? ((b.spent ?? 0) / b.amount) : 0;
     return pctB - pctA;
