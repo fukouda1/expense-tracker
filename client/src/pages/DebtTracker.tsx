@@ -59,19 +59,24 @@ export default function DebtTracker() {
 
   const dismissDebt = (person: string, type: 'owed' | 'owe') => {
     const key = `${type}:${person}`;
-    const next = new Set(dismissedDebts);
-    next.add(key);
-    setDismissedDebts(next);
-    localStorage.setItem('tracecash_dismissed_debts', JSON.stringify([...next]));
-    showToast(`Marked ${person} as settled (no entry recorded)`, 'success');
+    try {
+      // Read fresh from localStorage to avoid stale state
+      const current = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+      if (!current.includes(key)) current.push(key);
+      localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(current));
+      setDismissedDebts(new Set(current));
+      showToast(`Marked ${person} as settled (no entry recorded)`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to save: ${e.message}`, 'error');
+    }
   };
 
   const undismissDebt = (person: string, type: 'owed' | 'owe') => {
     const key = `${type}:${person}`;
-    const next = new Set(dismissedDebts);
-    next.delete(key);
-    setDismissedDebts(next);
-    localStorage.setItem('tracecash_dismissed_debts', JSON.stringify([...next]));
+    const current = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
+    const filtered = current.filter(k => k !== key);
+    localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(filtered));
+    setDismissedDebts(new Set(filtered));
   };
 
   const [showDismissed, setShowDismissed] = useState(false);
