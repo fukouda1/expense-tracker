@@ -91,6 +91,13 @@ router.post('/merge', asyncHandler(async (req, res) => {
   const targetCat = await prisma.category.findUnique({ where: { id: Number(targetId) } });
   if (!targetCat) { res.status(404).json({ error: 'Target category not found' }); return; }
 
+  // Append old category name to notes for affected transactions
+  const affectedTxs = await prisma.transaction.findMany({ where: { category_id: Number(sourceId) }, select: { id: true, notes: true } });
+  for (const tx of affectedTxs) {
+    const suffix = `(${sourceCat.name})`;
+    const newNotes = tx.notes ? `${tx.notes} ${suffix}` : suffix;
+    await prisma.transaction.update({ where: { id: tx.id }, data: { notes: newNotes } });
+  }
   const txResult = await prisma.transaction.updateMany({
     where: { category_id: Number(sourceId) }, data: { category_id: Number(targetId) },
   });

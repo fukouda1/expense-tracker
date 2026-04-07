@@ -384,6 +384,16 @@ export async function deleteCategory(id: number): Promise<void> {
 
 export async function mergeCategory(sourceId: number, targetId: number): Promise<number> {
   const db = getDb();
+  // Get source category name to append to notes
+  const srcCat = await db.query('SELECT name FROM categories WHERE id=?', [sourceId]);
+  const srcName = srcCat.values?.[0]?.name ?? '';
+  // Append old category name to notes for affected transactions
+  if (srcName) {
+    await db.run(
+      `UPDATE transactions SET notes = CASE WHEN notes = '' THEN ? ELSE notes || ' ' || ? END WHERE category_id=?`,
+      [`(${srcName})`, `(${srcName})`, sourceId]
+    );
+  }
   // Move all transactions from source to target
   const txResult = await db.run('UPDATE transactions SET category_id=? WHERE category_id=?', [targetId, sourceId]);
   // Move budgets
