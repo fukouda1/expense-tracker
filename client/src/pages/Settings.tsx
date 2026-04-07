@@ -776,12 +776,43 @@ export default function Settings() {
         try { await refresh(); } catch { /* ignore refresh errors */ }
         setTimeout(() => window.location.reload(), 2000);
       } else {
-        // ── Web mode: upload to server API ──
+        // ── Web mode: upload to server API for DB data ──
         const formData = new FormData();
         formData.append('file', importFile);
         const response = await fetch('/api/import/csv', { method: 'POST', body: formData });
         const data = await response.json();
         if (response.ok) {
+          // Also parse XLSX client-side to restore localStorage data (templates, settled debts, pin)
+          const ext = importFile.name.split('.').pop()?.toLowerCase();
+          if (ext === 'xlsx' || ext === 'xls') {
+            try {
+              const XLSX = await import('xlsx');
+              const buf = await importFile.arrayBuffer();
+              const wb = XLSX.read(buf, { type: 'array' });
+              // Restore settled debts
+              const settledSheet = wb.Sheets['SettledDebts'];
+              if (settledSheet) {
+                const rows = XLSX.utils.sheet_to_json(settledSheet) as any[];
+                const keys = rows.map(r => String(r.KEY || '')).filter(Boolean);
+                if (keys.length) localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(keys));
+              }
+              // Restore templates
+              const tplSheet = wb.Sheets['Templates'];
+              if (tplSheet) {
+                const rows = XLSX.utils.sheet_to_json(tplSheet) as any[];
+                if (rows[0]?.DATA) localStorage.setItem('tracecash_templates_v2', String(rows[0].DATA));
+              }
+              // Restore pin lock
+              const pinSheet = wb.Sheets['PinLock'];
+              if (pinSheet) {
+                const rows = XLSX.utils.sheet_to_json(pinSheet) as any[];
+                if (rows[0]?.PIN) {
+                  localStorage.setItem('tracecash_pin', String(rows[0].PIN));
+                  localStorage.setItem('tracecash_pin_enabled', String(rows[0].ENABLED ?? 'true'));
+                }
+              }
+            } catch { /* ignore localStorage restore errors */ }
+          }
           if (data.transactions !== undefined) {
             const parts = [];
             if (data.accounts) parts.push(`${data.accounts} accounts`);
@@ -795,6 +826,7 @@ export default function Settings() {
             setImportResult(`Imported ${data.imported} transactions, ${data.skipped} skipped${data.errors?.length ? `, ${data.errors.length} errors` : ''}`);
           }
           await refresh();
+          setTimeout(() => window.location.reload(), 2000);
         } else {
           setImportResult(`Error: ${data.error || 'Import failed'}`);
         }
