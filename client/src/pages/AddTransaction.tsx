@@ -410,7 +410,7 @@ export default function AddTransaction() {
         </div>
 
         {/* Quick Templates — applies all entries at once */}
-        {!editTx && <QuickTemplateBar onApplied={goBack} />}
+        {!editTx && <div className="px-3 sm:px-4"><QuickTemplateBar onApplied={goBack} /></div>}
 
         {/* Notes with autocomplete */}
         <div className="px-3 sm:px-4 py-1 relative">
