@@ -9,6 +9,15 @@ type Row = Record<string, unknown>;
 function str(row: Row, key: string): string { return String(row[key] ?? '').trim(); }
 function num(row: Row, key: string): number { return parseFloat(String(row[key])) || 0; }
 
+/** Normalize SQLite integer booleans (0/1) to JS booleans */
+function normalizeBooleans<T>(items: T[]): T[] {
+  return items.map(item => {
+    const obj = item as any;
+    if ('active' in obj) obj.active = !!obj.active;
+    return obj as T;
+  });
+}
+
 // ============================================================
 // TRANSACTIONS — Full CRUD + analytics queries
 // ============================================================
@@ -346,7 +355,7 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
 export async function getAllCategories(): Promise<Category[]> {
   const db = getDb();
   const result = await db.query('SELECT * FROM categories ORDER BY sort_order, name');
-  return (result.values ?? []) as Category[];
+  return normalizeBooleans((result.values ?? []) as Category[]);
 }
 
 export async function reorderCategories(ids: number[]): Promise<void> {
@@ -414,7 +423,7 @@ export async function mergeCategory(sourceId: number, targetId: number): Promise
 export async function getAllAccounts(): Promise<Account[]> {
   const db = getDb();
   const result = await db.query('SELECT * FROM accounts ORDER BY sort_order, name');
-  return (result.values ?? []) as Account[];
+  return normalizeBooleans((result.values ?? []) as Account[]);
 }
 
 export async function reorderAccounts(ids: number[]): Promise<void> {
@@ -457,7 +466,7 @@ export async function deleteAccount(id: number): Promise<void> {
 export async function getAllTags(): Promise<Tag[]> {
   const db = getDb();
   const result = await db.query('SELECT * FROM tags ORDER BY sort_order, name');
-  return (result.values ?? []) as Tag[];
+  return normalizeBooleans((result.values ?? []) as Tag[]);
 }
 
 export async function insertTag(name: string, color: string, categoryId: number | null = null): Promise<number> {
@@ -515,7 +524,7 @@ export async function getBudgets(month: string): Promise<Budget[]> {
      ORDER BY b.category_id IS NULL DESC, c.name`,
     [month, month]
   );
-  return (result.values ?? []) as Budget[];
+  return normalizeBooleans((result.values ?? []) as Budget[]);
 }
 
 export async function upsertBudget(categoryId: number | null, amount: number, month: string): Promise<void> {
@@ -550,7 +559,7 @@ export async function getRecurringTransactions(): Promise<RecurringTransaction[]
      LEFT JOIN accounts a ON r.account_id = a.id
      ORDER BY r.amount DESC`
   );
-  return (result.values ?? []) as RecurringTransaction[];
+  return normalizeBooleans((result.values ?? []) as RecurringTransaction[]);
 }
 
 export async function insertRecurring(

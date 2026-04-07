@@ -94,3 +94,6 @@ export function percentOf(value: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((value / total) * 100);
 }
+
+/** Check if item is active — handles both boolean (web) and integer 0/1 (SQLite) */
+export function isActive(item: { active?: boolean | number }): boolean { return item.active !== false && item.active !== 0; }
