@@ -4,7 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
-const PROTECTED_NAMES = ['Lent Money', 'Lent Payment', 'Debt', 'Debt Payment', 'Debt - Income'];
+const PROTECTED_NAMES = ['Lent Money', 'Lent Payment', 'Debt - Income', 'Debt Payment'];
 const VALID_TYPES = ['income', 'expense', 'transfer'];
 
 router.get('/', asyncHandler(async (_req, res) => {
