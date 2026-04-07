@@ -772,8 +772,9 @@ export default function Settings() {
         const errDetail = data.errors.length ? `\nErrors: ${data.errors.slice(0, 5).join('; ')}` : '';
         const msg = parts.length ? `Imported: ${parts.join(', ')}` : 'Import completed but no data was imported';
         setImportResult(`${msg}${data.errors.length ? ` (${data.errors.length} errors)` : ''}${errDetail}`);
-        // Reload all data from DB
+        // Reload all data from DB + reload page to refresh localStorage-based features (templates, settled debts)
         try { await refresh(); } catch { /* ignore refresh errors */ }
+        setTimeout(() => window.location.reload(), 2000);
       } else {
         // ── Web mode: upload to server API ──
         const formData = new FormData();
