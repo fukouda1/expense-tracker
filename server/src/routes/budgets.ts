@@ -21,6 +21,7 @@ router.get('/', asyncHandler(async (req, res) => {
       category_id: b.category_id,
       amount: b.amount,
       month: b.month,
+      active: b.active,
       category_name: b.category?.name ?? null,
       category_color: b.category?.color ?? null,
       spent: agg._sum.amount ?? 0,
