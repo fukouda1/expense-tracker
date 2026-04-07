@@ -22,7 +22,8 @@ export default function AddTransaction() {
   const [params] = useSearchParams();
   const { showToast } = useToast();
   const { categories, accounts, tags, addTransaction, editTransaction, transactions,
-    addAccount, addCategory, addTag } = useData();
+    addAccount, addCategory, addTag, getAccountBalances } = useData();
+  const [accBalances, setAccBalances] = useState<Record<number, number>>({});
 
   const editId = params.get('edit') ? Number(params.get('edit')) : null;
   // Look in recently loaded transactions first; if missing, fetch async below
@@ -368,7 +369,15 @@ export default function AddTransaction() {
           <div className="flex-1 min-w-0">
             <p className="text-[9px] sm:text-[10px] text-gray-500 text-center mb-0.5 sm:mb-1 uppercase tracking-wider">Account</p>
             <button
-              onClick={() => setShowAccountPicker(true)}
+              onClick={async () => {
+                setShowAccountPicker(true);
+                try {
+                  const bals = await getAccountBalances();
+                  const map: Record<number, number> = {};
+                  for (const b of bals) map[b.account_id] = b.balance;
+                  setAccBalances(map);
+                } catch { /* ignore */ }
+              }}
               className="w-full py-2 sm:py-2.5 px-2 sm:px-3 bg-gray-800 border border-gray-700 rounded-lg text-xs sm:text-sm text-gray-200 flex items-center justify-center gap-1.5 sm:gap-2"
             >
               <span className="text-sm sm:text-base">{selectedAccount?.icon ?? '💰'}</span>
@@ -607,7 +616,14 @@ export default function AddTransaction() {
               }`}
             >
               <span className="text-lg">{a.icon}</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">{a.name}</span>
+              <div className="flex-1 min-w-0 text-left">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{a.name}</span>
+                {accBalances[a.id] !== undefined && (
+                  <p className={`text-[10px] ${accBalances[a.id] >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    Balance: {formatCurrency(accBalances[a.id])}
+                  </p>
+                )}
+              </div>
             </button>
           ))}
           {/* Inline add account */}

@@ -1224,9 +1224,9 @@ export default function Settings() {
                   {!a.active && <p className="text-[10px] text-red-400">Inactive</p>}
                 </div>
                 <button onClick={() => toggleAccountActive(a.id)}
-                  className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${a.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                  className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 touch-manipulation ${a.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
                   title={a.active ? 'Deactivate' : 'Activate'}>
-                  <div className={`w-4 h-4 bg-white rounded-full transition-transform ${a.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${a.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </button>
                 <button onClick={() => handleEditAcc(a)} className="text-gray-400 hover:text-blue-500 text-sm flex-shrink-0">✏️</button>
                 <button onClick={async () => {
@@ -1264,8 +1264,8 @@ export default function Settings() {
                   </div>
                   {!t.active && <span className="text-[10px] text-red-400">Off</span>}
                   <button onClick={() => toggleTagActive(t.id)}
-                    className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 touch-manipulation ${t.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${t.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </button>
                   <button onClick={async () => {
                     if (!confirm('Delete this tag?')) return;
@@ -1612,10 +1612,10 @@ function CategoriesTab({ categories, transactions, onAdd, onEdit, onDelete, onTo
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onToggleActive(c.id); }}
-          className={`w-10 h-5 rounded-full transition-colors flex-shrink-0 ${c.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+          className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 touch-manipulation ${c.active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
           title={c.active ? 'Deactivate' : 'Activate'}
         >
-          <div className={`w-4 h-4 bg-white rounded-full transition-transform ${c.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${c.active ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
         {isProtected && <span className="text-[10px] text-amber-500 flex-shrink-0" title="System category (Debt Tracker)">🔒</span>}
         {!isProtected && <button onClick={(e) => { e.stopPropagation(); setMergeCat(c); setMergeTargetId(''); }} className="text-gray-400 hover:text-purple-500 text-sm flex-shrink-0" title="Merge into another category">🔀</button>}
