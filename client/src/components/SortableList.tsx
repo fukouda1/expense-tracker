@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -45,11 +45,14 @@ interface SortableListProps<T extends { id: number | string }> {
 
 export default function SortableList<T extends { id: number | string }>({ items, onReorder, renderItem }: SortableListProps<T>) {
   const [activeItems, setActiveItems] = useState(items);
+  const isDragging = useRef(false);
 
-  // Always sync from props — items reference changes when context updates
-  if (items !== activeItems) {
-    setActiveItems(items);
-  }
+  // Sync from props — but skip if we just dragged (wait for context to catch up)
+  useEffect(() => {
+    if (!isDragging.current) {
+      setActiveItems(items);
+    }
+  }, [items]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
@@ -63,7 +66,11 @@ export default function SortableList<T extends { id: number | string }>({ items,
     const newIndex = activeItems.findIndex(i => i.id === over.id);
     const newItems = arrayMove(activeItems, oldIndex, newIndex);
     setActiveItems(newItems);
+    // Prevent props sync from overwriting the drag result
+    isDragging.current = true;
     onReorder(newItems.map(i => i.id));
+    // Allow sync after DB write completes
+    setTimeout(() => { isDragging.current = false; }, 1000);
   };
 
   return (
