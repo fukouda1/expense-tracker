@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import Modal from './Modal';
@@ -6,6 +6,14 @@ import { useData } from '../contexts/DataContext';
 import { post } from '../services/api';
 import type { Transaction } from '../types';
 import { formatCurrency, formatDateTime } from '../utils/formatters';
+
+function getReceiptPhoto(t: Transaction | null): string | null {
+  if (!t) return null;
+  try {
+    const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+    return receipts[`${t.date}|${t.amount}|${t.type}`] ?? null;
+  } catch { return null; }
+}
 
 const isNative = Capacitor.isNativePlatform();
 
@@ -26,6 +34,8 @@ export default function TransactionDetail({ transaction: t, onClose, onEdit, onD
   const { categories, addTransaction, removeTransaction, refresh } = useData();
   const [showSplit, setShowSplit] = useState(false);
   const [splits, setSplits] = useState<SplitRow[]>([]);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const receiptPhoto = useMemo(() => getReceiptPhoto(t), [t]);
 
   if (!t) return null;
   const isIncome = t.type === 'income';
@@ -148,6 +158,17 @@ export default function TransactionDetail({ transaction: t, onClose, onEdit, onD
                 </div>
               </div>
             )}
+            {receiptPhoto && (
+              <div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Receipt</span>
+                <img
+                  src={receiptPhoto}
+                  alt="Receipt"
+                  onClick={() => setShowReceiptPreview(true)}
+                  className="w-20 h-20 rounded-lg object-cover border border-gray-200 dark:border-gray-600 cursor-pointer hover:opacity-80 transition-opacity"
+                />
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -188,6 +209,27 @@ export default function TransactionDetail({ transaction: t, onClose, onEdit, onD
           </div>
         </div>
       </Modal>
+
+      {/* Receipt Preview */}
+      {showReceiptPreview && receiptPhoto && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setShowReceiptPreview(false)}
+        >
+          <button
+            onClick={() => setShowReceiptPreview(false)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full text-white text-xl flex items-center justify-center z-10"
+          >
+            ✕
+          </button>
+          <img
+            src={receiptPhoto}
+            alt="Receipt"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Split Transaction Modal */}
       <Modal open={showSplit} onClose={() => setShowSplit(false)} title="Split Transaction">

@@ -96,6 +96,7 @@ export default function AddTransaction() {
   const [newCatName, setNewCatName] = useState('');
   const [showNewTag, setShowNewTag] = useState(false);
   const [newTagName, setNewTagName] = useState('');
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
 
   // If editId is set but transaction wasn't in recent cache, fetch it and pre-fill form
   useEffect(() => {
@@ -494,7 +495,7 @@ export default function AddTransaction() {
           </button>
           {receiptPhoto && (
             <>
-              <img src={receiptPhoto} alt="Receipt" className="w-8 h-8 rounded object-cover border border-gray-600" onClick={() => window.open(receiptPhoto!, '_blank')} />
+              <img src={receiptPhoto} alt="Receipt" className="w-8 h-8 rounded object-cover border border-gray-600 cursor-pointer" onClick={() => setShowReceiptPreview(true)} />
               <button onClick={() => setReceiptPhoto(null)} className="text-[10px] text-red-400">✕</button>
             </>
           )}
@@ -762,6 +763,27 @@ export default function AddTransaction() {
           )}
         </div>
       </Modal>
+
+      {/* Receipt Preview */}
+      {showReceiptPreview && receiptPhoto && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setShowReceiptPreview(false)}
+        >
+          <button
+            onClick={() => setShowReceiptPreview(false)}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full text-white text-xl flex items-center justify-center z-10"
+          >
+            ✕
+          </button>
+          <img
+            src={receiptPhoto}
+            alt="Receipt"
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Currency Converter */}
       <CurrencyConverter open={showConverter} onClose={() => setShowConverter(false)}
