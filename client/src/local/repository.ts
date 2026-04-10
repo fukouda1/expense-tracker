@@ -22,6 +22,37 @@ function normalizeBooleans<T>(items: T[]): T[] {
 // TRANSACTIONS — Full CRUD + analytics queries
 // ============================================================
 
+/** Fetch tags for a set of transactions and attach them as a `tags` field */
+async function attachTagsToTransactions(txs: Transaction[]): Promise<Transaction[]> {
+  if (txs.length === 0) return txs;
+  const db = getDb();
+  const placeholders = txs.map(() => '?').join(',');
+  const result = await db.query(
+    `SELECT tt.transaction_id, g.id, g.name, g.color, g.active, g.category_id
+     FROM transaction_tags tt JOIN tags g ON tt.tag_id = g.id
+     WHERE tt.transaction_id IN (${placeholders})`,
+    txs.map(t => t.id)
+  );
+  const byTx = new Map<number, Tag[]>();
+  for (const row of (result.values ?? []) as Row[]) {
+    const tag: Tag = {
+      id: Number(row.id),
+      name: String(row.name ?? ''),
+      color: String(row.color ?? ''),
+      active: !!row.active,
+      category_id: row.category_id == null ? null : Number(row.category_id),
+    };
+    const txId = Number(row.transaction_id);
+    const arr = byTx.get(txId) ?? [];
+    arr.push(tag);
+    byTx.set(txId, arr);
+  }
+  for (const t of txs) {
+    (t as Transaction).tags = byTx.get(t.id) ?? [];
+  }
+  return txs;
+}
+
 export async function insertTransaction(
   amount: number, type: string, categoryId: number | null,
   accountId: number, toAccountId: number | null, date: string,
@@ -82,7 +113,9 @@ export async function getTransactionById(id: number): Promise<Transaction | null
     [id]
   );
   const rows = result.values ?? [];
-  return rows.length > 0 ? (rows[0] as Transaction) : null;
+  if (rows.length === 0) return null;
+  const [withTags] = await attachTagsToTransactions([rows[0] as Transaction]);
+  return withTags;
 }
 
 export async function getAllTransactions(limit = 50, offset = 0): Promise<Transaction[]> {
@@ -98,7 +131,7 @@ export async function getAllTransactions(limit = 50, offset = 0): Promise<Transa
      LIMIT ? OFFSET ?`,
     [limit, offset]
   );
-  return (result.values ?? []) as Transaction[];
+  return attachTagsToTransactions((result.values ?? []) as Transaction[]);
 }
 
 export async function getTransactionsByDateRange(from: string, to: string): Promise<Transaction[]> {
@@ -114,7 +147,7 @@ export async function getTransactionsByDateRange(from: string, to: string): Prom
      ORDER BY t.date DESC, t.id DESC`,
     [from, to]
   );
-  return (result.values ?? []) as Transaction[];
+  return attachTagsToTransactions((result.values ?? []) as Transaction[]);
 }
 
 export async function searchTransactions(filters: TransactionFilters): Promise<Transaction[]> {
@@ -171,7 +204,7 @@ export async function searchTransactions(filters: TransactionFilters): Promise<T
      LIMIT 200`,
     params
   );
-  return (result.values ?? []) as Transaction[];
+  return attachTagsToTransactions((result.values ?? []) as Transaction[]);
 }
 
 // ============================================================

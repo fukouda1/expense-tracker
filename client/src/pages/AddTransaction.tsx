@@ -56,10 +56,18 @@ export default function AddTransaction() {
   const [date, setDate] = useState(editTx?.date?.slice(0, 10) ?? prefillDate ?? new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState(editTx?.date?.slice(11, 16) ?? prefillTime ?? new Date().toTimeString().slice(0, 5));
   const [notes, setNotes] = useState(editTx?.notes ?? prefillNotes ?? '');
-  const [receiptPhoto, setReceiptPhoto] = useState<string | null>(null);
+  const [receiptPhoto, setReceiptPhoto] = useState<string | null>(() => {
+    if (!editTx) return null;
+    try {
+      const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+      return receipts[`${editTx.date}|${editTx.amount}|${editTx.type}`] ?? null;
+    } catch { return null; }
+  });
   const [showConverter, setShowConverter] = useState(false);
   const [showSplit, setShowSplit] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [selectedTags, setSelectedTags] = useState<number[]>(
+    () => editTx?.tags?.map(t => t.id) ?? []
+  );
   const [saving, setSaving] = useState(false);
   const [amountError, setAmountError] = useState(false);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
@@ -110,6 +118,11 @@ export default function AddTransaction() {
           setDate(tx.date?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
           setTime(tx.date?.slice(11, 16) ?? new Date().toTimeString().slice(0, 5));
           setNotes(tx.notes ?? '');
+          setSelectedTags(tx.tags?.map(t => t.id) ?? []);
+          try {
+            const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+            setReceiptPhoto(receipts[`${tx.date}|${tx.amount}|${tx.type}`] ?? null);
+          } catch { /* ignore */ }
         }
       } catch {
         // Transaction not found — form stays in blank/prefill state
@@ -232,19 +245,28 @@ export default function AddTransaction() {
         date: `${date}T${time}`,
         notes,
       };
+      // Persist receipt photo for both create and edit, handling key changes on edit
+      const persistReceipt = () => {
+        try {
+          const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
+          const newKey = `${data.date}|${data.amount}|${data.type}`;
+          if (editTx) {
+            const oldKey = `${editTx.date}|${editTx.amount}|${editTx.type}`;
+            if (oldKey !== newKey) delete receipts[oldKey];
+          }
+          if (receiptPhoto) receipts[newKey] = receiptPhoto;
+          else delete receipts[newKey];
+          localStorage.setItem('tracecash_receipts', JSON.stringify(receipts));
+        } catch { /* storage full */ }
+      };
+
       if (editTx) {
         await editTransaction({ ...editTx, ...data }, selectedTags);
+        persistReceipt();
         goBack();
       } else {
         await addTransaction(data as any, selectedTags);
-        // Save receipt photo if attached
-        if (receiptPhoto) {
-          try {
-            const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
-            receipts[`${data.date}|${data.amount}|${data.type}`] = receiptPhoto;
-            localStorage.setItem('tracecash_receipts', JSON.stringify(receipts));
-          } catch { /* storage full */ }
-        }
+        persistReceipt();
         // Dismiss the recurring preview item only after successful save
         if (recurringDismiss) {
           try {
@@ -260,6 +282,7 @@ export default function AddTransaction() {
           setNotes('');
           setCategoryId(null);
           setSelectedTags([]);
+          setReceiptPhoto(null);
           setFreshEntry(true);
           setPendingOp(null);
           setPrevValue(null);
