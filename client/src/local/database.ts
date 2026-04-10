@@ -108,11 +108,13 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
 ];
 
-// Initialize sort_order for existing rows that all have 0
+// Initialize sort_order when ALL rows are still at default 0.
+// Uses a subquery to only run when every row in the table has sort_order=0,
+// so it won't clobber position 0 after the user has explicitly reordered.
 const INIT_SORT_ORDER_SQL = [
-  `UPDATE categories SET sort_order = id WHERE sort_order = 0 AND id > 0`,
-  `UPDATE accounts SET sort_order = id WHERE sort_order = 0 AND id > 0`,
-  `UPDATE tags SET sort_order = id WHERE sort_order = 0 AND id > 0`,
+  `UPDATE categories SET sort_order = id WHERE (SELECT MAX(sort_order) FROM categories) = 0`,
+  `UPDATE accounts SET sort_order = id WHERE (SELECT MAX(sort_order) FROM accounts) = 0`,
+  `UPDATE tags SET sort_order = id WHERE (SELECT MAX(sort_order) FROM tags) = 0`,
 ];
 
 const DEFAULT_CATEGORIES = [
@@ -176,11 +178,6 @@ export async function initDatabase(): Promise<void> {
     try { await db.execute(sql); } catch { /* column already exists — ignore */ }
   }
 
-  // Initialize sort_order for existing rows (one-time fix for rows with sort_order=0)
-  for (const sql of INIT_SORT_ORDER_SQL) {
-    try { await db.execute(sql); } catch { /* ignore */ }
-  }
-
   // Seed default data if empty
   const catCount = await db.query('SELECT COUNT(*) as count FROM categories');
   if (catCount.values && catCount.values[0]?.count === 0) {
@@ -200,6 +197,13 @@ export async function initDatabase(): Promise<void> {
         [acc.name, acc.icon, acc.color, acc.initial_balance]
       );
     }
+  }
+
+  // Initialize sort_order when ALL rows are 0 (fresh seed or imported data).
+  // Runs AFTER seeds. Only triggers when every row is 0, so it won't overwrite
+  // databases where the user has already reordered (some rows would be non-zero).
+  for (const sql of INIT_SORT_ORDER_SQL) {
+    try { await db.execute(sql); } catch { /* ignore */ }
   }
 }
 

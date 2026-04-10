@@ -6,6 +6,16 @@ const router = Router();
 
 router.get('/', asyncHandler(async (_req, res) => {
   const accounts = await prisma.account.findMany({ orderBy: [{ sort_order: 'asc' }, { name: 'asc' }] });
+
+  // One-time fix: initialize sort_order for rows that are all 0 (imported/legacy data)
+  const allZero = accounts.length > 1 && accounts.every(a => a.sort_order === 0);
+  if (allZero) {
+    for (let i = 0; i < accounts.length; i++) {
+      await prisma.account.update({ where: { id: accounts[i].id }, data: { sort_order: i } });
+      accounts[i].sort_order = i;
+    }
+  }
+
   res.json(accounts);
 }));
 

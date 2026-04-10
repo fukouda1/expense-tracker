@@ -9,6 +9,16 @@ const VALID_TYPES = ['income', 'expense', 'transfer'];
 
 router.get('/', asyncHandler(async (_req, res) => {
   const categories = await prisma.category.findMany({ orderBy: [{ sort_order: 'asc' }, { id: 'asc' }] });
+
+  // One-time fix: initialize sort_order for rows that are all 0 (imported/legacy data)
+  const allZero = categories.length > 1 && categories.every(c => c.sort_order === 0);
+  if (allZero) {
+    for (let i = 0; i < categories.length; i++) {
+      await prisma.category.update({ where: { id: categories[i].id }, data: { sort_order: i } });
+      categories[i].sort_order = i;
+    }
+  }
+
   res.json(categories);
 }));
 
