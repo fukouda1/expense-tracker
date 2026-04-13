@@ -81,7 +81,7 @@ export default function Accounts() {
       </div>
 
       <div className="space-y-2">
-        {accounts.map(acc => {
+        {accounts.filter(a => a.active !== false).map(acc => {
           const balance = getBalance(acc.id);
           return (
             <button

@@ -173,7 +173,7 @@ export default function Dashboard() {
           <p className="text-3xl font-bold mt-1">{balanceHidden ? '₱ ••••••' : formatCurrency(totalBalance)}</p>
           {!balanceHidden && (
             <div className="flex gap-3 mt-3 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
-              {balances.map(b => (
+              {[...balances].sort((a, b) => b.balance - a.balance).map(b => (
                 <div key={b.account_id} className="text-xs flex-shrink-0 bg-white/15 rounded-lg px-2.5 py-1.5 min-w-[90px]">
                   <p className="opacity-80 text-[10px] truncate">{b.account_name}</p>
                   <p className="font-bold text-sm">{balanceHidden ? '••••' : formatCurrency(b.balance)}</p>

@@ -376,6 +376,7 @@ export async function getAccountBalances(): Promise<AccountBalance[]> {
             COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = a.id AND type = 'transfer'), 0)
             as balance
      FROM accounts a
+     WHERE a.active = 1
      ORDER BY a.name`
   );
   return (result.values ?? []) as AccountBalance[];

@@ -212,7 +212,7 @@ router.get('/top-categories', asyncHandler(async (req, res) => {
 
 // GET /api/analytics/balances — fixed: single query per account instead of N+1
 router.get('/balances', asyncHandler(async (_req, res) => {
-  const accounts = await prisma.account.findMany({ orderBy: { name: 'asc' } });
+  const accounts = await prisma.account.findMany({ where: { active: true }, orderBy: { name: 'asc' } });
 
   // Single grouped query instead of 4 queries per account
   const [byAccount, transferIn] = await Promise.all([
