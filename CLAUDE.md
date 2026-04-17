@@ -1,5 +1,15 @@
 # TraceCash — Expense Tracker
 
+## 🚦 Git push policy — always ask first
+
+**Never `git push` without explicit user approval in the current turn.** Every push to `main` triggers the APK build workflow (`.github/workflows/build-apk.yml`), which costs GitHub Actions minutes and the user's time to review. It is not a free action.
+
+- Committing locally is fine — do it when the user says "commit" or a clear milestone is reached.
+- After committing, **stop** and ask: *"Ready to push to main (this will trigger the APK build)?"*
+- Only push after the user explicitly says yes (or types something like "push", "ship it", "go ahead").
+- If the user says "push" or "build" up-front for the whole task, that's standing approval — don't re-ask per commit.
+- Never `git push --force` or `git push` to any branch other than the current one without asking.
+
 ## ⚠️ Maintaining this file
 **This file is auto-loaded into every Claude session.** Keep it accurate or future agents will waste tokens re-learning things.
 
