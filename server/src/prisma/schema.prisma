@@ -106,6 +106,7 @@ model RecurringTransaction {
   recurrence_type String @db.VarChar(10)
   next_date       String @db.VarChar(10)
   active          Boolean @default(true)
+  auto_create     Boolean @default(true)
 
   @@map("recurring_transactions")
 }

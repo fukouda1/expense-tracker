@@ -35,10 +35,12 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
+      const activeVal = str(r, 'ACTIVE');
+      const isActive = activeVal === '' || (activeVal !== 'No' && activeVal !== '0' && activeVal !== 'false');
       const acc = await prisma.account.upsert({
         where: { name },
-        create: { name, icon: str(r, 'ICON') || '💰', color: str(r, 'COLOR') || '#10b981', initial_balance: num(r, 'INITIAL_BALANCE') },
-        update: {},
+        create: { name, icon: str(r, 'ICON') || '💰', color: str(r, 'COLOR') || '#10b981', initial_balance: num(r, 'INITIAL_BALANCE'), sort_order: int(r, 'SORT_ORDER'), active: isActive },
+        update: { active: isActive, sort_order: int(r, 'SORT_ORDER') || undefined },
       });
       accountIdMap.set(int(r, 'ID'), acc.id);
       result.accounts++;
@@ -55,10 +57,12 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
+      const catActiveVal = str(r, 'ACTIVE');
+      const catIsActive = catActiveVal === '' || (catActiveVal !== 'No' && catActiveVal !== '0' && catActiveVal !== 'false');
       const cat = await prisma.category.upsert({
         where: { name },
-        create: { name, icon: str(r, 'ICON') || '📦', color: str(r, 'COLOR') || '#6b7280', type: str(r, 'TYPE') || 'expense' },
-        update: {},
+        create: { name, icon: str(r, 'ICON') || '📦', color: str(r, 'COLOR') || '#6b7280', type: str(r, 'TYPE') || 'expense', sort_order: int(r, 'SORT_ORDER'), active: catIsActive },
+        update: { active: catIsActive, sort_order: int(r, 'SORT_ORDER') || undefined },
       });
       catIdMap.set(int(r, 'ID'), cat.id);
       result.categories++;
@@ -74,10 +78,12 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
+      const tagActiveVal = str(r, 'ACTIVE');
+      const tagIsActive = tagActiveVal === '' || (tagActiveVal !== 'No' && tagActiveVal !== '0' && tagActiveVal !== 'false');
       const tag = await prisma.tag.upsert({
         where: { name },
-        create: { name, color: str(r, 'COLOR') || '#3b82f6' },
-        update: {},
+        create: { name, color: str(r, 'COLOR') || '#3b82f6', sort_order: int(r, 'SORT_ORDER'), active: tagIsActive },
+        update: { active: tagIsActive, sort_order: int(r, 'SORT_ORDER') || undefined },
       });
       tagNameMap.set(name, tag.id);
       result.tags++;
@@ -122,6 +128,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
           recurrence_type: str(r, 'RECURRENCE') || str(r, 'RECURRENCE_TYPE') || 'monthly',
           next_date: str(r, 'NEXT_DATE'),
           active: str(r, 'ACTIVE') !== 'No' && str(r, 'ACTIVE') !== '0',
+          auto_create: (() => { const v = str(r, 'AUTO_CREATE'); return v === '' || (v !== 'No' && v !== '0' && v !== 'false'); })(),
         },
       });
       result.recurring++;

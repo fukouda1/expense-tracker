@@ -11,20 +11,20 @@ router.get('/xlsx', async (_req, res) => {
   // ── Accounts ──
   const accounts = await prisma.account.findMany({ orderBy: { sort_order: 'asc' } });
   const accData = accounts.map(a => ({
-    ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance, SORT_ORDER: a.sort_order,
+    ID: a.id, NAME: a.name, ICON: a.icon, COLOR: a.color, INITIAL_BALANCE: a.initial_balance, SORT_ORDER: a.sort_order, ACTIVE: a.active ? 'Yes' : 'No',
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(accData), 'Accounts');
 
   // ── Categories ──
   const categories = await prisma.category.findMany({ orderBy: { sort_order: 'asc' } });
   const catData = categories.map(c => ({
-    ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type, SORT_ORDER: c.sort_order,
+    ID: c.id, NAME: c.name, ICON: c.icon, COLOR: c.color, TYPE: c.type, SORT_ORDER: c.sort_order, ACTIVE: c.active ? 'Yes' : 'No',
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(catData), 'Categories');
 
   // ── Tags ──
   const tags = await prisma.tag.findMany({ orderBy: { sort_order: 'asc' } });
-  const tagData = tags.map(t => ({ ID: t.id, NAME: t.name, COLOR: t.color, SORT_ORDER: t.sort_order }));
+  const tagData = tags.map(t => ({ ID: t.id, NAME: t.name, COLOR: t.color, SORT_ORDER: t.sort_order, ACTIVE: t.active ? 'Yes' : 'No' }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tagData.length ? tagData : [{ ID: '', NAME: '', COLOR: '' }]), 'Tags');
 
   // ── Budgets ──
@@ -40,6 +40,7 @@ router.get('/xlsx', async (_req, res) => {
     ID: r.id, AMOUNT: r.amount, TYPE: r.type, CATEGORY_ID: r.category_id,
     ACCOUNT_ID: r.account_id, NOTES: r.notes, RECURRENCE: r.recurrence_type,
     NEXT_DATE: r.next_date, ACTIVE: r.active ? 'Yes' : 'No',
+    AUTO_CREATE: r.auto_create ? 'Yes' : 'No',
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(recData.length ? recData : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
 

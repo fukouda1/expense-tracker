@@ -375,7 +375,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Recurring CRUD
   const addRecurring = async (r: Omit<RecurringTransaction, 'id' | 'active' | 'category_name' | 'account_name'>) => {
-    if (isNative) await repo.insertRecurring(r.amount, r.type, r.category_id, r.account_id, r.notes, r.recurrence_type, r.next_date);
+    if (isNative) await repo.insertRecurring(r.amount, r.type, r.category_id, r.account_id, r.notes, r.recurrence_type, r.next_date, r.auto_create ?? true);
     else await api.post('/api/recurring', r);
     await loadRecurring();
   };

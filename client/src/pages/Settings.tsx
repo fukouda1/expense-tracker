@@ -105,6 +105,7 @@ export default function Settings() {
   const [recNotes, setRecNotes] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceType>('monthly');
   const [recNextDate, setRecNextDate] = useState(new Date().toISOString().slice(0, 10));
+  const [recAutoCreate, setRecAutoCreate] = useState(true);
   const [editRecId, setEditRecId] = useState<number | null>(null);
 
   // CSV import
@@ -121,7 +122,8 @@ export default function Settings() {
     setTagName(''); setTagColor('#3b82f6'); setTagCategoryId('');
     setBudgetCatId(''); setBudgetAmount(''); setEditBudgetId(null);
     setRecAmount(''); setRecType('expense'); setRecCatId(''); setRecAccId(''); setRecNotes('');
-    setRecurrence('monthly'); setRecNextDate(new Date().toISOString().slice(0, 10)); setEditRecId(null);
+    setRecurrence('monthly'); setRecNextDate(new Date().toISOString().slice(0, 10));
+    setRecAutoCreate(true); setEditRecId(null);
   };
 
   const handleSaveCategory = async () => {
@@ -252,6 +254,7 @@ export default function Settings() {
       notes: recNotes,
       recurrence_type: recurrence,
       next_date: recNextDate,
+      auto_create: recAutoCreate,
     };
     try {
       if (editRecId) {
@@ -277,6 +280,7 @@ export default function Settings() {
     setRecNotes(r.notes);
     setRecurrence(r.recurrence_type);
     setRecNextDate(r.next_date);
+    setRecAutoCreate(r.auto_create ?? true);
     setModalType('recurring');
     setShowModal(true);
   };
@@ -412,6 +416,12 @@ export default function Settings() {
           if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
         } catch { /* ignore */ }
 
+        // AutoBackup sheet — preserve auto-backup enabled + last backup timestamp
+        try {
+          const autoBackup = localStorage.getItem('tracecash_auto_backup');
+          if (autoBackup) utils.book_append_sheet(wb, utils.json_to_sheet([{ DATA: autoBackup }]), 'AutoBackup');
+        } catch { /* ignore */ }
+
         // Receipts sheet — compressed thumbnails (200px)
         try {
           const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
@@ -470,6 +480,12 @@ export default function Settings() {
           const pin = localStorage.getItem('tracecash_pin');
           const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
           if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+        } catch { /* ignore */ }
+
+        // Add AutoBackup sheet
+        try {
+          const autoBackup = localStorage.getItem('tracecash_auto_backup');
+          if (autoBackup) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ DATA: autoBackup }]), 'AutoBackup');
         } catch { /* ignore */ }
 
         // Add Receipts sheet (thumbnails)
@@ -554,6 +570,11 @@ export default function Settings() {
           const tpls = localStorage.getItem('tracecash_templates_v2');
           if (tpls && tpls !== '[]') { csv += '[SHEET:Templates]\n"DATA"\n'; csv += `"${tpls.replace(/"/g, '""')}"\n`; }
         } catch { /* ignore */ }
+        // AutoBackup
+        try {
+          const autoBackup = localStorage.getItem('tracecash_auto_backup');
+          if (autoBackup) { csv += '[SHEET:AutoBackup]\n"DATA"\n'; csv += `"${autoBackup.replace(/"/g, '""')}"\n`; }
+        } catch { /* ignore */ }
         // Transactions
         csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
         for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
@@ -590,6 +611,11 @@ export default function Settings() {
         try {
           const tpls = localStorage.getItem('tracecash_templates_v2');
           if (tpls && tpls !== '[]') { csv += '[SHEET:Templates]\n"DATA"\n'; csv += `"${tpls.replace(/"/g, '""')}"\n`; }
+        } catch { /* ignore */ }
+        // AutoBackup
+        try {
+          const autoBackup = localStorage.getItem('tracecash_auto_backup');
+          if (autoBackup) { csv += '[SHEET:AutoBackup]\n"DATA"\n'; csv += `"${autoBackup.replace(/"/g, '""')}"\n`; }
         } catch { /* ignore */ }
         csv += '[SHEET:Transactions]\n"ID","DATE","TYPE","AMOUNT","CATEGORY","ACCOUNT","TO_ACCOUNT","NOTES","TAGS"\n';
         for (const t of allTx.sort((a, b) => a.date.localeCompare(b.date))) {
@@ -732,6 +758,11 @@ export default function Settings() {
             localStorage.setItem('tracecash_pin', String(pinSheet[0].PIN));
             localStorage.setItem('tracecash_pin_enabled', String(pinSheet[0].ENABLED ?? 'true'));
           }
+          // Restore auto-backup settings
+          const autoBackupSheet = sheets.get('AutoBackup');
+          if (autoBackupSheet?.[0]?.DATA) {
+            try { localStorage.setItem('tracecash_auto_backup', String(autoBackupSheet[0].DATA)); } catch { /* ignore */ }
+          }
           // Restore receipts (thumbnails)
           const receiptsSheet = sheets.get('Receipts');
           if (receiptsSheet && receiptsSheet.length > 0) {
@@ -810,6 +841,12 @@ export default function Settings() {
                   localStorage.setItem('tracecash_pin', String(rows[0].PIN));
                   localStorage.setItem('tracecash_pin_enabled', String(rows[0].ENABLED ?? 'true'));
                 }
+              }
+              // Restore auto-backup settings
+              const autoBackupSheet = wb.Sheets['AutoBackup'];
+              if (autoBackupSheet) {
+                const rows = XLSX.utils.sheet_to_json(autoBackupSheet) as any[];
+                if (rows[0]?.DATA) localStorage.setItem('tracecash_auto_backup', String(rows[0].DATA));
               }
             } catch { /* ignore localStorage restore errors */ }
           }
@@ -1404,6 +1441,7 @@ export default function Settings() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                            {r.auto_create === false && <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded px-1.5 py-0.5">🔔 Reminder</span>}
                             <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
                               {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
                             </p>
@@ -1432,6 +1470,7 @@ export default function Settings() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             {!r.active && <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded px-1.5 py-0.5">Inactive</span>}
+                            {r.auto_create === false && <span className="text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded px-1.5 py-0.5">🔔 Reminder</span>}
                             <p className={`text-sm font-medium truncate ${r.active ? 'text-gray-900 dark:text-white' : 'text-gray-500 line-through'}`}>
                               {r.amount === 0 ? 'Variable' : formatCurrency(r.amount)} — {r.category_name ?? r.type}
                             </p>
@@ -1586,6 +1625,22 @@ export default function Settings() {
             <option value="yearly">Yearly</option>
           </select>
           <input type="date" value={recNextDate} onChange={e => setRecNextDate(e.target.value)} className={inputClass} />
+          <label className="flex items-start gap-2 p-2.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl cursor-pointer">
+            <input
+              type="checkbox"
+              checked={recAutoCreate}
+              onChange={e => setRecAutoCreate(e.target.checked)}
+              className="w-4 h-4 mt-0.5 accent-emerald-500 flex-shrink-0"
+            />
+            <div className="flex-1">
+              <p className="text-xs font-medium text-gray-800 dark:text-gray-200">Auto-create on due date</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                {recAutoCreate
+                  ? 'A transaction will be created automatically when the due date arrives.'
+                  : 'Reminder only — you\'ll tap + Add manually when due.'}
+              </p>
+            </div>
+          </label>
           <button onClick={handleSaveRecurring} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
       </Modal>

@@ -14,6 +14,7 @@ function normalizeBooleans<T>(items: T[]): T[] {
   return items.map(item => {
     const obj = item as any;
     if ('active' in obj) obj.active = !!obj.active;
+    if ('auto_create' in obj) obj.auto_create = !!obj.auto_create;
     return obj as T;
   });
 }
@@ -598,19 +599,20 @@ export async function getRecurringTransactions(): Promise<RecurringTransaction[]
 
 export async function insertRecurring(
   amount: number, type: string, categoryId: number | null,
-  accountId: number, notes: string, recurrenceType: string, nextDate: string
+  accountId: number, notes: string, recurrenceType: string, nextDate: string,
+  autoCreate: boolean = true
 ): Promise<number> {
   const db = getDb();
   const result = await db.run(
-    `INSERT INTO recurring_transactions (amount, type, category_id, account_id, notes, recurrence_type, next_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [amount, type, categoryId, accountId, notes, recurrenceType, nextDate]
+    `INSERT INTO recurring_transactions (amount, type, category_id, account_id, notes, recurrence_type, next_date, auto_create)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [amount, type, categoryId, accountId, notes, recurrenceType, nextDate, autoCreate ? 1 : 0]
   );
   return result.changes?.lastId ?? 0;
 }
 
 export async function updateRecurring(
-  id: number, data: { amount?: number; type?: string; category_id?: number | null; account_id?: number; notes?: string; recurrence_type?: string; next_date?: string; active?: boolean }
+  id: number, data: { amount?: number; type?: string; category_id?: number | null; account_id?: number; notes?: string; recurrence_type?: string; next_date?: string; active?: boolean; auto_create?: boolean }
 ): Promise<void> {
   const db = getDb();
   const sets: string[] = [];
@@ -623,6 +625,7 @@ export async function updateRecurring(
   if (data.recurrence_type !== undefined) { sets.push('recurrence_type=?'); vals.push(data.recurrence_type); }
   if (data.next_date !== undefined) { sets.push('next_date=?'); vals.push(data.next_date); }
   if (data.active !== undefined) { sets.push('active=?'); vals.push(data.active ? 1 : 0); }
+  if (data.auto_create !== undefined) { sets.push('auto_create=?'); vals.push(data.auto_create ? 1 : 0); }
   if (sets.length === 0) return;
   vals.push(id);
   await db.run(`UPDATE recurring_transactions SET ${sets.join(', ')} WHERE id=?`, vals);
@@ -660,7 +663,7 @@ export async function processRecurringTransactions(): Promise<number> {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
   const result = await db.query(
-    'SELECT * FROM recurring_transactions WHERE active = 1 AND amount > 0 AND next_date <= ?',
+    'SELECT * FROM recurring_transactions WHERE active = 1 AND auto_create = 1 AND amount > 0 AND next_date <= ?',
     [today]
   );
   let count = 0;
@@ -738,11 +741,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
-      if (accountNameToId.has(name)) { result.accounts++; continue; }
+      const activeVal = str(r, 'ACTIVE');
+      const isActive = activeVal === '' || (activeVal !== 'No' && activeVal !== '0' && activeVal !== 'false') ? 1 : 0;
+      if (accountNameToId.has(name)) {
+        await db.run('UPDATE accounts SET active=?, sort_order=? WHERE name=?', [isActive, num(r, 'SORT_ORDER') || index, name]);
+        result.accounts++; continue;
+      }
       const sortOrder = num(r, 'SORT_ORDER') || index;
       const res = await db.run(
-        'INSERT INTO accounts (name, icon, color, initial_balance, sort_order) VALUES (?, ?, ?, ?, ?)',
-        [name, str(r, 'ICON') || '💰', str(r, 'COLOR') || '#10b981', num(r, 'INITIAL_BALANCE'), sortOrder]
+        'INSERT INTO accounts (name, icon, color, initial_balance, sort_order, active) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, str(r, 'ICON') || '💰', str(r, 'COLOR') || '#10b981', num(r, 'INITIAL_BALANCE'), sortOrder, isActive]
       );
       accountNameToId.set(name, res.changes?.lastId ?? 0);
       result.accounts++;
@@ -763,11 +771,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
-      if (catNameToId.has(name)) { result.categories++; continue; }
+      const catActiveVal = str(r, 'ACTIVE');
+      const catIsActive = catActiveVal === '' || (catActiveVal !== 'No' && catActiveVal !== '0' && catActiveVal !== 'false') ? 1 : 0;
+      if (catNameToId.has(name)) {
+        await db.run('UPDATE categories SET active=?, sort_order=? WHERE name=?', [catIsActive, num(r, 'SORT_ORDER') || ci, name]);
+        result.categories++; continue;
+      }
       const sortOrder = num(r, 'SORT_ORDER') || ci;
       const res = await db.run(
-        'INSERT INTO categories (name, icon, color, type, sort_order) VALUES (?, ?, ?, ?, ?)',
-        [name, str(r, 'ICON') || '📦', str(r, 'COLOR') || '#6b7280', str(r, 'TYPE') || 'expense', sortOrder]
+        'INSERT INTO categories (name, icon, color, type, sort_order, active) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, str(r, 'ICON') || '📦', str(r, 'COLOR') || '#6b7280', str(r, 'TYPE') || 'expense', sortOrder, catIsActive]
       );
       catNameToId.set(name, res.changes?.lastId ?? 0);
       result.categories++;
@@ -787,11 +800,16 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     const name = str(r, 'NAME');
     if (!name) continue;
     try {
-      if (tagNameToId.has(name)) { result.tags++; continue; }
+      const tagActiveVal = str(r, 'ACTIVE');
+      const tagIsActive = tagActiveVal === '' || (tagActiveVal !== 'No' && tagActiveVal !== '0' && tagActiveVal !== 'false') ? 1 : 0;
+      if (tagNameToId.has(name)) {
+        await db.run('UPDATE tags SET active=?, sort_order=? WHERE name=?', [tagIsActive, num(r, 'SORT_ORDER') || ti, name]);
+        result.tags++; continue;
+      }
       const sortOrder = num(r, 'SORT_ORDER') || ti;
       const res = await db.run(
-        'INSERT INTO tags (name, color, sort_order) VALUES (?, ?, ?)',
-        [name, str(r, 'COLOR') || '#3b82f6', sortOrder]
+        'INSERT INTO tags (name, color, sort_order, active) VALUES (?, ?, ?, ?)',
+        [name, str(r, 'COLOR') || '#3b82f6', sortOrder, tagIsActive]
       );
       tagNameToId.set(name, res.changes?.lastId ?? 0);
       result.tags++;
@@ -843,9 +861,11 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
       const accId = oldAccIdToNew.get(oldAccId) ?? oldAccId ?? 1;
       const catId = oldCatId ? (oldCatIdToNew.get(oldCatId) ?? oldCatId) : null;
       const active = str(r, 'ACTIVE') === 'No' ? 0 : 1;
+      const autoCreateVal = str(r, 'AUTO_CREATE');
+      const autoCreate = autoCreateVal === '' || (autoCreateVal !== 'No' && autoCreateVal !== '0' && autoCreateVal !== 'false') ? 1 : 0;
       await db.run(
-        'INSERT INTO recurring_transactions (amount, type, category_id, account_id, notes, recurrence_type, next_date, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [amount, str(r, 'TYPE') || 'expense', catId, accId, str(r, 'NOTES'), str(r, 'RECURRENCE') || 'monthly', str(r, 'NEXT_DATE'), active]
+        'INSERT INTO recurring_transactions (amount, type, category_id, account_id, notes, recurrence_type, next_date, active, auto_create) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [amount, str(r, 'TYPE') || 'expense', catId, accId, str(r, 'NOTES'), str(r, 'RECURRENCE') || 'monthly', str(r, 'NEXT_DATE'), active, autoCreate]
       );
       result.recurring++;
     } catch (e: any) { result.errors.push(`Recurring: ${e.message}`); }

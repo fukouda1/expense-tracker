@@ -75,6 +75,7 @@ export interface RecurringTransaction {
   recurrence_type: RecurrenceType;
   next_date: string;
   active: boolean;
+  auto_create: boolean;
   category_name?: string;
   account_name?: string;
 }

@@ -25,7 +25,7 @@ router.get('/', asyncHandler(async (_req, res) => {
 }));
 
 router.post('/', asyncHandler(async (req, res) => {
-  const { amount, type, category_id, account_id, notes, recurrence_type, next_date } = req.body;
+  const { amount, type, category_id, account_id, notes, recurrence_type, next_date, auto_create } = req.body;
 
   if (amount === undefined || isNaN(Number(amount)) || Number(amount) < 0) {
     res.status(400).json({ error: 'amount must be a non-negative number (0 = variable)' }); return;
@@ -49,6 +49,7 @@ router.post('/', asyncHandler(async (req, res) => {
       category_id: category_id ? Number(category_id) : null,
       account_id: Number(account_id),
       notes: notes ?? '', recurrence_type, next_date,
+      auto_create: auto_create === undefined ? true : Boolean(auto_create),
     },
   });
   res.json(item);
@@ -61,7 +62,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const existing = await prisma.recurringTransaction.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ error: 'Recurring transaction not found' }); return; }
 
-  const { amount, type, category_id, account_id, notes, recurrence_type, next_date, active } = req.body;
+  const { amount, type, category_id, account_id, notes, recurrence_type, next_date, active, auto_create } = req.body;
 
   if (amount !== undefined && (isNaN(Number(amount)) || Number(amount) < 0)) {
     res.status(400).json({ error: 'amount must be a non-negative number (0 = variable)' }); return;
@@ -82,6 +83,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   if (recurrence_type !== undefined) data.recurrence_type = recurrence_type;
   if (next_date !== undefined) data.next_date = next_date;
   if (active !== undefined) data.active = Boolean(active);
+  if (auto_create !== undefined) data.auto_create = Boolean(auto_create);
 
   const item = await prisma.recurringTransaction.update({ where: { id }, data });
   res.json(item);

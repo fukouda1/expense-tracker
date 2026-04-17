@@ -88,6 +88,7 @@ const CREATE_TABLES_SQL = [
     recurrence_type TEXT NOT NULL CHECK(recurrence_type IN ('daily','weekly','monthly','yearly')),
     next_date TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1,
+    auto_create INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (category_id) REFERENCES categories(id),
     FOREIGN KEY (account_id) REFERENCES accounts(id)
   )`,
@@ -106,6 +107,7 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE categories ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE recurring_transactions ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1`,
 ];
 
 // Initialize sort_order when ALL rows are still at default 0.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
@@ -8,10 +8,97 @@ import TransactionCard from '../components/TransactionCard';
 import { formatCurrency } from '../utils/formatters';
 import type { Account, AccountBalance, Transaction } from '../types';
 
+type ModalView = 'all' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+const VIEW_MODES: { key: ModalView; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'weekly', label: 'Week' },
+  { key: 'monthly', label: 'Month' },
+  { key: 'quarterly', label: 'Quarter' },
+  { key: 'yearly', label: 'Year' },
+];
+
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function currentMonthStr() { return new Date().toISOString().slice(0, 7); }
+
+function shiftDate(d: string, days: number): string {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+function shiftMonth(m: string, delta: number): string {
+  const [y, mo] = m.split('-').map(Number);
+  const d = new Date(y, mo - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getWeekStart(d: string): string {
+  const dt = new Date(d);
+  dt.setDate(dt.getDate() - dt.getDay());
+  return dt.toISOString().slice(0, 10);
+}
+
+function getQuarterStart(d: string): string {
+  const [y, m] = d.split('-').map(Number);
+  const qStart = Math.floor((m - 1) / 3) * 3 + 1;
+  return `${y}-${String(qStart).padStart(2, '0')}`;
+}
+
+function getInitialPeriod(mode: ModalView): string {
+  if (mode === 'weekly') return getWeekStart(todayStr());
+  if (mode === 'quarterly') return getQuarterStart(currentMonthStr());
+  if (mode === 'yearly') return currentMonthStr().split('-')[0];
+  return currentMonthStr();
+}
+
+function computeRange(mode: ModalView, period: string): { from: string; to: string } | null {
+  if (mode === 'all') return null;
+  if (mode === 'weekly') {
+    return { from: period, to: shiftDate(period, 6) + 'T23:59:59' };
+  }
+  if (mode === 'monthly') {
+    const [y, m] = period.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { from: `${period}-01`, to: `${period}-${String(lastDay).padStart(2, '0')}T23:59:59` };
+  }
+  if (mode === 'quarterly') {
+    const endMonth = shiftMonth(period, 2);
+    const [y, m] = endMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return { from: `${period}-01`, to: `${endMonth}-${String(lastDay).padStart(2, '0')}T23:59:59` };
+  }
+  if (mode === 'yearly') {
+    return { from: `${period}-01-01`, to: `${period}-12-31T23:59:59` };
+  }
+  return null;
+}
+
+function computeLabel(mode: ModalView, period: string): string {
+  if (mode === 'all') return 'All Time';
+  if (mode === 'weekly') {
+    const end = shiftDate(period, 6);
+    const f = new Date(period).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const t = new Date(end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${f} – ${t}`;
+  }
+  if (mode === 'monthly') {
+    const [y, m] = period.split('-').map(Number);
+    return new Date(y, m - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+  if (mode === 'quarterly') {
+    const [y, m] = period.split('-').map(Number);
+    const q = Math.floor((m - 1) / 3) + 1;
+    return `Q${q} ${y}`;
+  }
+  if (mode === 'yearly') return period;
+  return period;
+}
+
 export default function Accounts() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { accounts, getAccountBalances, getTransactionsByDate, removeTransaction, refresh } = useData();
+  const { accounts, getAccountBalances, getTransactionsByDate, removeTransaction } = useData();
   const { showToast } = useToast();
 
   const [balances, setBalances] = useState<AccountBalance[]>([]);
@@ -19,6 +106,20 @@ export default function Accounts() {
   const [accountTxs, setAccountTxs] = useState<Transaction[]>([]);
   const [loadingTxs, setLoadingTxs] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
+
+  // Modal-local period filter — does NOT affect Dashboard or other pages.
+  // Initialize from URL params (so the filter survives navigation to edit and back).
+  const [modalView, setModalView] = useState<ModalView>(() => {
+    const v = params.get('view') as ModalView | null;
+    if (v && ['all', 'weekly', 'monthly', 'quarterly', 'yearly'].includes(v)) return v;
+    return 'monthly';
+  });
+  const [modalPeriod, setModalPeriod] = useState<string>(() => {
+    const v = params.get('view') as ModalView | null;
+    const p = params.get('period');
+    if (p) return p;
+    return getInitialPeriod(v && ['weekly', 'quarterly', 'yearly'].includes(v) ? v : 'monthly');
+  });
 
   useEffect(() => {
     getAccountBalances().then(setBalances);
@@ -45,6 +146,35 @@ export default function Accounts() {
     }
   };
 
+  const handleSetView = (m: ModalView) => {
+    setModalView(m);
+    if (m !== 'all') setModalPeriod(getInitialPeriod(m));
+  };
+
+  const goPrev = () => {
+    setModalPeriod(prev => {
+      if (modalView === 'weekly') return shiftDate(prev, -7);
+      if (modalView === 'monthly') return shiftMonth(prev, -1);
+      if (modalView === 'quarterly') return shiftMonth(prev, -3);
+      if (modalView === 'yearly') return String(Number(prev) - 1);
+      return prev;
+    });
+  };
+
+  const goNext = () => {
+    setModalPeriod(prev => {
+      if (modalView === 'weekly') return shiftDate(prev, 7);
+      if (modalView === 'monthly') return shiftMonth(prev, 1);
+      if (modalView === 'quarterly') return shiftMonth(prev, 3);
+      if (modalView === 'yearly') return String(Number(prev) + 1);
+      return prev;
+    });
+  };
+
+  const goToday = () => {
+    if (modalView !== 'all') setModalPeriod(getInitialPeriod(modalView));
+  };
+
   const handleDeleteTx = (tx: Transaction) => {
     setDeleteConfirm({ id: tx.id, name: tx.category_name ?? 'transaction' });
   };
@@ -65,11 +195,20 @@ export default function Accounts() {
   const totalBalance = balances.reduce((s, b) => s + b.balance, 0);
   const getBalance = (accId: number) => balances.find(b => b.account_id === accId)?.balance ?? 0;
 
+  // Filter transactions by active period range (null range = show all)
+  const periodTxs = useMemo(() => {
+    const range = computeRange(modalView, modalPeriod);
+    if (!range) return accountTxs;
+    return accountTxs.filter(t => t.date >= range.from && t.date <= range.to);
+  }, [accountTxs, modalView, modalPeriod]);
+
+  const periodLabel = computeLabel(modalView, modalPeriod);
+
   const selectedBalance = selectedAccount ? getBalance(selectedAccount.id) : 0;
-  const selectedIncome = accountTxs.filter(t => t.type === 'income' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
-  const selectedExpense = accountTxs.filter(t => t.type === 'expense' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
-  const selectedTransferOut = accountTxs.filter(t => t.type === 'transfer' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
-  const selectedTransferIn = accountTxs.filter(t => t.type === 'transfer' && t.to_account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
+  const selectedIncome = periodTxs.filter(t => t.type === 'income' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
+  const selectedExpense = periodTxs.filter(t => t.type === 'expense' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
+  const selectedTransferOut = periodTxs.filter(t => t.type === 'transfer' && t.account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
+  const selectedTransferIn = periodTxs.filter(t => t.type === 'transfer' && t.to_account_id === selectedAccount?.id).reduce((s, t) => s + t.amount, 0);
 
   return (
     <div className="px-4 pt-4 space-y-3">
@@ -141,29 +280,60 @@ export default function Accounts() {
               </div>
             </div>
 
+            {/* Date range filter — scoped to this modal, affects stats and tx list below */}
+            <div className="flex gap-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg p-1">
+              {VIEW_MODES.map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => handleSetView(m.key)}
+                  className={`flex-1 py-1 text-[10px] font-semibold rounded-md transition-colors ${
+                    modalView === m.key
+                      ? 'bg-emerald-500 text-white'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {modalView !== 'all' && (
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/30 rounded-lg px-1 py-1">
+                <button onClick={goPrev} className="px-2 py-1 text-gray-500 dark:text-gray-400 hover:text-emerald-500 text-base">‹</button>
+                <button onClick={goToday} className="flex-1 text-center text-xs font-semibold text-gray-900 dark:text-white">
+                  {periodLabel}
+                </button>
+                <button onClick={goNext} className="px-2 py-1 text-gray-500 dark:text-gray-400 hover:text-emerald-500 text-base">›</button>
+              </div>
+            )}
+
             <div className="space-y-1.5 max-h-[55vh] overflow-y-auto">
               <p className="text-[10px] text-gray-400 uppercase tracking-wider">
-                {accountTxs.length} transaction{accountTxs.length !== 1 ? 's' : ''}
+                {periodTxs.length} transaction{periodTxs.length !== 1 ? 's' : ''} · {periodLabel}
               </p>
               {loadingTxs ? (
                 <div className="text-center py-6">
                   <div className="w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 </div>
-              ) : accountTxs.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">No transactions</p>
+              ) : periodTxs.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">
+                  {modalView === 'all' ? 'No transactions' : 'No transactions in this period'}
+                </p>
               ) : (
-                accountTxs.slice(0, 150).map(t => (
-                  <TransactionCard
-                    key={t.id}
-                    transaction={t}
-                    onEdit={() => navigate(`/add?edit=${t.id}&returnTo=/accounts?openAccount=${selectedAccount.id}`)}
-                    onDelete={() => handleDeleteTx(t)}
-                  />
-                ))
+                periodTxs.slice(0, 150).map(t => {
+                  const returnTo = `/accounts?openAccount=${selectedAccount.id}&view=${modalView}&period=${encodeURIComponent(modalPeriod)}`;
+                  return (
+                    <TransactionCard
+                      key={t.id}
+                      transaction={t}
+                      onEdit={() => navigate(`/add?edit=${t.id}&returnTo=${encodeURIComponent(returnTo)}`)}
+                      onDelete={() => handleDeleteTx(t)}
+                    />
+                  );
+                })
               )}
-              {accountTxs.length > 150 && (
+              {periodTxs.length > 150 && (
                 <p className="text-[10px] text-gray-400 text-center py-2">
-                  Showing 150 of {accountTxs.length}
+                  Showing 150 of {periodTxs.length}
                 </p>
               )}
             </div>

@@ -40,6 +40,7 @@ export default function DebtTracker() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentAccountId, setPaymentAccountId] = useState<number>(accounts[0]?.id ?? 1);
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Mark full as paid confirm
@@ -89,14 +90,14 @@ export default function DebtTracker() {
 
     const peopleOwedMap = new Map<string, { lent: number; returned: number; transactions: typeof lentOut }>();
     for (const t of lentOut) {
-      const person = t.notes?.trim() || 'Unknown';
+      const person = (t.notes?.split('\n')[0] ?? '').trim() || 'Unknown';
       if (!peopleOwedMap.has(person)) peopleOwedMap.set(person, { lent: 0, returned: 0, transactions: [] });
       const entry = peopleOwedMap.get(person)!;
       entry.lent += t.amount;
       entry.transactions.push(t);
     }
     for (const t of lentReturned) {
-      const person = t.notes?.trim() || 'Unknown';
+      const person = (t.notes?.split('\n')[0] ?? '').trim() || 'Unknown';
       if (!peopleOwedMap.has(person)) peopleOwedMap.set(person, { lent: 0, returned: 0, transactions: [] });
       const entry = peopleOwedMap.get(person)!;
       entry.returned += t.amount;
@@ -105,14 +106,14 @@ export default function DebtTracker() {
 
     const peopleOweMap = new Map<string, { borrowed: number; paid: number; transactions: typeof debts }>();
     for (const t of debts) {
-      const person = t.notes?.trim() || 'Unknown';
+      const person = (t.notes?.split('\n')[0] ?? '').trim() || 'Unknown';
       if (!peopleOweMap.has(person)) peopleOweMap.set(person, { borrowed: 0, paid: 0, transactions: [] });
       const entry = peopleOweMap.get(person)!;
       entry.borrowed += t.amount;
       entry.transactions.push(t);
     }
     for (const t of debtPaid) {
-      const person = t.notes?.trim() || 'Unknown';
+      const person = (t.notes?.split('\n')[0] ?? '').trim() || 'Unknown';
       if (!peopleOweMap.has(person)) peopleOweMap.set(person, { borrowed: 0, paid: 0, transactions: [] });
       const entry = peopleOweMap.get(person)!;
       entry.paid += t.amount;
@@ -157,6 +158,11 @@ export default function DebtTracker() {
       const now = new Date();
       const dateStr = `${paymentDate}T${now.toTimeString().slice(0, 5)}`;
 
+      const trimmedNotes = paymentNotes.trim();
+      const combinedNotes = trimmedNotes
+        ? `${paymentModal.person}\n${trimmedNotes}`
+        : paymentModal.person;
+
       if (paymentModal.type === 'owed') {
         // They owe you → record as income (Lent Payment)
         await addTransaction({
@@ -166,7 +172,7 @@ export default function DebtTracker() {
           account_id: paymentAccountId,
           to_account_id: null,
           date: dateStr,
-          notes: paymentModal.person,
+          notes: combinedNotes,
         });
       } else {
         // You owe them → record as expense (Debt Payment)
@@ -177,7 +183,7 @@ export default function DebtTracker() {
           account_id: paymentAccountId,
           to_account_id: null,
           date: dateStr,
-          notes: paymentModal.person,
+          notes: combinedNotes,
         });
       }
 
@@ -189,6 +195,7 @@ export default function DebtTracker() {
       );
       setPaymentModal(null);
       setPaymentAmount('');
+      setPaymentNotes('');
       // Reload debt transactions to refresh debt data
       loadDebtTx();
     } catch (err) {
@@ -212,6 +219,7 @@ export default function DebtTracker() {
     });
     setPaymentAccountId(accounts[0]?.id ?? 1);
     setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentNotes('');
     setMarkPaidConfirm(null);
   };
 
@@ -220,6 +228,7 @@ export default function DebtTracker() {
     setPaymentAmount('');
     setPaymentAccountId(accounts[0]?.id ?? 1);
     setPaymentDate(new Date().toISOString().slice(0, 10));
+    setPaymentNotes('');
   };
 
   const inputClass = "w-full p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white";
@@ -332,20 +341,26 @@ export default function DebtTracker() {
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">History</p>
                   {d.transactions.sort((a, b) => b.date.localeCompare(a.date)).map(t => {
                     const isReturn = t.category_name === 'Lent Payment' || t.category_name === 'Debt Payment';
+                    const extraNote = (t.notes ?? '').split('\n').slice(1).join(' ').trim();
                     return (
                       <button
                         key={t.id}
                         onClick={() => navigate(`/add?edit=${t.id}&returnTo=/debts`)}
-                        className="w-full flex items-center justify-between text-[11px] py-1 px-1 -mx-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        className="w-full text-left text-[11px] py-1 px-1 -mx-1 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isReturn ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                          <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{formatDate(t.date)}</span>
-                          <span className="text-gray-400 dark:text-gray-500 text-[10px] truncate">{t.category_name}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isReturn ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            <span className="text-gray-500 dark:text-gray-400 flex-shrink-0">{formatDate(t.date)}</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-[10px] truncate">{t.category_name}</span>
+                          </div>
+                          <span className={`font-medium flex-shrink-0 ml-2 ${isReturn ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {isReturn ? '+' : '-'}{formatCurrency(t.amount)}
+                          </span>
                         </div>
-                        <span className={`font-medium flex-shrink-0 ml-2 ${isReturn ? 'text-emerald-500' : 'text-red-500'}`}>
-                          {isReturn ? '+' : '-'}{formatCurrency(t.amount)}
-                        </span>
+                        {extraNote && (
+                          <p className="text-[10px] text-gray-500 dark:text-gray-400 italic ml-3.5 mt-0.5 truncate">💬 {extraNote}</p>
+                        )}
                       </button>
                     );
                   })}
@@ -495,6 +510,17 @@ export default function DebtTracker() {
               </select>
             </div>
 
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes (optional)</label>
+              <textarea
+                value={paymentNotes}
+                onChange={e => setPaymentNotes(e.target.value)}
+                placeholder="e.g. offsetting, via GCash"
+                rows={2}
+                className={inputClass + ' resize-none'}
+              />
+            </div>
+
             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-2.5">
               <p className="text-[10px] text-blue-600 dark:text-blue-400">
                 {paymentModal.type === 'owed'
@@ -558,6 +584,17 @@ export default function DebtTracker() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes (optional)</label>
+              <textarea
+                value={paymentNotes}
+                onChange={e => setPaymentNotes(e.target.value)}
+                placeholder="e.g. offsetting, via GCash"
+                rows={2}
+                className={inputClass + ' resize-none'}
+              />
             </div>
 
             <button

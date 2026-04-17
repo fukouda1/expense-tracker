@@ -33,10 +33,13 @@ function cleanOldDismissals() {
   if (changed) localStorage.setItem(DISMISSED_KEY, JSON.stringify(d));
 }
 
+const DEFAULT_LIMIT = 10;
+
 export default function RecurringPreview() {
   const { recurring, loadRecurring } = useData();
   const navigate = useNavigate();
   const [upcoming, setUpcoming] = useState<UpcomingItem[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [dismissed, setDismissed] = useState<Record<string, number>>(getDismissed);
 
   useEffect(() => { loadRecurring(); cleanOldDismissals(); }, []);
@@ -75,7 +78,7 @@ export default function RecurringPreview() {
 
     items.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     const filtered = items.filter(item => !dismissed[`${item.id}-${item.dueDate}`]);
-    setUpcoming(filtered.slice(0, 10));
+    setUpcoming(filtered);
   }, [recurring, dismissed]);
 
   const handleDismiss = (id: number, dueDate: string) => {
@@ -117,19 +120,19 @@ export default function RecurringPreview() {
         })()}
       </div>
       <div className="space-y-2">
-        {upcoming.map((r, i) => {
+        {(showAll ? upcoming : upcoming.slice(0, DEFAULT_LIMIT)).map((r, i) => {
           const itemKey = `${r.id}-${r.dueDate}`;
           return (
-            <div key={`${itemKey}-${i}`} className={`flex items-center justify-between gap-1.5 ${r.isPast ? 'opacity-60' : ''}`}>
+            <div key={`${itemKey}-${i}`} className="flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                   r.isPast ? 'bg-gray-400' :
                   r.daysUntil === 0 ? 'bg-red-500' :
                   r.daysUntil <= 3 ? 'bg-amber-500' : 'bg-gray-300'
                 }`} />
-                <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
+                <span className={`text-xs truncate ${r.isPast ? 'text-gray-500 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}`}>
                   {r.category_name ?? r.type} · {r.account_name}
-                  {r.isPast && <span className="text-[9px] text-gray-400 ml-1">(done)</span>}
+                  {r.isPast && <span className="text-[9px] text-amber-500 ml-1">overdue</span>}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -141,16 +144,14 @@ export default function RecurringPreview() {
                    r.daysUntil === 0 ? 'Today' :
                    r.daysUntil === 1 ? 'Tmrw' : `${r.daysUntil}d`}
                 </span>
-                {/* Create transaction button */}
-                {!r.isPast && (
-                  <button
-                    onClick={() => handleCreate(r)}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
-                    title="Open Add Transaction with these details"
-                  >
-                    + Add
-                  </button>
-                )}
+                {/* Create transaction button — enabled for overdue too */}
+                <button
+                  onClick={() => handleCreate(r)}
+                  className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors"
+                  title="Open Add Transaction with these details"
+                >
+                  + Add
+                </button>
                 {/* Dismiss button */}
                 <button
                   onClick={() => handleDismiss(r.id, r.dueDate)}
@@ -164,6 +165,14 @@ export default function RecurringPreview() {
           );
         })}
       </div>
+      {upcoming.length > DEFAULT_LIMIT && (
+        <button
+          onClick={() => setShowAll(v => !v)}
+          className="mt-2 w-full text-[11px] text-emerald-500 hover:text-emerald-600 font-medium py-1"
+        >
+          {showAll ? 'Show less ▲' : `Show all ${upcoming.length} ▼`}
+        </button>
+      )}
     </div>
   );
 }
