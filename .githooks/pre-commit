@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# TraceCash pre-commit hook — warns about dual-mode drift.
+# Install once: git config core.hooksPath .githooks
+# Warnings only — never blocks the commit.
+
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+has() { echo "$staged" | grep -qE "$1"; }
+warn() {
+  # Yellow prefix on TTY, plain otherwise
+  if [ -t 2 ]; then printf "\033[33m⚠ %s\033[0m\n" "$1" >&2
+  else printf "WARNING: %s\n" "$1" >&2
+  fi
+}
+
+# 1. Dual-mode schema drift
+if has 'server/src/prisma/schema\.prisma$' && ! has 'client/src/local/database\.ts$'; then
+  warn "Prisma schema changed but client/src/local/database.ts did NOT."
+  warn "  The SQLite schema/migration likely needs the same change (see CLAUDE.md)."
+fi
+if has 'client/src/local/database\.ts$' && ! has 'server/src/prisma/schema\.prisma$'; then
+  warn "SQLite schema changed but server/src/prisma/schema.prisma did NOT."
+  warn "  The Prisma model likely needs the same change (see CLAUDE.md)."
+fi
+
+# 2. Repo <-> server route drift
+if has 'client/src/local/repository\.ts$' && ! has 'server/src/routes/'; then
+  warn "repository.ts changed but no server/src/routes/*.ts did."
+  warn "  If you added/changed a data function, the matching Prisma route probably needs updating too."
+fi
+if has 'server/src/routes/' && ! has 'client/src/local/repository\.ts$'; then
+  warn "server/src/routes/*.ts changed but client/src/local/repository.ts did not."
+  warn "  If you changed a data-access API, the native SQLite equivalent probably needs the same change."
+fi
+
+# 3. New TS types implies schema touch
+if has 'client/src/types/index\.ts$' && ! (has 'server/src/prisma/schema\.prisma$' || has 'client/src/local/database\.ts$'); then
+  warn "types/index.ts changed but neither schema.prisma nor database.ts did."
+  warn "  If you added a model field, both schemas typically need updating."
+fi
+
+# 4. CLAUDE.md freshness
+arch_touched=$(echo "$staged" | grep -cE '(server/src/prisma/schema\.prisma|client/src/local/database\.ts|client/src/contexts/DataContext\.tsx)$' || true)
+if [ "$arch_touched" -gt 0 ] && ! has '^CLAUDE\.md$'; then
+  warn "Architecture-level file(s) changed but CLAUDE.md was not updated."
+  warn "  Consider adding a note if this introduces a new convention (see top of CLAUDE.md)."
+fi
+
+exit 0

@@ -1,3 +1,16 @@
+/**
+ * Native (APK) data access layer — raw SQLite via @capacitor-community/sqlite.
+ *
+ * DUAL-MODE: every function here has a matching Prisma route in server/src/routes/*.ts.
+ * When adding a column or feature, update BOTH — see the Definition of Done checklist in CLAUDE.md.
+ *
+ * Conventions:
+ * - SQLite stores booleans as INTEGER 0/1. Use normalizeBooleans() on SELECT results.
+ *   When adding a new boolean column, add it to normalizeBooleans so isNative mode matches web.
+ * - Schema changes go in database.ts: CREATE TABLE (fresh installs) + MIGRATIONS_SQL (existing devices).
+ * - Tag/person/category joins done inline via subqueries (no ORM).
+ * - processRecurringTransactions runs on every app open (from DataContext.refresh) — keep it idempotent.
+ */
 import { getDb } from './database';
 import type {
   Transaction, Category, Account, Tag, Budget,

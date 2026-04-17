@@ -15,5 +15,7 @@ server/src/generated/
 .vscode/
 .idea/
 
-# Claude
-.claude/
+# Claude — ignore session state but track shared agent helpers (commands, launch config)
+.claude/*
+!.claude/commands/
+!.claude/launch.json

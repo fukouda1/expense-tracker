@@ -17,6 +17,7 @@ import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatter
 import { post } from '../services/api';
 import MonthPicker from '../components/MonthPicker';
 import * as repo from '../local/repository';
+import { appendBackupSheets, applyBackupSheetsToLocalStorage } from '../utils/backupSheets';
 import type { Category, Account, Budget, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
 
 interface ImportPreview {
@@ -397,62 +398,8 @@ export default function Settings() {
         }));
         utils.book_append_sheet(wb, utils.json_to_sheet(txData), 'Transactions');
 
-        // SettledDebts sheet — preserve dismissed/settled debt state
-        try {
-          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
-          if (dismissed.length) utils.book_append_sheet(wb, utils.json_to_sheet(dismissed.map(k => ({ KEY: k }))), 'SettledDebts');
-        } catch { /* ignore */ }
-
-        // Templates sheet — preserve quick templates
-        try {
-          const templates = JSON.parse(localStorage.getItem('tracecash_templates_v2') || '[]');
-          if (templates.length) utils.book_append_sheet(wb, utils.json_to_sheet([{ DATA: JSON.stringify(templates) }]), 'Templates');
-        } catch { /* ignore */ }
-
-        // PinLock sheet — preserve pin settings
-        try {
-          const pin = localStorage.getItem('tracecash_pin');
-          const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
-          const bio = localStorage.getItem('tracecash_biometric_enabled');
-          if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled, BIOMETRIC: bio }]), 'PinLock');
-        } catch { /* ignore */ }
-
-        // AutoBackup sheet — preserve auto-backup enabled + last backup timestamp
-        try {
-          const autoBackup = localStorage.getItem('tracecash_auto_backup');
-          if (autoBackup) utils.book_append_sheet(wb, utils.json_to_sheet([{ DATA: autoBackup }]), 'AutoBackup');
-        } catch { /* ignore */ }
-
-        // Receipts sheet — compressed thumbnails (200px)
-        try {
-          const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
-          const entries = Object.entries(receipts);
-          if (entries.length > 0) {
-            const thumbs: { KEY: string; THUMBNAIL: string }[] = [];
-            for (const [key, dataUrl] of entries) {
-              try {
-                // Resize to 200px thumbnail using canvas
-                const thumb = await new Promise<string>((resolve) => {
-                  const img = new Image();
-                  img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const maxSize = 200;
-                    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
-                    const ctx = canvas.getContext('2d')!;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.5));
-                  };
-                  img.onerror = () => resolve('');
-                  img.src = dataUrl;
-                });
-                if (thumb) thumbs.push({ KEY: key, THUMBNAIL: thumb });
-              } catch { /* skip this receipt */ }
-            }
-            if (thumbs.length > 0) utils.book_append_sheet(wb, utils.json_to_sheet(thumbs), 'Receipts');
-          }
-        } catch { /* ignore */ }
+        // Append all localStorage-backed sheets (SettledDebts, Templates, PinLock, AutoBackup, Receipts)
+        await appendBackupSheets(wb, utils);
 
         const wbOut = write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -464,61 +411,8 @@ export default function Settings() {
         const arrayBuffer = await response.arrayBuffer();
         const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
 
-        // Add SettledDebts sheet
-        try {
-          const dismissed = JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]') as string[];
-          if (dismissed.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dismissed.map(k => ({ KEY: k }))), 'SettledDebts');
-        } catch { /* ignore */ }
-
-        // Add Templates sheet
-        try {
-          const tpls = JSON.parse(localStorage.getItem('tracecash_templates_v2') || '[]');
-          if (tpls.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ DATA: JSON.stringify(tpls) }]), 'Templates');
-        } catch { /* ignore */ }
-
-        // Add PinLock sheet
-        try {
-          const pin = localStorage.getItem('tracecash_pin');
-          const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
-          const bio = localStorage.getItem('tracecash_biometric_enabled');
-          if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled, BIOMETRIC: bio }]), 'PinLock');
-        } catch { /* ignore */ }
-
-        // Add AutoBackup sheet
-        try {
-          const autoBackup = localStorage.getItem('tracecash_auto_backup');
-          if (autoBackup) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ DATA: autoBackup }]), 'AutoBackup');
-        } catch { /* ignore */ }
-
-        // Add Receipts sheet (thumbnails)
-        try {
-          const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
-          const entries = Object.entries(receipts);
-          if (entries.length > 0) {
-            const thumbs: { KEY: string; THUMBNAIL: string }[] = [];
-            for (const [key, dataUrl] of entries) {
-              try {
-                const thumb = await new Promise<string>((resolve) => {
-                  const img = new Image();
-                  img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const maxSize = 200;
-                    const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
-                    const ctx = canvas.getContext('2d')!;
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.5));
-                  };
-                  img.onerror = () => resolve('');
-                  img.src = dataUrl;
-                });
-                if (thumb) thumbs.push({ KEY: key, THUMBNAIL: thumb });
-              } catch { /* skip */ }
-            }
-            if (thumbs.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(thumbs), 'Receipts');
-          }
-        } catch { /* ignore */ }
+        // Append all localStorage-backed sheets (SettledDebts, Templates, PinLock, AutoBackup, Receipts)
+        await appendBackupSheets(wb, XLSX.utils);
 
         const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
         const fileName = `tracecash_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -743,44 +637,8 @@ export default function Settings() {
             sheets.set(name, XLSX.utils.sheet_to_json(wb.Sheets[name]) as Record<string, unknown>[]);
           }
           data = await repo.importFromSheets(sheets);
-          // Restore settled debts
-          const settledSheet = sheets.get('SettledDebts');
-          if (settledSheet) {
-            const keys = settledSheet.map(r => String(r.KEY || '')).filter(Boolean);
-            if (keys.length > 0) localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(keys));
-          }
-          // Restore templates
-          const templatesSheet = sheets.get('Templates');
-          if (templatesSheet?.[0]?.DATA) {
-            try { localStorage.setItem('tracecash_templates_v2', String(templatesSheet[0].DATA)); } catch { /* ignore */ }
-          }
-          // Restore pin lock
-          const pinSheet = sheets.get('PinLock');
-          if (pinSheet?.[0]?.PIN) {
-            localStorage.setItem('tracecash_pin', String(pinSheet[0].PIN));
-            localStorage.setItem('tracecash_pin_enabled', String(pinSheet[0].ENABLED ?? 'true'));
-            if (pinSheet[0].BIOMETRIC != null) {
-              localStorage.setItem('tracecash_biometric_enabled', String(pinSheet[0].BIOMETRIC));
-            }
-          }
-          // Restore auto-backup settings
-          const autoBackupSheet = sheets.get('AutoBackup');
-          if (autoBackupSheet?.[0]?.DATA) {
-            try { localStorage.setItem('tracecash_auto_backup', String(autoBackupSheet[0].DATA)); } catch { /* ignore */ }
-          }
-          // Restore receipts (thumbnails)
-          const receiptsSheet = sheets.get('Receipts');
-          if (receiptsSheet && receiptsSheet.length > 0) {
-            try {
-              const existing = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}');
-              for (const r of receiptsSheet) {
-                const key = String(r.KEY || '');
-                const thumb = String(r.THUMBNAIL || '');
-                if (key && thumb) existing[key] = thumb;
-              }
-              localStorage.setItem('tracecash_receipts', JSON.stringify(existing));
-            } catch { /* storage full */ }
-          }
+          // Restore all localStorage-backed settings (SettledDebts, Templates, PinLock, AutoBackup, Receipts)
+          applyBackupSheetsToLocalStorage(name => sheets.get(name));
         } else if (ext === 'csv') {
           const text = await importFile.text();
           if (text.includes('[SHEET:')) {
@@ -825,37 +683,10 @@ export default function Settings() {
               const XLSX = await import('xlsx');
               const buf = await importFile.arrayBuffer();
               const wb = XLSX.read(buf, { type: 'array' });
-              // Restore settled debts
-              const settledSheet = wb.Sheets['SettledDebts'];
-              if (settledSheet) {
-                const rows = XLSX.utils.sheet_to_json(settledSheet) as any[];
-                const keys = rows.map(r => String(r.KEY || '')).filter(Boolean);
-                if (keys.length) localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(keys));
-              }
-              // Restore templates
-              const tplSheet = wb.Sheets['Templates'];
-              if (tplSheet) {
-                const rows = XLSX.utils.sheet_to_json(tplSheet) as any[];
-                if (rows[0]?.DATA) localStorage.setItem('tracecash_templates_v2', String(rows[0].DATA));
-              }
-              // Restore pin lock
-              const pinSheet = wb.Sheets['PinLock'];
-              if (pinSheet) {
-                const rows = XLSX.utils.sheet_to_json(pinSheet) as any[];
-                if (rows[0]?.PIN) {
-                  localStorage.setItem('tracecash_pin', String(rows[0].PIN));
-                  localStorage.setItem('tracecash_pin_enabled', String(rows[0].ENABLED ?? 'true'));
-                  if (rows[0].BIOMETRIC != null) {
-                    localStorage.setItem('tracecash_biometric_enabled', String(rows[0].BIOMETRIC));
-                  }
-                }
-              }
-              // Restore auto-backup settings
-              const autoBackupSheet = wb.Sheets['AutoBackup'];
-              if (autoBackupSheet) {
-                const rows = XLSX.utils.sheet_to_json(autoBackupSheet) as any[];
-                if (rows[0]?.DATA) localStorage.setItem('tracecash_auto_backup', String(rows[0].DATA));
-              }
+              applyBackupSheetsToLocalStorage(name => {
+                const sheet = wb.Sheets[name];
+                return sheet ? (XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[]) : undefined;
+              });
             } catch { /* ignore localStorage restore errors */ }
           }
           if (data.transactions !== undefined) {

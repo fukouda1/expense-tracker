@@ -14,6 +14,8 @@ After you ship any change that:
 
 When in doubt, ask: *"If a new agent started tomorrow, would they find what they need in CLAUDE.md, or would they burn tokens re-discovering it?"* If the latter, add it.
 
+**When to split**: CLAUDE.md is loaded into context on every session, so every line costs tokens. Current target: keep under ~150 lines of dense content. If it grows past that, move the lowest-referenced section (usually "localStorage keys" or detailed conventions) into `docs/<topic>.md` and leave a one-line pointer here. Agents only pay the token cost for docs they actually read.
+
 ## Tech Stack
 - **Frontend**: React 19 + TypeScript + Vite 8 + Tailwind 4 + Recharts 3
 - **Mobile/APK**: Capacitor 8 + `@capacitor-community/sqlite` (raw SQL, no ORM)
@@ -32,6 +34,24 @@ Every data-touching feature has **two implementations** — forget one and the f
 | Export | `client/src/pages/Settings.tsx` builds XLSX locally from repo | Fetches `/api/export/xlsx` from `server/src/routes/export.ts` |
 
 Platform is detected with `Capacitor.isNativePlatform()`. The **only place that branches** between them is `client/src/contexts/DataContext.tsx`; everything above it is platform-agnostic. When adding a new field/feature, touch **all four cells** in the table above for that row.
+
+### Definition of Done — new column / field / data model
+Tick every box before you commit. Forgetting any one of these means the feature silently breaks on one platform.
+
+```
+☐ TS type updated in client/src/types/index.ts
+☐ Prisma schema updated (server/src/prisma/schema.prisma) + `npx prisma db push` + `npx prisma generate`
+☐ SQLite CREATE TABLE updated (client/src/local/database.ts) — for fresh installs
+☐ SQLite MIGRATIONS_SQL line added (client/src/local/database.ts) — for existing devices
+☐ Native repo insert/update/query functions updated (client/src/local/repository.ts)
+☐ Server route POST/PUT/GET updated (server/src/routes/<resource>.ts)
+☐ DataContext function signature threads the new field (client/src/contexts/DataContext.tsx)
+☐ Export includes the field (server/src/routes/export.ts for server, Settings.tsx XLSX builder for native)
+☐ Import reads the field back (server/src/services/csvImporter.ts for server, repository.importFromSheets for native)
+☐ Default value on missing import column matches the Prisma/SQLite default (for backward compat with old backups)
+☐ Both type-checks clean: `cd client && npx tsc --noEmit -p tsconfig.app.json` and `cd server && npx tsc --noEmit`
+☐ CLAUDE.md updated if this introduced a new convention or non-obvious pattern
+```
 
 ## Critical file map
 - `client/src/contexts/DataContext.tsx` — THE routing layer. Every component goes through here; do not import `repo` or `api` directly from components.
@@ -95,7 +115,20 @@ curl -s -X POST -F "file=@path/to/backup.xlsx" http://localhost:3001/api/import/
 
 # Sync Capacitor after adding a plugin
 cd client && npx cap sync android
+
+# Minimal fixture data (idempotent — safe to re-run)
+cd server && npm run seed:dev
 ```
+
+## Slash commands (`.claude/commands/`)
+Quick one-word shortcuts an agent or user can invoke:
+- `/reset-db` — truncates all MariaDB tables
+- `/reimport` — clear + re-import the newest `tracecash_backup_*.xlsx` from Downloads
+- `/typecheck` — runs both client & server TS checks in parallel
+- `/build-apk-local` — `npm run build` + `cap sync android`
+
+## Pre-commit hook
+`.githooks/pre-commit` warns (never blocks) on dual-mode drift: e.g. if `schema.prisma` changes without `database.ts`, or repo vs server routes. Install once: `git config core.hooksPath .githooks`.
 
 ## Tables
 `transactions`, `categories`, `accounts`, `tags`, `transaction_tags`, `budgets`, `recurring_transactions`, `audit_logs`. Every `categories/accounts/tags` row has `active: boolean` and `sort_order: int`. `recurring_transactions` additionally has `auto_create: boolean`.

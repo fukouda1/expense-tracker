@@ -1,3 +1,17 @@
+/**
+ * DataContext — THE platform routing layer.
+ *
+ * This is the ONE place in the app that branches between native (APK, local SQLite)
+ * and web (Express + Prisma). Every other component imports from here and stays
+ * platform-agnostic. Never import `repo` or `api` directly from components — go through this.
+ *
+ * When adding a new function:
+ *  1. Add to the DataContextType interface below.
+ *  2. Write the `if (isNative) await repo.X(...); else await api.<method>('/api/...', ...)` body.
+ *  3. Export it in the provider value at the bottom.
+ *
+ * Also triggers processRecurringTransactions on refresh (native only — web has no equivalent yet).
+ */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { Capacitor } from '@capacitor/core';
 import type {

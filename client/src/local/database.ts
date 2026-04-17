@@ -1,3 +1,14 @@
+/**
+ * SQLite schema + init for native (APK) mode. Paired with server/src/prisma/schema.prisma.
+ *
+ * When adding a column:
+ *  - Add it to the CREATE TABLE (so fresh installs get it)
+ *  - Also add an ALTER TABLE line to MIGRATIONS_SQL (so existing devices get it)
+ *  - Keep defaults in sync with Prisma so imports from either backend behave the same
+ *
+ * MIGRATIONS_SQL runs once per app open inside a try/catch — "column already exists"
+ * errors are silently swallowed, so it's safe to leave old ALTER lines in place.
+ */
 import { Capacitor } from '@capacitor/core';
 import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from '@capacitor-community/sqlite';
 
