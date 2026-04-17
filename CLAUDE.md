@@ -1,14 +1,15 @@
 # TraceCash — Expense Tracker
 
-## 🚦 Git push policy — always ask first
+## 🚦 Git push policy — wait for explicit "push" / "build"
 
-**Never `git push` without explicit user approval in the current turn.** Every push to `main` triggers the APK build workflow (`.github/workflows/build-apk.yml`), which costs GitHub Actions minutes and the user's time to review. It is not a free action.
+**Never `git push` until the user explicitly asks to push or build.** Every push to `main` triggers the APK build workflow (`.github/workflows/build-apk.yml`), which costs GitHub Actions minutes. The user often sends a second or third prompt after the first, and wants them all batched into one build.
 
-- Committing locally is fine — do it when the user says "commit" or a clear milestone is reached.
-- After committing, **stop** and ask: *"Ready to push to main (this will trigger the APK build)?"*
-- Only push after the user explicitly says yes (or types something like "push", "ship it", "go ahead").
-- If the user says "push" or "build" up-front for the whole task, that's standing approval — don't re-ask per commit.
-- Never `git push --force` or `git push` to any branch other than the current one without asking.
+Rules:
+- **Local commits are fine** when the user says "commit" or a clear milestone is reached, or when it naturally groups a set of changes. Make small, focused commits.
+- **Do NOT proactively ask "should I push now?" after each task.** The user may still be in the middle of thinking or queueing more work. Just finish the task, report what changed, and wait.
+- **Only push** when the user types something unambiguous: `push`, `build`, `ship`, `deploy`, `go`, or similar — and only in the turn they say it. One push can batch multiple prior commits.
+- **Never `git push --force`** or push to a branch other than `main`/current without explicit approval.
+- If the user explicitly says "don't commit / don't push yet," respect it until they release the hold.
 
 ## ⚠️ Maintaining this file
 **This file is auto-loaded into every Claude session.** Keep it accurate or future agents will waste tokens re-learning things.
