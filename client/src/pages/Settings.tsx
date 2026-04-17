@@ -413,7 +413,8 @@ export default function Settings() {
         try {
           const pin = localStorage.getItem('tracecash_pin');
           const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
-          if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+          const bio = localStorage.getItem('tracecash_biometric_enabled');
+          if (pin) utils.book_append_sheet(wb, utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled, BIOMETRIC: bio }]), 'PinLock');
         } catch { /* ignore */ }
 
         // AutoBackup sheet — preserve auto-backup enabled + last backup timestamp
@@ -479,7 +480,8 @@ export default function Settings() {
         try {
           const pin = localStorage.getItem('tracecash_pin');
           const pinEnabled = localStorage.getItem('tracecash_pin_enabled');
-          if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled }]), 'PinLock');
+          const bio = localStorage.getItem('tracecash_biometric_enabled');
+          if (pin) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ PIN: pin, ENABLED: pinEnabled, BIOMETRIC: bio }]), 'PinLock');
         } catch { /* ignore */ }
 
         // Add AutoBackup sheet
@@ -757,6 +759,9 @@ export default function Settings() {
           if (pinSheet?.[0]?.PIN) {
             localStorage.setItem('tracecash_pin', String(pinSheet[0].PIN));
             localStorage.setItem('tracecash_pin_enabled', String(pinSheet[0].ENABLED ?? 'true'));
+            if (pinSheet[0].BIOMETRIC != null) {
+              localStorage.setItem('tracecash_biometric_enabled', String(pinSheet[0].BIOMETRIC));
+            }
           }
           // Restore auto-backup settings
           const autoBackupSheet = sheets.get('AutoBackup');
@@ -840,6 +845,9 @@ export default function Settings() {
                 if (rows[0]?.PIN) {
                   localStorage.setItem('tracecash_pin', String(rows[0].PIN));
                   localStorage.setItem('tracecash_pin_enabled', String(rows[0].ENABLED ?? 'true'));
+                  if (rows[0].BIOMETRIC != null) {
+                    localStorage.setItem('tracecash_biometric_enabled', String(rows[0].BIOMETRIC));
+                  }
                 }
               }
               // Restore auto-backup settings

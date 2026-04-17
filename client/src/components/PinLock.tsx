@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { BiometricAuth, BiometryErrorType } from '@aparajita/capacitor-biometric-auth';
 
 const LS_PIN_ENABLED = 'tracecash_pin_enabled';
 const LS_PIN_HASH = 'tracecash_pin_hash';
 const LS_PIN_VERIFIED = 'tracecash_pin_verified';
+const LS_BIOMETRIC_ENABLED = 'tracecash_biometric_enabled';
+
+const isNative = Capacitor.isNativePlatform();
 
 /** Simple hash for PIN storage (not cryptographically secure, but sufficient for local lock) */
 function hashPin(pin: string): string {
@@ -44,18 +49,72 @@ export function isVerified(): boolean {
   return sessionStorage.getItem(LS_PIN_VERIFIED) === 'true';
 }
 
+export function isBiometricEnabled(): boolean {
+  return localStorage.getItem(LS_BIOMETRIC_ENABLED) === 'true';
+}
+
+export function setBiometricEnabled(enabled: boolean): void {
+  localStorage.setItem(LS_BIOMETRIC_ENABLED, enabled ? 'true' : 'false');
+}
+
+/** Check whether the device actually has biometric hardware + enrollment */
+export async function isBiometricAvailable(): Promise<boolean> {
+  if (!isNative) return false;
+  try {
+    const info = await BiometricAuth.checkBiometry();
+    return info.isAvailable;
+  } catch { return false; }
+}
+
+/** Prompt for biometric unlock. Returns true on success. */
+export async function tryBiometricAuth(reason = 'Unlock TraceCash'): Promise<boolean> {
+  if (!isNative) return false;
+  try {
+    await BiometricAuth.authenticate({
+      reason,
+      cancelTitle: 'Use PIN',
+      allowDeviceCredential: false,
+      iosFallbackTitle: 'Use PIN',
+      androidTitle: 'TraceCash',
+      androidSubtitle: reason,
+      androidConfirmationRequired: false,
+    });
+    return true;
+  } catch (err: any) {
+    // User cancelled, no match, lockout, etc. Fall back to PIN.
+    console.log('Biometric auth failed:', err?.code ?? err?.message ?? err);
+    return false;
+  }
+}
+
+export { BiometryErrorType };
+
 /** PIN entry overlay shown on app start when PIN lock is enabled */
 export default function PinLock({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [bioPrompted, setBioPrompted] = useState(false);
+
+  const tryBiometric = useCallback(async () => {
+    setBioPrompted(true);
+    const ok = await tryBiometricAuth('Unlock TraceCash');
+    if (ok) {
+      markVerified();
+      setLocked(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isPinEnabled() && !isVerified()) {
       setLocked(true);
+      // Auto-prompt biometric on first mount if enabled
+      if (isBiometricEnabled() && isNative) {
+        tryBiometric();
+      }
     }
-  }, []);
+  }, [tryBiometric]);
 
   const handleDigit = useCallback((digit: string) => {
     setError('');
@@ -155,6 +214,24 @@ export default function PinLock({ children }: { children: React.ReactNode }) {
         })}
       </div>
 
+      {/* Biometric retry button */}
+      {isNative && isBiometricEnabled() && bioPrompted && (
+        <button
+          onClick={tryBiometric}
+          className="mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-sm font-medium"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 11v3" />
+            <path d="M17.2 3.8A10 10 0 0 0 12 2a10 10 0 0 0-5.2 1.8" />
+            <path d="M6.8 3.8A10 10 0 0 0 2 12c0 5.5 4.5 10 10 10" />
+            <path d="M17.2 3.8A10 10 0 0 1 22 12" />
+            <path d="M12 22a10 10 0 0 0 4.8-1.8" />
+            <path d="M16 14v1a4 4 0 0 1-8 0v-3a4 4 0 0 1 8 0" />
+          </svg>
+          Use fingerprint
+        </button>
+      )}
+
       {/* Shake animation style */}
       <style>{`
         @keyframes shake {
@@ -177,10 +254,34 @@ export function PinLockSettings() {
   const [step, setStep] = useState<'enter' | 'confirm'>('enter');
   const [setupError, setSetupError] = useState('');
 
+  // Biometric state
+  const [bioEnabled, setBioEnabled] = useState(isBiometricEnabled());
+  const [bioAvailable, setBioAvailable] = useState(false);
+  useEffect(() => {
+    if (isNative) isBiometricAvailable().then(setBioAvailable);
+  }, [enabled]);
+
+  const handleBioToggle = async () => {
+    if (bioEnabled) {
+      setBiometricEnabled(false);
+      setBioEnabled(false);
+      return;
+    }
+    // Require a successful biometric auth before enabling (confirms device setup works)
+    const ok = await tryBiometricAuth('Confirm biometric to enable unlock');
+    if (ok) {
+      setBiometricEnabled(true);
+      setBioEnabled(true);
+    }
+  };
+
   const handleToggle = () => {
     if (enabled) {
       setPinEnabled(false);
       setEnabled(false);
+      // Disabling PIN also disables biometric (PIN is the fallback)
+      setBiometricEnabled(false);
+      setBioEnabled(false);
     } else {
       setShowSetup(true);
       setStep('enter');
@@ -246,6 +347,19 @@ export function PinLockSettings() {
           <div className={`w-5 h-5 bg-white rounded-full transition-transform ${enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
         </button>
       </div>
+
+      {/* Biometric toggle — only shows on native, when PIN is set and device has biometric hardware */}
+      {isNative && enabled && bioAvailable && (
+        <div className="flex items-center justify-between p-3 mt-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-500/40">
+          <div>
+            <span className="text-sm text-gray-900 dark:text-white">🔒 Unlock with fingerprint / face</span>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">PIN still works as a fallback</p>
+          </div>
+          <button onClick={handleBioToggle} className={`w-12 h-6 rounded-full transition-colors ${bioEnabled ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+            <div className={`w-5 h-5 bg-white rounded-full transition-transform ${bioEnabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+      )}
 
       {/* PIN Setup Modal */}
       {showSetup && (
