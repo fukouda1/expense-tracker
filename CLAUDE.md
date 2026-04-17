@@ -1,5 +1,19 @@
 # TraceCash — Expense Tracker
 
+## ⚠️ Maintaining this file
+**This file is auto-loaded into every Claude session.** Keep it accurate or future agents will waste tokens re-learning things.
+
+After you ship any change that:
+- adds/changes a database column, schema, or Prisma model,
+- introduces a new file that other features will depend on,
+- adds a new `localStorage` key or XLSX export sheet,
+- creates a new convention or non-obvious pattern (something a new agent wouldn't guess),
+- changes dev commands, ports, or infra,
+
+**update the relevant section of this file in the same commit.** Keep it dense — remove stale info rather than appending. If a section grows past ~20 lines, consider splitting into a dedicated doc under `docs/` and linking it here.
+
+When in doubt, ask: *"If a new agent started tomorrow, would they find what they need in CLAUDE.md, or would they burn tokens re-discovering it?"* If the latter, add it.
+
 ## Tech Stack
 - **Frontend**: React 19 + TypeScript + Vite 8 + Tailwind 4 + Recharts 3
 - **Mobile/APK**: Capacitor 8 + `@capacitor-community/sqlite` (raw SQL, no ORM)
