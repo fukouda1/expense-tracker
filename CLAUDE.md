@@ -95,6 +95,7 @@ Prefix: `tracecash_`. Key ones:
 - **sort_order** on accounts/categories/tags: `0` is the "uninitialized" sentinel. `INIT_SORT_ORDER_SQL` (client) and the GET endpoints (server) seed `sort_order=id` only when **all rows** are 0 — guarded by `MAX(sort_order)=0` so a user who has reordered doesn't get position-0 clobbered.
 - **Inactive accounts** are hidden from Dashboard total balance and Accounts page. Repo `WHERE a.active=1`, server `where: { active: true }`.
 - **AddTransaction returnTo URL** must `encodeURIComponent` the whole `returnTo` value so embedded `&` doesn't leak into the outer query string.
+- **QuickTemplates store BOTH name + ID** for categories and accounts (`client/src/components/QuickTemplates.tsx`). IDs are not portable across installs (DB re-assigns auto-increment IDs on re-import). The helpers `findEntryCategory` / `findEntryAccount` / `resolveEntryIds` prefer name, fall back to ID. If you add a new field to `TemplateEntry`, mirror the same pattern.
 - **Prisma client location**: `server/src/generated/prisma/` (custom output path). Always run `npx prisma generate` after schema changes. `npx prisma db push --accept-data-loss` to sync in dev.
 
 ## DisplayContext vs local period state

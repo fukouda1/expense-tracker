@@ -1,20 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useData } from '../contexts/DataContext';
 import { useToast } from './Toast';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import SortableList from './SortableList';
 import { formatCurrency } from '../utils/formatters';
-import type { TransactionType } from '../types';
+import type { TransactionType, Category, Account } from '../types';
 
 // ── Types ──
+//
+// NOTE: Templates are stored in localStorage and can be exported/imported across
+// installs. Numeric IDs are NOT portable because the DB reassigns auto-increment
+// IDs on a fresh install. We store both name + ID so that:
+//  - apply time prefers the NAME (stable across installs)
+//  - the legacy ID is kept as a fallback for older templates
+//
+// When saving a template, populate both fields. When applying, resolve by name
+// first; if that fails, try the ID. See resolveTemplateEntry() below.
 
 export interface TemplateEntry {
   amount: number;
   type: TransactionType;
   categoryId: number | null;
+  categoryName?: string | null;    // added: stable across installs
   accountId: number;
+  accountName?: string;            // added
   toAccountId?: number | null;
+  toAccountName?: string | null;   // added
   notes: string;
 }
 
@@ -36,19 +48,131 @@ function saveTemplates(templates: Template[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
 }
 
+/** Populate missing name fields on a TemplateEntry by looking up current IDs. Used when saving. */
+function enrichEntryWithNames(
+  entry: TemplateEntry,
+  categories: Category[],
+  accounts: Account[],
+): TemplateEntry {
+  const catName = entry.categoryId != null
+    ? categories.find(c => c.id === entry.categoryId)?.name ?? null
+    : null;
+  const accName = accounts.find(a => a.id === entry.accountId)?.name;
+  const toAccName = entry.toAccountId != null
+    ? accounts.find(a => a.id === entry.toAccountId)?.name ?? null
+    : null;
+  return {
+    ...entry,
+    categoryName: catName,
+    accountName: accName,
+    toAccountName: toAccName,
+  };
+}
+
+/** Look up the current Category for a template entry, preferring name over ID. Used for display. */
+export function findEntryCategory(entry: TemplateEntry, categories: Category[]): Category | undefined {
+  if (entry.categoryName) {
+    const byName = categories.find(c => c.name === entry.categoryName);
+    if (byName) return byName;
+  }
+  if (entry.categoryId != null) return categories.find(c => c.id === entry.categoryId);
+  return undefined;
+}
+
+/** Look up the current Account for a template entry by accountId/accountName, preferring name. */
+export function findEntryAccount(entry: TemplateEntry, accounts: Account[]): Account | undefined {
+  if (entry.accountName) {
+    const byName = accounts.find(a => a.name === entry.accountName);
+    if (byName) return byName;
+  }
+  return accounts.find(a => a.id === entry.accountId);
+}
+
+/** Look up the current toAccount for a template entry, preferring name. */
+export function findEntryToAccount(entry: TemplateEntry, accounts: Account[]): Account | undefined {
+  if (entry.toAccountName) {
+    const byName = accounts.find(a => a.name === entry.toAccountName);
+    if (byName) return byName;
+  }
+  if (entry.toAccountId != null) return accounts.find(a => a.id === entry.toAccountId);
+  return undefined;
+}
+
+/** Resolve a TemplateEntry to current DB IDs at apply time. Prefers name lookup (portable across installs). */
+function resolveEntryIds(
+  entry: TemplateEntry,
+  categories: Category[],
+  accounts: Account[],
+): { categoryId: number | null; accountId: number | null; toAccountId: number | null } {
+  // Category: prefer name, fall back to stored ID
+  let categoryId: number | null = null;
+  if (entry.categoryName) {
+    const found = categories.find(c => c.name === entry.categoryName);
+    if (found) categoryId = found.id;
+  }
+  if (categoryId == null && entry.categoryId != null) {
+    // Legacy template without name — use stored ID if a matching category still exists
+    const found = categories.find(c => c.id === entry.categoryId);
+    if (found) categoryId = found.id;
+  }
+
+  // Account: prefer name (account is required, not nullable)
+  let accountId: number | null = null;
+  if (entry.accountName) {
+    const found = accounts.find(a => a.name === entry.accountName);
+    if (found) accountId = found.id;
+  }
+  if (accountId == null) {
+    const found = accounts.find(a => a.id === entry.accountId);
+    if (found) accountId = found.id;
+  }
+
+  // toAccount: prefer name
+  let toAccountId: number | null = null;
+  if (entry.toAccountName) {
+    const found = accounts.find(a => a.name === entry.toAccountName);
+    if (found) toAccountId = found.id;
+  }
+  if (toAccountId == null && entry.toAccountId != null) {
+    const found = accounts.find(a => a.id === entry.toAccountId);
+    if (found) toAccountId = found.id;
+  }
+
+  return { categoryId, accountId, toAccountId };
+}
+
 // ── Hook ──
 
 export function useTemplates() {
+  const { categories, accounts } = useData();
   const [templates, setTemplates] = useState<Template[]>(loadTemplates);
 
+  // One-shot migration: once categories/accounts are loaded, backfill missing
+  // name fields on any legacy templates (saved before names were stored).
+  useEffect(() => {
+    if (categories.length === 0 || accounts.length === 0) return;
+    const needsMigration = templates.some(t =>
+      t.entries.some(e => e.categoryName === undefined || e.accountName === undefined)
+    );
+    if (!needsMigration) return;
+    const migrated = templates.map(t => ({
+      ...t,
+      entries: t.entries.map(e => enrichEntryWithNames(e, categories, accounts)),
+    }));
+    setTemplates(migrated);
+    saveTemplates(migrated);
+  }, [categories, accounts]);
+
   const addTemplate = (t: Omit<Template, 'id'>) => {
-    const updated = [...templates, { ...t, id: Date.now().toString() }];
+    const entries = t.entries.map(e => enrichEntryWithNames(e, categories, accounts));
+    const updated = [...templates, { ...t, entries, id: Date.now().toString() }];
     setTemplates(updated);
     saveTemplates(updated);
   };
 
   const updateTemplate = (id: string, data: Omit<Template, 'id'>) => {
-    const updated = templates.map(t => t.id === id ? { ...data, id } : t);
+    const entries = data.entries.map(e => enrichEntryWithNames(e, categories, accounts));
+    const updated = templates.map(t => t.id === id ? { ...data, entries, id } : t);
     setTemplates(updated);
     saveTemplates(updated);
   };
@@ -99,21 +223,32 @@ export function useApplyTemplate() {
   const apply = async (template: Template, date?: string) => {
     const dateStr = date || `${new Date().toISOString().slice(0, 10)}T${new Date().toTimeString().slice(0, 5)}`;
     let created = 0;
+    let skipped = 0;
     for (const entry of template.entries) {
+      const { categoryId, accountId, toAccountId } = resolveEntryIds(entry, categories, accounts);
+      if (accountId == null) {
+        // Account is required for any transaction — skip if name + ID both don't resolve.
+        console.warn(`Template entry skipped — account "${entry.accountName ?? entry.accountId}" not found`);
+        skipped++;
+        continue;
+      }
       try {
         await addTransaction({
           amount: entry.amount,
           type: entry.type,
-          category_id: entry.categoryId,
-          account_id: entry.accountId,
-          to_account_id: entry.toAccountId ?? null,
+          category_id: categoryId,
+          account_id: accountId,
+          to_account_id: toAccountId,
           date: dateStr,
           notes: entry.notes,
         });
         created++;
-      } catch (e) { console.error('Template entry failed:', e); }
+      } catch (e) { console.error('Template entry failed:', e); skipped++; }
     }
-    showToast(`Applied "${template.name}" — ${created} entries created`, 'success');
+    const msg = skipped > 0
+      ? `Applied "${template.name}" — ${created} created, ${skipped} skipped (missing account/category)`
+      : `Applied "${template.name}" — ${created} entries created`;
+    showToast(msg, skipped > 0 ? 'info' : 'success');
     return created;
   };
 
@@ -177,9 +312,9 @@ export default function QuickTemplateBar({ onApplied }: { onApplied?: () => void
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">This will create {applyConfirm.entries.length} entries:</p>
               <div className="space-y-2">
                 {applyConfirm.entries.map((e, i) => {
-                  const cat = categories.find(c => c.id === e.categoryId);
-                  const acc = accounts.find(a => a.id === e.accountId);
-                  const toAcc = e.toAccountId ? accounts.find(a => a.id === e.toAccountId) : null;
+                  const cat = findEntryCategory(e, categories);
+                  const acc = findEntryAccount(e, accounts);
+                  const toAcc = findEntryToAccount(e, accounts);
                   return (
                     <div key={i} className="flex items-center gap-2 text-xs bg-white dark:bg-gray-800 rounded-lg p-2 border border-gray-100 dark:border-gray-600">
                       <span className="text-base flex-shrink-0">{cat?.icon ?? (e.type === 'transfer' ? '🔄' : '📦')}</span>
@@ -343,8 +478,8 @@ export function TemplateManager() {
                 </div>
                 <div className="space-y-1">
                   {t.entries.map((e, i) => {
-                    const cat = categories.find(c => c.id === e.categoryId);
-                    const acc = accounts.find(a => a.id === e.accountId);
+                    const cat = findEntryCategory(e, categories);
+                    const acc = findEntryAccount(e, accounts);
                     return (
                       <div key={i} className="flex items-center justify-between text-[11px] bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
                         <div className="flex items-center gap-1.5">
