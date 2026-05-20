@@ -5,6 +5,11 @@ interface Props {
   children: ReactNode;
 }
 
+/** Current window scroll offset — the app scrolls the window, not an inner div (see Layout.tsx). */
+function getScrollTop(): number {
+  return window.scrollY || document.documentElement.scrollTop || 0;
+}
+
 export default function PullToRefresh({ onRefresh, children }: Props) {
   const [pulling, setPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -12,20 +17,33 @@ export default function PullToRefresh({ onRefresh, children }: Props) {
   const startY = useRef(0);
   const startX = useRef(0);
   const locked = useRef<'none' | 'vertical' | 'horizontal'>('none');
-  const containerRef = useRef<HTMLDivElement>(null);
   const threshold = 60;
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
+    // Only arm pull-to-refresh when the PAGE is scrolled to the very top.
+    // Critical: the window is the scroll container — checking a wrapper div's
+    // scrollTop (which is always 0 because it doesn't scroll) would arm the
+    // pull anywhere on the page and refresh mid-list on any downward drag.
+    if (getScrollTop() <= 0) {
       startY.current = e.touches[0].clientY;
       startX.current = e.touches[0].clientX;
       locked.current = 'none';
       setPulling(true);
+    } else {
+      setPulling(false);
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!pulling || refreshing) return;
+
+    // If the page has scrolled away from the top during the gesture, abort.
+    if (getScrollTop() > 0) {
+      setPulling(false);
+      setPullDistance(0);
+      return;
+    }
+
     const dy = e.touches[0].clientY - startY.current;
     const dx = e.touches[0].clientX - startX.current;
 
@@ -50,7 +68,7 @@ export default function PullToRefresh({ onRefresh, children }: Props) {
       return;
     }
 
-    if (pullDistance >= threshold && !refreshing) {
+    if (pulling && pullDistance >= threshold && !refreshing) {
       setRefreshing(true);
       setPullDistance(40);
       try { await onRefresh(); } finally {
@@ -66,7 +84,6 @@ export default function PullToRefresh({ onRefresh, children }: Props) {
 
   return (
     <div
-      ref={containerRef}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
