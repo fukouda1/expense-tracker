@@ -10,6 +10,7 @@ export interface Transaction {
   to_account_id: number | null;
   date: string; // ISO format YYYY-MM-DD HH:mm
   notes: string;
+  entrusted_fund_id?: number | null; // links to an EntrustedFund (null/absent for normal transactions)
   created_at: string;
   // Joined fields
   category_name?: string;
@@ -18,6 +19,15 @@ export interface Transaction {
   account_name?: string;
   to_account_name?: string;
   tags?: Tag[];
+}
+
+export interface EntrustedFund {
+  id: number;
+  name: string;
+  target_amount: number; // 0 = no target
+  notes: string;
+  closed: boolean;
+  created_at: string;
 }
 
 export interface Category {

@@ -50,19 +50,21 @@ model Tag {
 }
 
 model Transaction {
-  id            Int              @id @default(autoincrement())
-  amount        Float
-  type          String           @db.VarChar(10)
-  category_id   Int?
-  account_id    Int
-  to_account_id Int?
-  date          String           @db.VarChar(30)
-  notes         String           @default("") @db.Text
-  created_at    DateTime         @default(now())
-  category      Category?        @relation(fields: [category_id], references: [id])
-  account       Account          @relation("AccountFrom", fields: [account_id], references: [id])
-  to_account    Account?         @relation("AccountTo", fields: [to_account_id], references: [id])
-  tags          TransactionTag[]
+  id                Int              @id @default(autoincrement())
+  amount            Float
+  type              String           @db.VarChar(10)
+  category_id       Int?
+  account_id        Int
+  to_account_id     Int?
+  date              String           @db.VarChar(30)
+  notes             String           @default("") @db.Text
+  entrusted_fund_id Int?
+  created_at        DateTime         @default(now())
+  category          Category?        @relation(fields: [category_id], references: [id])
+  account           Account          @relation("AccountFrom", fields: [account_id], references: [id])
+  to_account        Account?         @relation("AccountTo", fields: [to_account_id], references: [id])
+  entrusted_fund    EntrustedFund?   @relation(fields: [entrusted_fund_id], references: [id])
+  tags              TransactionTag[]
 
   @@index([date])
   @@index([type])
@@ -70,7 +72,20 @@ model Transaction {
   @@index([account_id])
   @@index([date, type])
   @@index([account_id, date])
+  @@index([entrusted_fund_id])
   @@map("transactions")
+}
+
+model EntrustedFund {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(100)
+  target_amount Float         @default(0)
+  notes         String        @default("") @db.Text
+  closed        Boolean       @default(false)
+  created_at    DateTime      @default(now())
+  transactions  Transaction[]
+
+  @@map("entrusted_funds")
 }
 
 model TransactionTag {

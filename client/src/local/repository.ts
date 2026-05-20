@@ -15,7 +15,7 @@ import { getDb } from './database';
 import type {
   Transaction, Category, Account, Tag, Budget,
   RecurringTransaction, CategorySummary, MonthlySummary,
-  DailySummary, AccountBalance, TransactionFilters,
+  DailySummary, AccountBalance, TransactionFilters, EntrustedFund,
 } from '../types';
 
 type Row = Record<string, unknown>;
@@ -70,13 +70,13 @@ async function attachTagsToTransactions(txs: Transaction[]): Promise<Transaction
 export async function insertTransaction(
   amount: number, type: string, categoryId: number | null,
   accountId: number, toAccountId: number | null, date: string,
-  notes: string, tagIds: number[] = []
+  notes: string, tagIds: number[] = [], entrustedFundId: number | null = null
 ): Promise<number> {
   const db = getDb();
   const result = await db.run(
-    `INSERT INTO transactions (amount, type, category_id, account_id, to_account_id, date, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [amount, type, categoryId, accountId, toAccountId, date, notes]
+    `INSERT INTO transactions (amount, type, category_id, account_id, to_account_id, date, notes, entrusted_fund_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [amount, type, categoryId, accountId, toAccountId, date, notes, entrustedFundId]
   );
   const txId = result.changes?.lastId ?? 0;
   for (const tagId of tagIds) {
@@ -91,13 +91,13 @@ export async function insertTransaction(
 export async function updateTransaction(
   id: number, amount: number, type: string, categoryId: number | null,
   accountId: number, toAccountId: number | null, date: string,
-  notes: string, tagIds: number[] = []
+  notes: string, tagIds: number[] = [], entrustedFundId: number | null = null
 ): Promise<void> {
   const db = getDb();
   await db.run(
     `UPDATE transactions SET amount=?, type=?, category_id=?, account_id=?,
-     to_account_id=?, date=?, notes=? WHERE id=?`,
-    [amount, type, categoryId, accountId, toAccountId, date, notes, id]
+     to_account_id=?, date=?, notes=?, entrusted_fund_id=? WHERE id=?`,
+    [amount, type, categoryId, accountId, toAccountId, date, notes, entrustedFundId, id]
   );
   await db.run('DELETE FROM transaction_tags WHERE transaction_id=?', [id]);
   for (const tagId of tagIds) {
@@ -225,12 +225,18 @@ export async function searchTransactions(filters: TransactionFilters): Promise<T
 // ANALYTICS — SQL aggregation queries
 // ============================================================
 
+// Entrusted-fund money is not the user's own income/expense — exclude it from
+// income/expense/savings analytics. NULL-category rows are kept. `col` is the
+// fully-qualified category_id column (e.g. 'category_id' or 't.category_id').
+const exclEntrusted = (col: string) =>
+  `(${col} IS NULL OR ${col} NOT IN (SELECT id FROM categories WHERE name IN ('Entrusted Funds','Entrusted Spend','Entrusted Return')))`;
+
 export async function getTodayTotal(): Promise<{ income: number; expense: number }> {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
   const result = await db.query(
     `SELECT type, SUM(amount) as total FROM transactions
-     WHERE date LIKE ? || '%' AND type IN ('income','expense')
+     WHERE date LIKE ? || '%' AND type IN ('income','expense') AND ${exclEntrusted('category_id')}
      GROUP BY type`,
     [today]
   );
@@ -252,7 +258,7 @@ export async function getWeeklyTotal(): Promise<{ income: number; expense: numbe
 
   const result = await db.query(
     `SELECT type, SUM(amount) as total FROM transactions
-     WHERE date >= ? AND type IN ('income','expense')
+     WHERE date >= ? AND type IN ('income','expense') AND ${exclEntrusted('category_id')}
      GROUP BY type`,
     [startStr]
   );
@@ -269,7 +275,7 @@ export async function getMonthlyTotal(month?: string): Promise<{ income: number;
   const m = month ?? new Date().toISOString().slice(0, 7);
   const result = await db.query(
     `SELECT type, SUM(amount) as total FROM transactions
-     WHERE date LIKE ? || '%' AND type IN ('income','expense')
+     WHERE date LIKE ? || '%' AND type IN ('income','expense') AND ${exclEntrusted('category_id')}
      GROUP BY type`,
     [m]
   );
@@ -288,7 +294,7 @@ export async function getCategoryBreakdown(from: string, to: string): Promise<Ca
             c.color as category_color, SUM(t.amount) as total, COUNT(*) as count
      FROM transactions t
      JOIN categories c ON t.category_id = c.id
-     WHERE t.date >= ? AND t.date <= ? AND t.type = 'expense'
+     WHERE t.date >= ? AND t.date <= ? AND t.type = 'expense' AND ${exclEntrusted('t.category_id')}
      GROUP BY c.id
      ORDER BY total DESC`,
     [from, to]
@@ -305,7 +311,7 @@ export async function getMonthlyTrend(months = 12): Promise<MonthlySummary[]> {
             SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as total_income,
             SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as total_expense
      FROM transactions
-     WHERE type IN ('income','expense')
+     WHERE type IN ('income','expense') AND ${exclEntrusted('category_id')}
      GROUP BY substr(date, 1, 7)
      ORDER BY month DESC
      LIMIT ?`,
@@ -649,6 +655,74 @@ export async function deleteRecurring(id: number): Promise<void> {
   await db.run('DELETE FROM recurring_transactions WHERE id=?', [id]);
 }
 
+// ============================================================
+// ENTRUSTED FUNDS — money held on behalf of others for shared plans
+// ============================================================
+
+export async function getEntrustedFunds(): Promise<EntrustedFund[]> {
+  const db = getDb();
+  const result = await db.query('SELECT * FROM entrusted_funds ORDER BY closed ASC, created_at DESC');
+  return ((result.values ?? []) as Row[]).map(r => ({
+    id: Number(r.id),
+    name: String(r.name ?? ''),
+    target_amount: Number(r.target_amount ?? 0),
+    notes: String(r.notes ?? ''),
+    closed: !!r.closed,
+    created_at: String(r.created_at ?? ''),
+  }));
+}
+
+export async function insertEntrustedFund(
+  name: string, targetAmount: number, notes: string
+): Promise<number> {
+  const db = getDb();
+  const result = await db.run(
+    'INSERT INTO entrusted_funds (name, target_amount, notes) VALUES (?, ?, ?)',
+    [name, targetAmount, notes]
+  );
+  return result.changes?.lastId ?? 0;
+}
+
+export async function updateEntrustedFund(
+  id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }
+): Promise<void> {
+  const db = getDb();
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (data.name !== undefined) { sets.push('name=?'); vals.push(data.name); }
+  if (data.target_amount !== undefined) { sets.push('target_amount=?'); vals.push(data.target_amount); }
+  if (data.notes !== undefined) { sets.push('notes=?'); vals.push(data.notes); }
+  if (data.closed !== undefined) { sets.push('closed=?'); vals.push(data.closed ? 1 : 0); }
+  if (sets.length === 0) return;
+  vals.push(id);
+  await db.run(`UPDATE entrusted_funds SET ${sets.join(', ')} WHERE id=?`, vals);
+}
+
+/** Delete a fund. Throws if any transaction still references it. */
+export async function deleteEntrustedFund(id: number): Promise<void> {
+  const db = getDb();
+  const used = await db.query('SELECT COUNT(*) as c FROM transactions WHERE entrusted_fund_id=?', [id]);
+  const count = Number((used.values?.[0] as Row)?.c ?? 0);
+  if (count > 0) throw new Error(`Cannot delete: fund has ${count} transaction(s). Close it instead.`);
+  await db.run('DELETE FROM entrusted_funds WHERE id=?', [id]);
+}
+
+/** All transactions linked to any entrusted fund, joined with category/account names. */
+export async function getEntrustedTransactions(): Promise<Transaction[]> {
+  const db = getDb();
+  const result = await db.query(
+    `SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+            a.name as account_name, a2.name as to_account_name
+     FROM transactions t
+     LEFT JOIN categories c ON t.category_id = c.id
+     LEFT JOIN accounts a ON t.account_id = a.id
+     LEFT JOIN accounts a2 ON t.to_account_id = a2.id
+     WHERE t.entrusted_fund_id IS NOT NULL
+     ORDER BY t.date DESC, t.id DESC`
+  );
+  return (result.values ?? []) as Transaction[];
+}
+
 /** Advance a date by one recurrence period, clamping to last day of month */
 function advanceRecurrenceDate(dateStr: string, recurrenceType: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -884,6 +958,25 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     } catch (e: any) { result.errors.push(`Recurring: ${e.message}`); }
   }
 
+  // ── Entrusted Funds ──
+  const fundRows = sheets.get('EntrustedFunds') ?? [];
+  const fundNameToId = new Map<string, number>();
+  const existingFunds = await db.query('SELECT id, name FROM entrusted_funds');
+  for (const f of existingFunds.values ?? []) fundNameToId.set(String(f.name), Number(f.id));
+  for (const r of fundRows) {
+    const name = str(r, 'NAME');
+    if (!name) continue;
+    try {
+      if (fundNameToId.has(name)) continue;
+      const closed = str(r, 'CLOSED') === 'Yes' ? 1 : 0;
+      const res = await db.run(
+        'INSERT INTO entrusted_funds (name, target_amount, notes, closed) VALUES (?, ?, ?, ?)',
+        [name, num(r, 'TARGET_AMOUNT'), str(r, 'NOTES'), closed]
+      );
+      fundNameToId.set(name, res.changes?.lastId ?? 0);
+    } catch (e: any) { result.errors.push(`EntrustedFund "${name}": ${e.message}`); }
+  }
+
   // ── Transactions ──
   const txRows = sheets.get('Transactions') ?? [];
   if (txRows.length > 0 && txRows[0]) {
@@ -904,10 +997,12 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
       const toAccId = toAccName ? (accountNameToId.get(toAccName) ?? null) : null;
       const catName = str(r, 'CATEGORY');
       const catId = catName ? (catNameToId.get(catName) ?? null) : null;
+      const fundName = str(r, 'ENTRUSTED_FUND');
+      const fundId = fundName ? (fundNameToId.get(fundName) ?? null) : null;
 
       const txRes = await db.run(
-        'INSERT INTO transactions (amount, type, category_id, account_id, to_account_id, date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [amount, str(r, 'TYPE') || 'expense', catId, accId, toAccId, str(r, 'DATE'), str(r, 'NOTES')]
+        'INSERT INTO transactions (amount, type, category_id, account_id, to_account_id, date, notes, entrusted_fund_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [amount, str(r, 'TYPE') || 'expense', catId, accId, toAccId, str(r, 'DATE'), str(r, 'NOTES'), fundId]
       );
 
       // Tags

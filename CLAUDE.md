@@ -92,6 +92,7 @@ Prefix: `tracecash_`. Key ones:
 - **Debt tracking** uses the `notes` field as the person's name. Format: `{person}` or `{person}\n{userNotes}`. First line = grouping key; anything after `\n` = user annotation shown as a caption. Grouping code: `(t.notes?.split('\n')[0] ?? '').trim() || 'Unknown'`.
 - **Protected debt categories** (hard-coded in `server/src/routes/categories.ts` PROTECTED_NAMES): `Lent Money`, `Lent Payment`, `Debt`, `Debt Payment` — cannot be deleted/merged.
 - **Recurring transactions** have `auto_create` boolean. `false` = reminder only (shown in RecurringPreview, no auto-generation on app open). Processor query: `WHERE active=1 AND auto_create=1 AND amount>0 AND next_date<=today`.
+- **Entrusted Fund module** (`client/src/pages/EntrustedFund.tsx`, route `/entrusted`) — tracks money other people entrust to the user for shared plans. Backed by the `entrusted_funds` table + a nullable `entrusted_fund_id` column on `transactions`. Three protected categories: **"Entrusted Funds"** (income — a contribution; contributor name in `notes` first line), **"Entrusted Spend"** (expense — spent on the shared purpose), **"Entrusted Return"** (expense — money given back to a contributor; contributor name in `notes` first line, netted against their contribution). All are real transactions (account balances stay correct) but the **three entrusted categories are excluded** from Dashboard income/expense/savings and the analytics aggregations (`getTodayTotal/Weekly/Monthly`, category breakdown, trend) — see `exclEntrusted()` in repository.ts and `excludeEntrusted()`/`ENTRUSTED_CATEGORY_NAMES` in server analytics.ts. The module manages its own entries via in-modal CRUD (never routes to `/add`).
 - **sort_order** on accounts/categories/tags: `0` is the "uninitialized" sentinel. `INIT_SORT_ORDER_SQL` (client) and the GET endpoints (server) seed `sort_order=id` only when **all rows** are 0 — guarded by `MAX(sort_order)=0` so a user who has reordered doesn't get position-0 clobbered.
 - **Inactive accounts** are hidden from Dashboard total balance and Accounts page. Repo `WHERE a.active=1`, server `where: { active: true }`.
 - **AddTransaction returnTo URL** must `encodeURIComponent` the whole `returnTo` value so embedded `&` doesn't leak into the outer query string.
@@ -143,7 +144,7 @@ Quick one-word shortcuts an agent or user can invoke:
 `.githooks/pre-commit` warns (never blocks) on dual-mode drift: e.g. if `schema.prisma` changes without `database.ts`, or repo vs server routes. Install once: `git config core.hooksPath .githooks`.
 
 ## Tables
-`transactions`, `categories`, `accounts`, `tags`, `transaction_tags`, `budgets`, `recurring_transactions`, `audit_logs`. Every `categories/accounts/tags` row has `active: boolean` and `sort_order: int`. `recurring_transactions` additionally has `auto_create: boolean`.
+`transactions`, `categories`, `accounts`, `tags`, `transaction_tags`, `budgets`, `recurring_transactions`, `entrusted_funds`, `audit_logs`. Every `categories/accounts/tags` row has `active: boolean` and `sort_order: int`. `recurring_transactions` additionally has `auto_create: boolean`. `transactions` has a nullable `entrusted_fund_id` FK → `entrusted_funds`.
 
 ## Commit convention
 When committing, use a heredoc for formatting and end with:
@@ -158,5 +159,6 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>
 - Budgets with 80% / 100% threshold alerts.
 - Recurring transactions with auto-create / reminder modes.
 - Receipt photos (base64 in localStorage, keyed by date+amount+type).
+- Entrusted Fund module — track money held on behalf of others for shared plans (per-fund contributor breakdown, target, spending log).
 - PIN lock + optional biometric (fingerprint/face on APK).
 - Dark mode, Material 3 design, drag-and-drop reorder, swipeable cards, pull-to-refresh.

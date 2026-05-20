@@ -63,10 +63,21 @@ const CREATE_TABLES_SQL = [
     to_account_id INTEGER,
     date TEXT NOT NULL,
     notes TEXT NOT NULL DEFAULT '',
+    entrusted_fund_id INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (category_id) REFERENCES categories(id),
     FOREIGN KEY (account_id) REFERENCES accounts(id),
     FOREIGN KEY (to_account_id) REFERENCES accounts(id)
+  )`,
+
+  // Entrusted funds — money other people give the user to safekeep for shared plans
+  `CREATE TABLE IF NOT EXISTS entrusted_funds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    target_amount REAL NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    closed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
 
   // Transaction-Tags many-to-many
@@ -119,6 +130,15 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE recurring_transactions ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1`,
+  `ALTER TABLE transactions ADD COLUMN entrusted_fund_id INTEGER`,
+  `CREATE TABLE IF NOT EXISTS entrusted_funds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    target_amount REAL NOT NULL DEFAULT 0,
+    notes TEXT NOT NULL DEFAULT '',
+    closed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
 ];
 
 // Initialize sort_order when ALL rows are still at default 0.
@@ -152,6 +172,10 @@ const DEFAULT_CATEGORIES = [
   { name: 'Bonus', icon: '🎁', color: '#22c55e', type: 'income' },
   { name: 'Bank Interest', icon: '🏦', color: '#0ea5e9', type: 'income' },
   { name: 'Cash Back', icon: '💸', color: '#14b8a6', type: 'income' },
+  // Entrusted Fund module — protected system categories
+  { name: 'Entrusted Funds', icon: '🤝', color: '#0d9488', type: 'income' },
+  { name: 'Entrusted Spend', icon: '🤝', color: '#dc2626', type: 'expense' },
+  { name: 'Entrusted Return', icon: '↩️', color: '#f59e0b', type: 'expense' },
 ];
 
 const DEFAULT_ACCOUNTS = [

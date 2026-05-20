@@ -13,6 +13,7 @@ const moreItems = [
   { to: '/analytics', icon: '📊', label: 'Analytics' },
   { to: '/calendar', icon: '📅', label: 'Calendar' },
   { to: '/debts', icon: '💰', label: 'Debts' },
+  { to: '/entrusted', icon: '🤝', label: 'Entrusted' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
   { to: '/search', icon: '🔍', label: 'Search' },
 ];

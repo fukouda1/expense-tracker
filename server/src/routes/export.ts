@@ -44,6 +44,15 @@ router.get('/xlsx', async (_req, res) => {
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(recData.length ? recData : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
 
+  // ── Entrusted Funds ──
+  const funds = await prisma.entrustedFund.findMany({ orderBy: { id: 'asc' } });
+  const fundIdToName = new Map(funds.map(f => [f.id, f.name]));
+  const fundData = funds.map(f => ({
+    ID: f.id, NAME: f.name, TARGET_AMOUNT: f.target_amount, NOTES: f.notes,
+    CLOSED: f.closed ? 'Yes' : 'No', CREATED_AT: f.created_at.toISOString(),
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fundData.length ? fundData : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '' }]), 'EntrustedFunds');
+
   // ── Transactions ──
   const transactions = await prisma.transaction.findMany({
     include: { category: true, account: true, to_account: true, tags: { include: { tag: true } } },
@@ -59,6 +68,7 @@ router.get('/xlsx', async (_req, res) => {
     TO_ACCOUNT: t.to_account?.name ?? '',
     NOTES: t.notes,
     TAGS: t.tags.map(tt => tt.tag.name).join('; '),
+    ENTRUSTED_FUND: t.entrusted_fund_id != null ? (fundIdToName.get(t.entrusted_fund_id) ?? '') : '',
   }));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(txData), 'Transactions');
 

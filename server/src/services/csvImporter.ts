@@ -135,6 +135,27 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     } catch (e: any) { result.errors.push(`Recurring: ${e.message}`); }
   }
 
+  // ── Entrusted Funds ──
+  const fundRows = sheets.get('EntrustedFunds') ?? [];
+  const fundNameMap = new Map<string, number>();
+  for (const f of await prisma.entrustedFund.findMany()) fundNameMap.set(f.name, f.id);
+  for (const r of fundRows) {
+    const name = str(r, 'NAME');
+    if (!name) continue;
+    try {
+      if (fundNameMap.has(name)) continue;
+      const fund = await prisma.entrustedFund.create({
+        data: {
+          name,
+          target_amount: num(r, 'TARGET_AMOUNT'),
+          notes: str(r, 'NOTES'),
+          closed: str(r, 'CLOSED') === 'Yes',
+        },
+      });
+      fundNameMap.set(name, fund.id);
+    } catch (e: any) { result.errors.push(`EntrustedFund "${name}": ${e.message}`); }
+  }
+
   // ── Transactions ──
 
   const txRows = sheets.get('Transactions') ?? [];
@@ -150,6 +171,8 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
       const toAccId = toAccName ? (accountNameMap.get(toAccName) ?? null) : null;
       const catName = str(r, 'CATEGORY');
       const catId = catName ? (catNameMap.get(catName) ?? null) : null;
+      const fundName = str(r, 'ENTRUSTED_FUND');
+      const fundId = fundName ? (fundNameMap.get(fundName) ?? null) : null;
       const txType = str(r, 'TYPE') || 'expense';
       const txDate = str(r, 'DATE');
 
@@ -162,6 +185,7 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
           to_account_id: toAccId,
           date: txDate,
           notes: str(r, 'NOTES'),
+          entrusted_fund_id: fundId,
         },
       });
 

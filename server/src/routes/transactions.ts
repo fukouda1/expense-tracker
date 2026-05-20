@@ -69,6 +69,7 @@ router.get('/', asyncHandler(async (req, res) => {
     to_account_id: t.to_account_id,
     date: t.date,
     notes: t.notes,
+    entrusted_fund_id: t.entrusted_fund_id,
     created_at: t.created_at,
     category_name: t.category?.name ?? null,
     category_icon: t.category?.icon ?? null,
@@ -143,7 +144,7 @@ router.get('/search', asyncHandler(async (req, res) => {
 
 // POST /api/transactions
 router.post('/', asyncHandler(async (req, res) => {
-  const { amount, type, category_id, account_id, to_account_id, date, notes, tagIds } = req.body;
+  const { amount, type, category_id, account_id, to_account_id, date, notes, tagIds, entrusted_fund_id } = req.body;
 
   const err = validateTransaction(req.body);
   if (err) { res.status(400).json({ error: err }); return; }
@@ -168,6 +169,7 @@ router.post('/', asyncHandler(async (req, res) => {
       account_id: Number(account_id),
       to_account_id: to_account_id ? Number(to_account_id) : null,
       date, notes: notes ?? '',
+      entrusted_fund_id: entrusted_fund_id ? Number(entrusted_fund_id) : null,
       tags: tagIds?.length ? { create: tagIds.map((id: number) => ({ tag_id: id })) } : undefined,
     },
   });
@@ -180,7 +182,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: 'Invalid id' }); return; }
 
-  const { amount, type, category_id, account_id, to_account_id, date, notes, tagIds } = req.body;
+  const { amount, type, category_id, account_id, to_account_id, date, notes, tagIds, entrusted_fund_id } = req.body;
 
   const err = validateTransaction(req.body, true);
   if (err) { res.status(400).json({ error: err }); return; }
@@ -221,6 +223,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
       ...(to_account_id !== undefined ? { to_account_id: to_account_id ? Number(to_account_id) : null } : {}),
       ...(date !== undefined ? { date } : {}),
       ...(notes !== undefined ? { notes } : {}),
+      ...(entrusted_fund_id !== undefined ? { entrusted_fund_id: entrusted_fund_id ? Number(entrusted_fund_id) : null } : {}),
       tags: tagIds?.length ? { create: tagIds.map((id: number) => ({ tag_id: id })) } : undefined,
     },
   });
@@ -331,7 +334,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
   res.json({
     id: t.id, amount: t.amount, type: t.type,
     category_id: t.category_id, account_id: t.account_id, to_account_id: t.to_account_id,
-    date: t.date, notes: t.notes, created_at: t.created_at,
+    date: t.date, notes: t.notes, entrusted_fund_id: t.entrusted_fund_id, created_at: t.created_at,
     category_name: t.category?.name ?? null, category_icon: t.category?.icon ?? null,
     category_color: t.category?.color ?? null,
     account_name: t.account.name, to_account_name: t.to_account?.name ?? null,

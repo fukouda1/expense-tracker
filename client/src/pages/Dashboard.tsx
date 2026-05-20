@@ -74,7 +74,10 @@ export default function Dashboard() {
   useEffect(() => {
     const load = async () => {
       const { from, to } = getPeriodRange();
-      const [bals, txs] = await Promise.all([getAccountBalances(), getTransactionsByDate(from, to)]);
+      const [bals, allPeriodTxs] = await Promise.all([getAccountBalances(), getTransactionsByDate(from, to)]);
+      // Exclude entrusted-fund transactions — that money isn't the user's own income/expense.
+      // (Account balances still reflect the held cash; only the income/savings stats exclude it.)
+      const txs = allPeriodTxs.filter(t => t.category_name !== 'Entrusted Funds' && t.category_name !== 'Entrusted Spend' && t.category_name !== 'Entrusted Return');
       const income = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const expense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       setMonthlyTotal({ income, expense });

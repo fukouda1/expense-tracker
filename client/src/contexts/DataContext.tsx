@@ -17,7 +17,7 @@ import { Capacitor } from '@capacitor/core';
 import type {
   Transaction, Category, Account, Tag, Budget,
   RecurringTransaction, CategorySummary, MonthlySummary,
-  DailySummary, AccountBalance, TransactionFilters,
+  DailySummary, AccountBalance, TransactionFilters, EntrustedFund,
 } from '../types';
 import * as repo from '../local/repository';
 import * as api from '../services/api';
@@ -33,6 +33,7 @@ interface DataContextType {
   tags: Tag[];
   budgets: Budget[];
   recurring: RecurringTransaction[];
+  entrustedFunds: EntrustedFund[];
   loading: boolean;
   // Transaction CRUD
   addTransaction: (t: Omit<Transaction, 'id' | 'created_at'>, tagIds?: number[]) => Promise<void>;
@@ -76,6 +77,12 @@ interface DataContextType {
   addRecurring: (r: Omit<RecurringTransaction, 'id' | 'active' | 'category_name' | 'account_name'>) => Promise<void>;
   editRecurring: (id: number, data: Partial<Omit<RecurringTransaction, 'id' | 'category_name' | 'account_name'>>) => Promise<void>;
   removeRecurring: (id: number) => Promise<void>;
+  // Entrusted Funds
+  loadEntrustedFunds: () => Promise<void>;
+  addEntrustedFund: (name: string, targetAmount: number, notes: string) => Promise<void>;
+  editEntrustedFund: (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }) => Promise<void>;
+  removeEntrustedFund: (id: number) => Promise<void>;
+  getEntrustedTransactions: () => Promise<Transaction[]>;
   // Reorder
   reorderAccounts: (ids: number[]) => Promise<void>;
   reorderCategories: (ids: number[]) => Promise<void>;
@@ -97,6 +104,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
+  const [entrustedFunds, setEntrustedFunds] = useState<EntrustedFund[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadCategories = useCallback(async () => {
@@ -115,6 +123,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const res = await api.get<Account[]>('/api/accounts');
       setAccounts(res);
     }
+  }, []);
+
+  const loadEntrustedFunds = useCallback(async () => {
+    if (isNative) setEntrustedFunds(await repo.getEntrustedFunds());
+    else setEntrustedFunds(await api.get<EntrustedFund[]>('/api/entrusted-funds'));
   }, []);
 
   const loadTags = useCallback(async () => {
@@ -188,18 +201,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (isNative) {
         await repo.processRecurringTransactions();
       }
-      await Promise.all([loadCategories(), loadAccounts(), loadTags(), loadTransactions(), loadBudgets()]);
+      await Promise.all([loadCategories(), loadAccounts(), loadTags(), loadTransactions(), loadBudgets(), loadEntrustedFunds()]);
     } finally {
       setLoading(false);
     }
-  }, [loadCategories, loadAccounts, loadTags, loadTransactions, loadBudgets]);
+  }, [loadCategories, loadAccounts, loadTags, loadTransactions, loadBudgets, loadEntrustedFunds]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   // Transaction CRUD
   const addTransaction = async (t: Omit<Transaction, 'id' | 'created_at'>, tagIds: number[] = []) => {
     if (isNative) {
-      await repo.insertTransaction(t.amount, t.type, t.category_id, t.account_id, t.to_account_id, t.date, t.notes, tagIds);
+      await repo.insertTransaction(t.amount, t.type, t.category_id, t.account_id, t.to_account_id, t.date, t.notes, tagIds, t.entrusted_fund_id ?? null);
     } else {
       await api.post('/api/transactions', { ...t, tagIds });
     }
@@ -208,7 +221,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const editTransaction = async (t: Transaction, tagIds: number[] = []) => {
     if (isNative) {
-      await repo.updateTransaction(t.id, t.amount, t.type, t.category_id, t.account_id, t.to_account_id, t.date, t.notes, tagIds);
+      await repo.updateTransaction(t.id, t.amount, t.type, t.category_id, t.account_id, t.to_account_id, t.date, t.notes, tagIds, t.entrusted_fund_id ?? null);
     } else {
       await api.put(`/api/transactions/${t.id}`, { ...t, tagIds });
     }
@@ -407,6 +420,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await loadRecurring();
   };
 
+  // Entrusted Funds CRUD
+  const addEntrustedFund = async (name: string, targetAmount: number, notes: string) => {
+    if (isNative) await repo.insertEntrustedFund(name, targetAmount, notes);
+    else await api.post('/api/entrusted-funds', { name, target_amount: targetAmount, notes });
+    await loadEntrustedFunds();
+  };
+  const editEntrustedFund = async (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }) => {
+    if (isNative) await repo.updateEntrustedFund(id, data);
+    else await api.put(`/api/entrusted-funds/${id}`, data);
+    await loadEntrustedFunds();
+  };
+  const removeEntrustedFund = async (id: number) => {
+    if (isNative) await repo.deleteEntrustedFund(id);
+    else await api.del(`/api/entrusted-funds/${id}`);
+    await loadEntrustedFunds();
+  };
+  const getEntrustedTransactions = async (): Promise<Transaction[]> => {
+    if (isNative) return repo.getEntrustedTransactions();
+    return api.get<Transaction[]>('/api/analytics/entrusted-transactions');
+  };
+
   // Reorder
   const reorderAccounts = async (ids: number[]) => {
     if (isNative) await repo.reorderAccounts(ids);
@@ -450,7 +484,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      transactions, categories, accounts, tags, budgets, recurring, loading,
+      transactions, categories, accounts, tags, budgets, recurring, entrustedFunds, loading,
       addTransaction, editTransaction, removeTransaction,
       loadTransactions, searchTransactions: searchTx, getTransactionsByDate,
       getTodayTotal, getWeeklyTotal, getMonthlyTotal,
@@ -462,6 +496,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       toggleAccountActive, toggleCategoryActive, toggleTagActive,
       loadBudgets, saveBudget, editBudget, removeBudget, toggleBudgetActive,
       loadRecurring, addRecurring, editRecurring, removeRecurring,
+      loadEntrustedFunds, addEntrustedFund, editEntrustedFund, removeEntrustedFund, getEntrustedTransactions,
       reorderAccounts, reorderCategories, reorderTags,
       copyDayTransactions, exportCsv, refresh,
     }}>

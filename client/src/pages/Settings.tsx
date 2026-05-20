@@ -383,6 +383,14 @@ export default function Settings() {
           NEXT_DATE: r.next_date, ACTIVE: r.active ? 'Yes' : 'No',
         })) : [{ ID: '', AMOUNT: '', TYPE: '' }]), 'Recurring');
 
+        // Entrusted Funds sheet
+        const funds = await repo.getEntrustedFunds();
+        const fundIdToName = new Map(funds.map(f => [f.id, f.name]));
+        utils.book_append_sheet(wb, utils.json_to_sheet(funds.length ? funds.map(f => ({
+          ID: f.id, NAME: f.name, TARGET_AMOUNT: f.target_amount, NOTES: f.notes,
+          CLOSED: f.closed ? 'Yes' : 'No', CREATED_AT: f.created_at,
+        })) : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '' }]), 'EntrustedFunds');
+
         // Transactions sheet — structured data matching server format
         const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');
         const txData = allTx.sort((a, b) => a.date.localeCompare(b.date)).map(t => ({
@@ -395,6 +403,7 @@ export default function Settings() {
           TO_ACCOUNT: t.to_account_name ?? '',
           NOTES: t.notes ?? '',
           TAGS: '',
+          ENTRUSTED_FUND: t.entrusted_fund_id != null ? (fundIdToName.get(t.entrusted_fund_id) ?? '') : '',
         }));
         utils.book_append_sheet(wb, utils.json_to_sheet(txData), 'Transactions');
 

@@ -24,6 +24,10 @@ const DEFAULT_CATEGORIES = [
   { name: 'Bonus', icon: '🎁', color: '#22c55e', type: 'income' },
   { name: 'Bank Interest', icon: '🏦', color: '#0ea5e9', type: 'income' },
   { name: 'Cash Back', icon: '💸', color: '#14b8a6', type: 'income' },
+  // Entrusted Fund module — protected system categories
+  { name: 'Entrusted Funds', icon: '🤝', color: '#0d9488', type: 'income' },
+  { name: 'Entrusted Spend', icon: '🤝', color: '#dc2626', type: 'expense' },
+  { name: 'Entrusted Return', icon: '↩️', color: '#f59e0b', type: 'expense' },
 ];
 
 const DEFAULT_ACCOUNTS = [

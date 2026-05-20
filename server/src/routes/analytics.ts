@@ -4,12 +4,29 @@ import { asyncHandler, round2 } from '../utils/asyncHandler.js';
 
 const router = Router();
 
+const ENTRUSTED_CATEGORY_NAMES = ['Entrusted Funds', 'Entrusted Spend', 'Entrusted Return'];
+
+/** IDs of the entrusted-fund categories — excluded from income/expense/savings analytics. */
+async function getEntrustedCategoryIds(): Promise<number[]> {
+  const cats = await prisma.category.findMany({
+    where: { name: { in: ENTRUSTED_CATEGORY_NAMES } },
+    select: { id: true },
+  });
+  return cats.map(c => c.id);
+}
+
+/** A Prisma `where` fragment that excludes entrusted categories (null-category rows still included). */
+function excludeEntrusted(ids: number[]) {
+  return ids.length ? { NOT: { category_id: { in: ids } } } : {};
+}
+
 // GET /api/analytics/today
 router.get('/today', asyncHandler(async (_req, res) => {
   const today = new Date().toISOString().slice(0, 10);
+  const exc = excludeEntrusted(await getEntrustedCategoryIds());
   const [income, expense] = await Promise.all([
-    prisma.transaction.aggregate({ where: { type: 'income', date: { startsWith: today } }, _sum: { amount: true } }),
-    prisma.transaction.aggregate({ where: { type: 'expense', date: { startsWith: today } }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'income', date: { startsWith: today }, ...exc }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'expense', date: { startsWith: today }, ...exc }, _sum: { amount: true } }),
   ]);
   res.json({
     income: round2(income._sum.amount ?? 0),
@@ -24,9 +41,10 @@ router.get('/weekly', asyncHandler(async (_req, res) => {
   start.setDate(now.getDate() - now.getDay());
   const startStr = start.toISOString().slice(0, 10);
 
+  const exc = excludeEntrusted(await getEntrustedCategoryIds());
   const [income, expense] = await Promise.all([
-    prisma.transaction.aggregate({ where: { type: 'income', date: { gte: startStr } }, _sum: { amount: true } }),
-    prisma.transaction.aggregate({ where: { type: 'expense', date: { gte: startStr } }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'income', date: { gte: startStr }, ...exc }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'expense', date: { gte: startStr }, ...exc }, _sum: { amount: true } }),
   ]);
   res.json({
     income: round2(income._sum.amount ?? 0),
@@ -40,9 +58,10 @@ router.get('/monthly', asyncHandler(async (req, res) => {
   if (!/^\d{4}-\d{2}$/.test(month)) {
     res.status(400).json({ error: 'month must be in YYYY-MM format' }); return;
   }
+  const exc = excludeEntrusted(await getEntrustedCategoryIds());
   const [income, expense] = await Promise.all([
-    prisma.transaction.aggregate({ where: { type: 'income', date: { startsWith: month } }, _sum: { amount: true } }),
-    prisma.transaction.aggregate({ where: { type: 'expense', date: { startsWith: month } }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'income', date: { startsWith: month }, ...exc }, _sum: { amount: true } }),
+    prisma.transaction.aggregate({ where: { type: 'expense', date: { startsWith: month }, ...exc }, _sum: { amount: true } }),
   ]);
   res.json({
     income: round2(income._sum.amount ?? 0),
@@ -55,9 +74,13 @@ router.get('/categories', asyncHandler(async (req, res) => {
   const from = req.query.from as string;
   const to = req.query.to as string;
 
+  const entrustedIds = await getEntrustedCategoryIds();
   const results = await prisma.transaction.groupBy({
     by: ['category_id'],
-    where: { type: 'expense', date: { gte: from, lte: to }, category_id: { not: null } },
+    where: {
+      type: 'expense', date: { gte: from, lte: to },
+      category_id: entrustedIds.length ? { not: null, notIn: entrustedIds } : { not: null },
+    },
     _sum: { amount: true },
     _count: true,
     orderBy: { _sum: { amount: 'desc' } },
@@ -85,8 +108,9 @@ router.get('/categories', asyncHandler(async (req, res) => {
 // GET /api/analytics/trend?months=12
 router.get('/trend', asyncHandler(async (req, res) => {
   const months = Math.min(Math.max(Number(req.query.months) || 12, 1), 60);
+  const exc = excludeEntrusted(await getEntrustedCategoryIds());
   const transactions = await prisma.transaction.findMany({
-    where: { type: { in: ['income', 'expense'] } },
+    where: { type: { in: ['income', 'expense'] }, ...exc },
     select: { date: true, type: true, amount: true },
     orderBy: { date: 'desc' },
   });
@@ -398,6 +422,21 @@ router.get('/debt-transactions', asyncHandler(async (_req, res) => {
     id: t.id, amount: t.amount, type: t.type, date: t.date, notes: t.notes,
     category_id: t.category_id, category_name: catIdToName.get(t.category_id!) ?? null,
     account_id: t.account_id, account_name: t.account.name,
+  })));
+}));
+
+// GET /api/analytics/entrusted-transactions — only transactions linked to an entrusted fund
+router.get('/entrusted-transactions', asyncHandler(async (_req, res) => {
+  const txs = await prisma.transaction.findMany({
+    where: { entrusted_fund_id: { not: null } },
+    include: { account: true, category: true },
+    orderBy: { date: 'desc' },
+  });
+  res.json(txs.map(t => ({
+    id: t.id, amount: t.amount, type: t.type, date: t.date, notes: t.notes,
+    category_id: t.category_id, category_name: t.category?.name ?? null,
+    account_id: t.account_id, account_name: t.account.name,
+    entrusted_fund_id: t.entrusted_fund_id,
   })));
 }));
 
