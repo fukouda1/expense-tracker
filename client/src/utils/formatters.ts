@@ -34,6 +34,20 @@ export function formatNumber(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Format a raw numeric input string for display with thousand separators.
+ * Keeps a trailing "." and in-progress decimals intact (the field is being typed),
+ * so it must NOT force 2 decimals. Comma-grouped (en-US style). '' stays ''.
+ * Example: "30000" -> "30,000", "30000.5" -> "30,000.5", "1234567." -> "1,234,567."
+ */
+export function formatAmountInput(raw: string): string {
+  if (raw === '' || raw == null) return '';
+  const hasDot = raw.includes('.');
+  const [intPart, decPart = ''] = raw.split('.');
+  const grouped = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return hasDot ? `${grouped}.${decPart}` : grouped;
+}
+
 export function getCurrencySymbol(): string {
   const { code, locale } = getStoredCurrency();
   const parts = new Intl.NumberFormat(locale, { style: 'currency', currency: code }).formatToParts(0);

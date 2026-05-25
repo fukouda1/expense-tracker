@@ -14,6 +14,7 @@ const moreItems = [
   { to: '/calendar', icon: '📅', label: 'Calendar' },
   { to: '/debts', icon: '💰', label: 'Debts' },
   { to: '/entrusted', icon: '🤝', label: 'Entrusted' },
+  { to: '/reconcile', icon: '⚖️', label: 'Reconcile' },
   { to: '/settings', icon: '⚙️', label: 'Settings' },
   { to: '/search', icon: '🔍', label: 'Search' },
 ];

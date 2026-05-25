@@ -32,6 +32,14 @@ export async function appendBackupSheets(wb: any, utils: XlsxUtils): Promise<voi
     }
   } catch { /* ignore */ }
 
+  // SettledBalancing — Reconcile entries the user accepted as-is (stable composite keys)
+  try {
+    const keys = JSON.parse(localStorage.getItem('tracecash_settled_balancing') || '[]') as string[];
+    if (keys.length) {
+      utils.book_append_sheet(wb, utils.json_to_sheet(keys.map(k => ({ KEY: k }))), 'SettledBalancing');
+    }
+  } catch { /* ignore */ }
+
   // PinLock — PIN hash + enabled + biometric flag
   try {
     const pin = localStorage.getItem('tracecash_pin');
@@ -108,6 +116,13 @@ export function applyBackupSheetsToLocalStorage(
   const templates = sheetGetter('Templates');
   if (templates?.[0]?.DATA) {
     try { localStorage.setItem('tracecash_templates_v2', String(templates[0].DATA)); } catch { /* ignore */ }
+  }
+
+  // SettledBalancing
+  const settledBal = sheetGetter('SettledBalancing');
+  if (settledBal) {
+    const keys = settledBal.map(r => String(r.KEY ?? '')).filter(Boolean);
+    if (keys.length) localStorage.setItem('tracecash_settled_balancing', JSON.stringify(keys));
   }
 
   // PinLock

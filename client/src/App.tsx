@@ -22,6 +22,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Search = lazy(() => import('./pages/Search'));
 const DebtTracker = lazy(() => import('./pages/DebtTracker'));
 const EntrustedFund = lazy(() => import('./pages/EntrustedFund'));
+const Reconcile = lazy(() => import('./pages/Reconcile'));
 const Accounts = lazy(() => import('./pages/Accounts'));
 
 function Loading() {
@@ -118,6 +119,7 @@ function AppContent() {
               <Route path="/search" element={<Search />} />
               <Route path="/debts" element={<DebtTracker />} />
               <Route path="/entrusted" element={<EntrustedFund />} />
+              <Route path="/reconcile" element={<Reconcile />} />
             </Routes>
           </Suspense>
         </BrowserRouter>

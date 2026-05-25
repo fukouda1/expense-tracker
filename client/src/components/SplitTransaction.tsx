@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import AmountInput from './AmountInput';
 import { formatCurrency } from '../utils/formatters';
 import type { Category } from '../types';
 
@@ -69,8 +70,8 @@ export default function SplitTransaction({ open, onClose, totalAmount, categorie
                   <option value="">Category</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
                 </select>
-                <input type="number" value={e.amount} onChange={ev => updateEntry(i, 'amount', ev.target.value)}
-                  placeholder="Amount" className={inputClass} inputMode="decimal" />
+                <AmountInput value={e.amount} onChange={v => updateEntry(i, 'amount', v)}
+                  placeholder="Amount" className={inputClass} />
                 <input value={e.notes} onChange={ev => updateEntry(i, 'notes', ev.target.value)}
                   placeholder="Notes (optional)" className={inputClass} />
               </div>

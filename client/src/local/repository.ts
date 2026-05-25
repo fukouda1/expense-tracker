@@ -723,6 +723,22 @@ export async function getEntrustedTransactions(): Promise<Transaction[]> {
   return (result.values ?? []) as Transaction[];
 }
 
+/** All transactions in the two Reconcile balancing categories, joined with names. */
+export async function getBalancingTransactions(): Promise<Transaction[]> {
+  const db = getDb();
+  const result = await db.query(
+    `SELECT t.*, c.name as category_name, c.icon as category_icon, c.color as category_color,
+            a.name as account_name, a2.name as to_account_name
+     FROM transactions t
+     LEFT JOIN categories c ON t.category_id = c.id
+     LEFT JOIN accounts a ON t.account_id = a.id
+     LEFT JOIN accounts a2 ON t.to_account_id = a2.id
+     WHERE c.name IN ('Balancing - Income','Balancing - Expense')
+     ORDER BY t.date DESC, t.id DESC`
+  );
+  return (result.values ?? []) as Transaction[];
+}
+
 /** Advance a date by one recurrence period, clamping to last day of month */
 function advanceRecurrenceDate(dateStr: string, recurrenceType: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);

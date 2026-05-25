@@ -32,7 +32,7 @@ export default function Dashboard() {
   const { transactions, budgets, recurring, loading, getAccountBalances, loadBudgets, getTransactionsByDate, getMonthlyTotal, removeTransaction, refresh } = useData();
   const [debtSummary, setDebtSummary] = useState<DebtSummary>({ theyOwe: 0, iOwe: 0 });
   const { dark, toggle } = useTheme();
-  const { getPeriodRange, period, viewMode, periodLabel } = useDisplay();
+  const { getPeriodRange, period, viewMode, periodLabel, setViewMode } = useDisplay();
   const { showToast } = useToast();
 
   const [monthlyTotal, setMonthlyTotal] = useState({ income: 0, expense: 0 });
@@ -186,19 +186,24 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* vs Last Month badge */}
+        {/* vs Last Month badge — clickable: jumps to History on this month's expenses */}
         {prevMonthExpense !== null && prevMonthExpense > 0 && (
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border ${
-            monthlyTotal.expense > prevMonthExpense
-              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
-              : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-          }`}>
+          <button
+            onClick={() => { setViewMode('monthly'); navigate('/transactions?filter=expense&from=dashboard'); }}
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-colors ${
+              monthlyTotal.expense > prevMonthExpense
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30'
+                : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+            }`}
+            title="Tap to see expense history"
+          >
             <span className="text-base">{monthlyTotal.expense > prevMonthExpense ? '📈' : '📉'}</span>
-            <span>
+            <span className="flex-1 text-left">
               {monthlyTotal.expense > prevMonthExpense ? '+' : '-'}
               {formatCurrency(Math.abs(monthlyTotal.expense - prevMonthExpense))} vs last month
             </span>
-          </div>
+            <span className="text-[10px] opacity-60">View ›</span>
+          </button>
         )}
 
         {/* Period Summary */}
@@ -346,11 +351,16 @@ export default function Dashboard() {
               </div>
               <div className="flex-1 space-y-1 ml-0 sm:ml-4 mt-2 sm:mt-0 w-full">
                 {categoryData.slice(0, 6).map(c => (
-                  <div key={c.category_id} className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.category_color }} />
+                  <button
+                    key={c.category_id}
+                    onClick={() => { setViewMode('monthly'); navigate(`/transactions?filter=expense&categoryId=${c.category_id}&from=dashboard`); }}
+                    className="w-full flex items-center justify-between text-[11px] py-1 px-1 -mx-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    title={`See ${c.category_name} expenses`}
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0"><div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: c.category_color }} />
                       <span className="text-gray-700 dark:text-gray-300 truncate max-w-[120px]">{c.category_name}</span></div>
-                    <span className="text-gray-500 font-medium">{formatCurrency(c.total)}</span>
-                  </div>
+                    <span className="text-gray-500 font-medium flex-shrink-0">{formatCurrency(c.total)}</span>
+                  </button>
                 ))}
               </div>
             </div>

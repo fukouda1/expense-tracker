@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import Modal from './Modal';
+import AmountInput from './AmountInput';
 import { useData } from '../contexts/DataContext';
 import { post } from '../services/api';
 import type { Transaction } from '../types';
@@ -243,13 +244,10 @@ export default function TransactionDetail({ transaction: t, onClose, onEdit, onD
             {splits.map((split, i) => (
               <div key={i} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                 <div className="flex-1 space-y-1.5">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <AmountInput
                     placeholder="Amount"
                     value={split.amount}
-                    onChange={e => updateSplit(i, 'amount', e.target.value)}
+                    onChange={v => updateSplit(i, 'amount', v)}
                     className="w-full p-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
                   />
                   <select

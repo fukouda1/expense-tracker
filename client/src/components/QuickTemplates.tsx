@@ -4,6 +4,7 @@ import { useToast } from './Toast';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import SortableList from './SortableList';
+import AmountInput from './AmountInput';
 import { formatCurrency } from '../utils/formatters';
 import type { TransactionType, Category, Account } from '../types';
 
@@ -543,13 +544,11 @@ export function TemplateManager() {
                   </div>
                   <div>
                     <label className="text-[9px] text-gray-400 mb-0.5 block">Amount (₱)</label>
-                    <input
-                      type="number"
-                      value={entry.amount || ''}
-                      onChange={e => updateEntry(idx, 'amount', parseFloat(e.target.value) || 0)}
+                    <AmountInput
+                      value={entry.amount ? String(entry.amount) : ''}
+                      onChange={raw => updateEntry(idx, 'amount', parseFloat(raw) || 0)}
                       placeholder="0"
                       className={`${inputClass} ${entry.amount <= 0 ? 'border-red-400 dark:border-red-500' : ''}`}
-                      inputMode="decimal"
                     />
                     {entry.amount <= 0 && (
                       <p className="text-[9px] text-red-400 mt-0.5">Amount must be greater than 0</p>

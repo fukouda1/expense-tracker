@@ -6,6 +6,7 @@ import TransactionCard from '../components/TransactionCard';
 import TransactionDetail from '../components/TransactionDetail';
 import ConfirmDialog from '../components/ConfirmDialog';
 import EmptyState from '../components/EmptyState';
+import AmountInput from '../components/AmountInput';
 import { formatCurrency } from '../utils/formatters';
 import type { Transaction, TransactionType, TransactionFilters } from '../types';
 
@@ -209,11 +210,11 @@ export default function Search() {
             </div>
             <div>
               <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block uppercase tracking-wider">Min</label>
-              <input type="number" value={amountMin} onChange={e => setAmountMin(e.target.value)} placeholder="0" className={inputClass} />
+              <AmountInput value={amountMin} onChange={setAmountMin} placeholder="0" className={inputClass} />
             </div>
             <div>
               <label className="text-[10px] text-gray-500 dark:text-gray-400 mb-0.5 block uppercase tracking-wider">Max</label>
-              <input type="number" value={amountMax} onChange={e => setAmountMax(e.target.value)} placeholder="No limit" className={inputClass} />
+              <AmountInput value={amountMax} onChange={setAmountMax} placeholder="No limit" className={inputClass} />
             </div>
           </div>
         </div>

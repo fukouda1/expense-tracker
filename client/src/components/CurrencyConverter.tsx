@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import AmountInput from './AmountInput';
 
 // Common rates relative to PHP (approximate)
 const RATES: Record<string, { name: string; rate: number; symbol: string }> = {
@@ -52,8 +53,8 @@ export default function CurrencyConverter({ open, onClose, onConvert }: Props) {
           <label className="text-xs text-gray-500 mb-1 block">Amount in {currency}</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">{RATES[currency]?.symbol}</span>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
-              placeholder="0.00" inputMode="decimal"
+            <AmountInput value={amount} onChange={setAmount}
+              placeholder="0.00"
               className="w-full pl-10 pr-4 p-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-lg font-bold text-gray-900 dark:text-white" />
           </div>
         </div>

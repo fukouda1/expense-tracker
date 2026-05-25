@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useDisplay } from '../contexts/DisplayContext';
 import { useToast } from '../components/Toast';
@@ -17,10 +17,22 @@ import type { TransactionType, Transaction } from '../types';
 
 export default function Transactions() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { transactions, categories, removeTransaction, editTransaction, copyDayTransactions, getTransactionsByDate, refresh } = useData();
   const { viewMode, showTotal, period, getPeriodRange } = useDisplay();
   const { showToast } = useToast();
-  const [filter, setFilter] = useState<TransactionType | 'all'>('all');
+  const initialFilter = (() => {
+    const q = searchParams.get('filter');
+    return (q === 'expense' || q === 'income' || q === 'transfer') ? (q as TransactionType) : 'all';
+  })();
+  const initialCategoryId = (() => {
+    const q = searchParams.get('categoryId');
+    if (!q) return null;
+    const n = Number(q);
+    return Number.isFinite(n) ? n : null;
+  })();
+  const [filter, setFilter] = useState<TransactionType | 'all'>(initialFilter);
+  const [categoryFilter, setCategoryFilter] = useState<number | null>(initialCategoryId);
   const [copySource, setCopySource] = useState<string | null>(null);
   const [copyTarget, setCopyTarget] = useState(new Date().toISOString().slice(0, 10));
   const [copying, setCopying] = useState(false);
@@ -97,7 +109,14 @@ export default function Transactions() {
     load();
   }, [period, viewMode, transactions]);
 
-  const filtered = useMemo(() => filter === 'all' ? periodTxs : periodTxs.filter(t => t.type === filter), [periodTxs, filter]);
+  const filtered = useMemo(() => {
+    let out = filter === 'all' ? periodTxs : periodTxs.filter(t => t.type === filter);
+    if (categoryFilter !== null) out = out.filter(t => t.category_id === categoryFilter);
+    return out;
+  }, [periodTxs, filter, categoryFilter]);
+  const categoryFilterName = categoryFilter !== null
+    ? categories.find(c => c.id === categoryFilter)
+    : null;
 
   const selectAllVisible = useCallback(() => {
     setSelectedIds(new Set(filtered.map(t => t.id)));
@@ -148,11 +167,33 @@ export default function Transactions() {
     { value: 'income', label: 'Income' }, { value: 'transfer', label: 'Transfers' },
   ] as const;
 
+  const from = searchParams.get('from');
+  const backLabel = from === 'analytics' ? '← Analytics' : from === 'dashboard' ? '← Dashboard' : null;
+  const goBackToSource = () => {
+    if (from === 'analytics') {
+      const tab = searchParams.get('tab') ?? 'expense';
+      const section = searchParams.get('section');
+      navigate(`/analytics?tab=${tab}${section ? `#${section}` : ''}`);
+    } else if (from === 'dashboard') {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  };
+
   return (
     <PullToRefresh onRefresh={refresh}>
       <div className="px-4 pt-4 space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            {backLabel && (
+              <button onClick={goBackToSource}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:text-emerald-600 transition-colors">
+                {backLabel}
+              </button>
+            )}
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h1>
+          </div>
           <div className="flex items-center gap-2">
             <button onClick={toggleBulkMode}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${bulkMode ? 'bg-emerald-500 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
@@ -189,6 +230,18 @@ export default function Transactions() {
           ))}
         </div>
 
+        {categoryFilterName && (
+          <div className="flex items-center justify-between gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-full text-xs">
+            <span className="text-blue-700 dark:text-blue-300 truncate flex items-center gap-1.5">
+              <span>{categoryFilterName.icon}</span>
+              <span className="font-medium">{categoryFilterName.name}</span>
+              <span className="text-blue-400">· {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}</span>
+            </span>
+            <button onClick={() => setCategoryFilter(null)}
+              className="text-blue-500 hover:text-blue-700 font-bold flex-shrink-0">✕</button>
+          </div>
+        )}
+
         {loadingPeriod ? (
           <div className="text-center text-gray-400 py-12 text-sm">Loading...</div>
         ) : grouped.length === 0 ? (
@@ -215,6 +268,9 @@ export default function Transactions() {
                             {dayTransfer > 0 && <>{' '}<span className="text-blue-500">⇄{formatCurrency(dayTransfer)}</span></>}
                           </span>
                         )}
+                        <button onClick={() => navigate(`/add?date=${key}&returnTo=${encodeURIComponent('/transactions')}`)}
+                          className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors"
+                          title={`Add a transaction on ${key}`}>＋</button>
                         <button onClick={() => { setCopySource(key); setCopyTarget(new Date().toISOString().slice(0, 10)); }}
                           className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors">📋</button>
                       </div>

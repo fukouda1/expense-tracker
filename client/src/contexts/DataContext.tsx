@@ -83,6 +83,7 @@ interface DataContextType {
   editEntrustedFund: (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }) => Promise<void>;
   removeEntrustedFund: (id: number) => Promise<void>;
   getEntrustedTransactions: () => Promise<Transaction[]>;
+  getBalancingTransactions: () => Promise<Transaction[]>;
   // Reorder
   reorderAccounts: (ids: number[]) => Promise<void>;
   reorderCategories: (ids: number[]) => Promise<void>;
@@ -440,6 +441,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (isNative) return repo.getEntrustedTransactions();
     return api.get<Transaction[]>('/api/analytics/entrusted-transactions');
   };
+  const getBalancingTransactions = async (): Promise<Transaction[]> => {
+    if (isNative) return repo.getBalancingTransactions();
+    return api.get<Transaction[]>('/api/analytics/balancing-transactions');
+  };
 
   // Reorder
   const reorderAccounts = async (ids: number[]) => {
@@ -497,6 +502,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       loadBudgets, saveBudget, editBudget, removeBudget, toggleBudgetActive,
       loadRecurring, addRecurring, editRecurring, removeRecurring,
       loadEntrustedFunds, addEntrustedFund, editEntrustedFund, removeEntrustedFund, getEntrustedTransactions,
+      getBalancingTransactions,
       reorderAccounts, reorderCategories, reorderTags,
       copyDayTransactions, exportCsv, refresh,
     }}>

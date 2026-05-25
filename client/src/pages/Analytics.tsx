@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend, AreaChart, Area,
@@ -35,9 +36,38 @@ export default function Analytics() {
   const { categories, accounts, tags, getCategoryBreakdown, getMonthlyTrend, getTopCategories,
     getWeeklyComparison, getDailySummaries, getAccountBalances, getTransactionsByDate } = useData();
   const { dark } = useTheme();
-  const { period, viewMode, getPeriodRange, periodLabel } = useDisplay();
+  const { period, viewMode, getPeriodRange, periodLabel, setViewMode } = useDisplay();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
 
-  const [tab, setTab] = useState<Tab>('expense');
+  /** Jump to History filtered to this category's expenses for the current monthly view.
+   *  `section` lets the "← Analytics" back button return to the exact card. */
+  const drillCategory = (categoryName: string, section: string) => {
+    const cat = categories.find(c => c.name === categoryName);
+    if (!cat) return;
+    setViewMode('monthly');
+    navigate(`/transactions?filter=expense&categoryId=${cat.id}&from=analytics&tab=expense&section=${section}`);
+  };
+
+  const [tab, setTab] = useState<Tab>(() => {
+    const q = searchParams.get('tab');
+    return (q === 'expense' || q === 'income' || q === 'flow' || q === 'accounts') ? q : 'expense';
+  });
+
+  // Scroll to the section in the URL hash (e.g. #monthly-comparison) once the
+  // current tab's content has rendered, so the back-from-Transactions flow
+  // lands you back on the exact card you tapped.
+  useEffect(() => {
+    if (!location.hash) return;
+    const id = location.hash.slice(1);
+    const tries = [80, 200, 500, 1000];
+    const timers = tries.map(ms => setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, ms));
+    return () => { timers.forEach(clearTimeout); };
+  }, [location.hash, tab]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [trendMonths, setTrendMonths] = useState<6 | 12 | 24>(6);
   const [showDisplayOpts, setShowDisplayOpts] = useState(false);
@@ -415,7 +445,7 @@ export default function Analytics() {
 
           {/* Monthly Comparison */}
           {monthlyComparison.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+            <div id="monthly-comparison" className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 scroll-mt-4">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Monthly Comparison</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px]">
@@ -429,7 +459,10 @@ export default function Analytics() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                     {monthlyComparison.map(c => (
-                      <tr key={c.name}>
+                      <tr key={c.name}
+                        onClick={() => drillCategory(c.name, 'monthly-comparison')}
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                        title={`See ${c.name} expenses for this period`}>
                         <td className="py-1.5 text-gray-700 dark:text-gray-300">
                           <span className="mr-1">{c.icon}</span>{c.name}
                         </td>
@@ -456,11 +489,14 @@ export default function Analytics() {
 
           {/* Daily Average by Category */}
           {dailyAvgByCat.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+            <div id="daily-avg" className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 scroll-mt-4">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Daily Average by Category</h2>
               <div className="space-y-1.5">
                 {dailyAvgByCat.map(c => (
-                  <div key={c.name} className="flex items-center justify-between text-[11px]">
+                  <button key={c.name}
+                    onClick={() => drillCategory(c.name, 'daily-avg')}
+                    className="w-full flex items-center justify-between text-[11px] py-1 px-1 -mx-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                    title={`See ${c.name} expenses`}>
                     <span className="text-gray-700 dark:text-gray-300">
                       {c.icon} {c.name}
                     </span>
@@ -469,7 +505,7 @@ export default function Analytics() {
                       <span className="text-gray-400">/day</span>
                       <span className="text-[10px] text-gray-400 ml-1">({c.activeDays} day{c.activeDays !== 1 ? 's' : ''} active)</span>
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -479,11 +515,14 @@ export default function Analytics() {
           <CategoryTrend categories={categories} />
 
           {topExpenseCats.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+            <div id="top-spending" className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 scroll-mt-4">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Top Spending</h2>
               <div className="space-y-2">
                 {topExpenseCats.map(c => (
-                  <div key={c.category_id}>
+                  <button key={c.category_id}
+                    onClick={() => { setViewMode('monthly'); navigate(`/transactions?filter=expense&categoryId=${c.category_id}&from=analytics&tab=expense&section=top-spending`); }}
+                    className="w-full text-left py-1 px-1 -mx-1 rounded hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                    title={`See ${c.category_name} expenses`}>
                     <div className="flex items-center justify-between text-xs mb-0.5">
                       <span className="text-gray-700 dark:text-gray-300">{c.category_icon} {c.category_name}</span>
                       <span className="text-gray-500 font-medium">{formatCurrency(c.total)}</span>
@@ -491,7 +530,7 @@ export default function Analytics() {
                     <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${c.percentage}%`, backgroundColor: c.category_color }} />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>

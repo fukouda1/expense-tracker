@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatCurrency } from '../utils/formatters';
 import Modal from './Modal';
+import AmountInput from './AmountInput';
 
 interface Goal {
   id: string;
@@ -166,8 +167,8 @@ export default function SavingsGoals() {
                 </div>
                 {addAmount?.id === g.id && (
                   <div className="flex gap-1.5 mt-1.5">
-                    <input type="number" value={addAmount.amount} onChange={e => setAddAmount({ ...addAmount, amount: e.target.value })}
-                      placeholder="Amount" className="flex-1 p-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs" inputMode="decimal" />
+                    <AmountInput value={addAmount.amount} onChange={v => setAddAmount({ ...addAmount, amount: v })}
+                      placeholder="Amount" className="flex-1 p-1.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-xs" />
                     <button onClick={() => { if (addAmount.amount) handleAddToGoal(g.id, Number(addAmount.amount)); }}
                       className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg text-xs font-medium">Save</button>
                     <button onClick={() => setAddAmount(null)} className="px-2 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-500 rounded-lg text-xs">✕</button>
@@ -209,8 +210,8 @@ export default function SavingsGoals() {
       <Modal open={showModal} onClose={() => setShowModal(false)} title={editId ? 'Edit Goal' : 'New Savings Goal'}>
         <div className="space-y-3">
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Goal name (e.g., New Laptop)" className={inputClass} />
-          <input type="number" value={target} onChange={e => setTarget(e.target.value)} placeholder="Target amount" className={inputClass} inputMode="decimal" />
-          <input type="number" value={saved} onChange={e => setSaved(e.target.value)} placeholder="Already saved" className={inputClass} inputMode="decimal" />
+          <AmountInput value={target} onChange={setTarget} placeholder="Target amount" className={inputClass} />
+          <AmountInput value={saved} onChange={setSaved} placeholder="Already saved" className={inputClass} />
           <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className={inputClass} />
           <div>
             <label className="text-xs text-gray-500 mb-1 block">Icon</label>

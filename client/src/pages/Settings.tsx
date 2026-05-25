@@ -18,6 +18,7 @@ import { post } from '../services/api';
 import MonthPicker from '../components/MonthPicker';
 import * as repo from '../local/repository';
 import { appendBackupSheets, applyBackupSheetsToLocalStorage } from '../utils/backupSheets';
+import AmountInput from '../components/AmountInput';
 import type { Category, Account, Budget, Transaction, RecurringTransaction, RecurrenceType, TransactionType } from '../types';
 
 interface ImportPreview {
@@ -1393,7 +1394,7 @@ export default function Settings() {
               ))}
             </div>
           </div>
-          {!editAccId && <input type="number" value={accBalance} onChange={e => setAccBalance(e.target.value)} placeholder="Initial balance" className={inputClass} />}
+          {!editAccId && <AmountInput value={accBalance} onChange={setAccBalance} placeholder="Initial balance" className={inputClass} />}
           <button onClick={handleSaveAccount} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
       </Modal>
@@ -1442,7 +1443,7 @@ export default function Settings() {
               .map(c => <option key={c.id} value={c.id}>{c.icon || '📦'} {c.name}</option>)
             }
           </select>
-          <input type="number" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Budget amount (₱)" className={inputClass} inputMode="decimal" />
+          <AmountInput value={budgetAmount} onChange={setBudgetAmount} placeholder="Budget amount (₱)" className={inputClass} />
           <button onClick={handleSaveBudget} className="w-full py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium">Save</button>
         </div>
       </Modal>
@@ -1450,7 +1451,7 @@ export default function Settings() {
       <Modal open={showModal && modalType === 'recurring'} onClose={() => setShowModal(false)} title={editRecId ? 'Edit Recurring' : 'Add Recurring Transaction'}>
         <div className="space-y-3">
           <div>
-            <input type="number" value={recAmount} onChange={e => setRecAmount(e.target.value)} placeholder="Amount (₱) — leave blank for variable" className={inputClass} inputMode="decimal" />
+            <AmountInput value={recAmount} onChange={setRecAmount} placeholder="Amount (₱) — leave blank for variable" className={inputClass} />
             {recAmount === '' && <p className="text-[10px] text-amber-500 mt-1">Variable amount — won't auto-generate, acts as a reminder</p>}
           </div>
           <select value={recType} onChange={e => setRecType(e.target.value as TransactionType)} className={inputClass}>

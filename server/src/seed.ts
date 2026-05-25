@@ -28,6 +28,9 @@ const DEFAULT_CATEGORIES = [
   { name: 'Entrusted Funds', icon: '🤝', color: '#0d9488', type: 'income' },
   { name: 'Entrusted Spend', icon: '🤝', color: '#dc2626', type: 'expense' },
   { name: 'Entrusted Return', icon: '↩️', color: '#f59e0b', type: 'expense' },
+  // Reconcile module — protected system categories
+  { name: 'Balancing - Income', icon: '⚖️', color: '#10b981', type: 'income' },
+  { name: 'Balancing - Expense', icon: '⚖️', color: '#ef4444', type: 'expense' },
 ];
 
 const DEFAULT_ACCOUNTS = [

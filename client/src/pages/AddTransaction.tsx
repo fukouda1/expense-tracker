@@ -8,7 +8,7 @@ import Modal from '../components/Modal';
 import QuickTemplateBar from '../components/QuickTemplates';
 import { get } from '../services/api';
 import * as repo from '../local/repository';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatAmountInput } from '../utils/formatters';
 import CurrencyConverter from '../components/CurrencyConverter';
 import SplitTransaction from '../components/SplitTransaction';
 import type { Transaction, TransactionType } from '../types';
@@ -560,7 +560,7 @@ export default function AddTransaction() {
         <div className={`px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 mx-3 sm:mx-4 rounded-xl flex items-center justify-end gap-2 sm:gap-3 transition-all ${amountError ? 'ring-2 ring-red-500 animate-pulse' : ''}`}>
           <div className="flex flex-col items-end flex-1 min-w-0">
             <span className={`text-3xl sm:text-5xl font-light ${amountError ? 'text-red-400' : typeColor} tracking-tight truncate`}>
-              {display === '0' ? '0' : display}
+              {display === '0' ? '0' : formatAmountInput(display)}
             </span>
             {amountError && (
               <span className="text-red-400 text-[10px] mt-0.5">Enter an amount greater than 0</span>

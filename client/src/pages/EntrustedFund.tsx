@@ -4,6 +4,7 @@ import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AmountInput from '../components/AmountInput';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import type { Transaction, EntrustedFund } from '../types';
 
@@ -426,7 +427,7 @@ export default function EntrustedFund() {
           </div>
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Target amount (optional)</label>
-            <input type="number" inputMode="decimal" value={fTarget} onChange={e => setFTarget(e.target.value)} placeholder="0 = no target" className={inputClass} />
+            <AmountInput value={fTarget} onChange={setFTarget} placeholder="0 = no target" className={inputClass} />
           </div>
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Notes (optional)</label>
@@ -468,7 +469,7 @@ export default function EntrustedFund() {
           )}
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount</label>
-            <input type="number" inputMode="decimal" value={eAmount} onChange={e => setEAmount(e.target.value)} placeholder="0.00" className={inputClass} />
+            <AmountInput value={eAmount} onChange={setEAmount} placeholder="0.00" className={inputClass} />
           </div>
           <div>
             <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">

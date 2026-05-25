@@ -440,6 +440,29 @@ router.get('/entrusted-transactions', asyncHandler(async (_req, res) => {
   })));
 }));
 
+// GET /api/analytics/balancing-transactions — transactions in the two Reconcile balancing categories
+router.get('/balancing-transactions', asyncHandler(async (_req, res) => {
+  const balCats = await prisma.category.findMany({
+    where: { name: { in: ['Balancing - Income', 'Balancing - Expense'] } },
+    select: { id: true, name: true },
+  });
+  if (balCats.length === 0) { res.json([]); return; }
+  const catIds = balCats.map(c => c.id);
+  const catIdToName = new Map(balCats.map(c => [c.id, c.name]));
+
+  const txs = await prisma.transaction.findMany({
+    where: { category_id: { in: catIds } },
+    include: { account: true },
+    orderBy: { date: 'desc' },
+  });
+  res.json(txs.map(t => ({
+    id: t.id, amount: t.amount, type: t.type, date: t.date, notes: t.notes,
+    category_id: t.category_id, category_name: catIdToName.get(t.category_id!) ?? null,
+    account_id: t.account_id, account_name: t.account.name,
+    to_account_id: t.to_account_id, entrusted_fund_id: t.entrusted_fund_id,
+  })));
+}));
+
 // GET /api/analytics/debt-summary — lightweight alternative to fetching all transactions
 router.get('/debt-summary', asyncHandler(async (_req, res) => {
   const debtCats = await prisma.category.findMany({

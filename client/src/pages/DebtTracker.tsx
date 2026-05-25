@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import { get } from '../services/api';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AmountInput from '../components/AmountInput';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import type { Transaction } from '../types';
 
@@ -460,15 +461,12 @@ export default function DebtTracker() {
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Amount</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₱</span>
-                <input
-                  type="number"
+                <AmountInput
                   value={paymentAmount}
-                  onChange={e => setPaymentAmount(e.target.value)}
+                  onChange={setPaymentAmount}
                   placeholder="0.00"
-                  max={paymentModal.balance}
                   className="w-full pl-7 pr-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-lg font-bold text-gray-900 dark:text-white"
                   autoFocus
-                  inputMode="decimal"
                 />
               </div>
               {/* Quick amount buttons */}
