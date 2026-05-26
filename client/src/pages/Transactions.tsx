@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useDisplay } from '../contexts/DisplayContext';
 import { useToast } from '../components/Toast';
@@ -18,6 +18,7 @@ import type { TransactionType, Transaction } from '../types';
 export default function Transactions() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { transactions, categories, removeTransaction, editTransaction, copyDayTransactions, getTransactionsByDate, refresh } = useData();
   const { viewMode, showTotal, period, getPeriodRange } = useDisplay();
   const { showToast } = useToast();
@@ -108,6 +109,21 @@ export default function Transactions() {
     };
     load();
   }, [period, viewMode, transactions]);
+
+  // Scroll to the date anchor (e.g. #day-2026-05-15) after groups render — restores
+  // position when returning from /add via the per-day ＋ button.
+  useEffect(() => {
+    if (loadingPeriod) return;
+    const hash = location.hash;
+    if (!hash) return;
+    const id = hash.slice(1);
+    // Wait one frame for the sticky group headers to be laid out.
+    const t = setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [loadingPeriod, location.hash, periodTxs]);
 
   const filtered = useMemo(() => {
     let out = filter === 'all' ? periodTxs : periodTxs.filter(t => t.type === filter);
@@ -253,7 +269,7 @@ export default function Transactions() {
               const dayExpense = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
               const dayTransfer = txs.filter(t => t.type === 'transfer').reduce((s, t) => s + t.amount, 0);
               return (
-                <div key={key}>
+                <div key={key} id={`day-${key}`} className="scroll-mt-4">
                   <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 py-1 z-10">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -268,7 +284,7 @@ export default function Transactions() {
                             {dayTransfer > 0 && <>{' '}<span className="text-blue-500">⇄{formatCurrency(dayTransfer)}</span></>}
                           </span>
                         )}
-                        <button onClick={() => navigate(`/add?date=${key}&returnTo=${encodeURIComponent('/transactions')}`)}
+                        <button onClick={() => navigate(`/add?date=${key}&returnTo=${encodeURIComponent(`/transactions#day-${key}`)}`)}
                           className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors"
                           title={`Add a transaction on ${key}`}>＋</button>
                         <button onClick={() => { setCopySource(key); setCopyTarget(new Date().toISOString().slice(0, 10)); }}

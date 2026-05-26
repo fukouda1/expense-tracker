@@ -19,13 +19,9 @@ import QuickTemplateBar from '../components/QuickTemplates';
 import SavingsGauge from '../components/SavingsGauge';
 import SpendingAlerts from '../components/SpendingAlerts';
 import { formatCurrency } from '../utils/formatters';
-import { get } from '../services/api';
-import { Capacitor } from '@capacitor/core';
 import type { CategorySummary, AccountBalance, Transaction, Budget } from '../types';
 
 interface DebtSummary { theyOwe: number; iOwe: number }
-
-const isNative = Capacitor.isNativePlatform();
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -52,23 +48,49 @@ export default function Dashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
-    if (isNative) {
-      // Native: compute from local SQLite debt transactions
-      getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59').then(txs => {
-        const theyOwe = Math.max(0,
-          txs.filter(t => t.category_name === 'Lent Money').reduce((s, t) => s + t.amount, 0) -
-          txs.filter(t => t.category_name === 'Lent Payment').reduce((s, t) => s + t.amount, 0)
-        );
-        const iOwe = Math.max(0,
-          txs.filter(t => t.category_name === 'Debt').reduce((s, t) => s + t.amount, 0) -
-          txs.filter(t => t.category_name === 'Debt Payment').reduce((s, t) => s + t.amount, 0)
-        );
-        setDebtSummary({ theyOwe, iOwe });
-      }).catch(() => {});
-    } else {
-      // Web: use lightweight server endpoint
-      get<DebtSummary>('/api/analytics/debt-summary').then(setDebtSummary).catch(() => {});
-    }
+    // Use the same per-person logic as DebtTracker: group by notes-first-line,
+    // only count people with a positive balance, honor dismissedDebts.
+    // (A bare sum mis-totals when payment notes don't match the original Debt's name.)
+    const dismissed = new Set<string>(
+      (() => { try { return JSON.parse(localStorage.getItem('tracecash_dismissed_debts') || '[]'); } catch { return []; } })()
+    );
+    const summarize = (txs: Transaction[]): DebtSummary => {
+      const owedMap = new Map<string, { lent: number; returned: number }>();
+      const oweMap = new Map<string, { borrowed: number; paid: number }>();
+      const personOf = (t: Transaction) => (t.notes?.split('\n')[0] ?? '').trim() || 'Unknown';
+      for (const t of txs) {
+        const p = personOf(t);
+        if (t.category_name === 'Lent Money') {
+          if (!owedMap.has(p)) owedMap.set(p, { lent: 0, returned: 0 });
+          owedMap.get(p)!.lent += t.amount;
+        } else if (t.category_name === 'Lent Payment') {
+          if (!owedMap.has(p)) owedMap.set(p, { lent: 0, returned: 0 });
+          owedMap.get(p)!.returned += t.amount;
+        } else if (t.category_name === 'Debt') {
+          if (!oweMap.has(p)) oweMap.set(p, { borrowed: 0, paid: 0 });
+          oweMap.get(p)!.borrowed += t.amount;
+        } else if (t.category_name === 'Debt Payment') {
+          if (!oweMap.has(p)) oweMap.set(p, { borrowed: 0, paid: 0 });
+          oweMap.get(p)!.paid += t.amount;
+        }
+      }
+      let theyOwe = 0;
+      for (const [p, d] of owedMap) {
+        if (dismissed.has(`owed:${p}`)) continue;
+        const bal = d.lent - d.returned;
+        if (bal > 0) theyOwe += bal;
+      }
+      let iOwe = 0;
+      for (const [p, d] of oweMap) {
+        if (dismissed.has(`owe:${p}`)) continue;
+        const bal = d.borrowed - d.paid;
+        if (bal > 0) iOwe += bal;
+      }
+      return { theyOwe, iOwe };
+    };
+    getTransactionsByDate('2000-01-01', '2099-12-31T23:59:59')
+      .then(txs => setDebtSummary(summarize(txs)))
+      .catch(() => {});
   }, [loading, transactions]);
 
   useEffect(() => {
