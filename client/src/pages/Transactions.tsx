@@ -111,18 +111,38 @@ export default function Transactions() {
   }, [period, viewMode, transactions]);
 
   // Scroll to the date anchor (e.g. #day-2026-05-15) after groups render — restores
-  // position when returning from /add via the per-day ＋ button.
+  // position when returning from /add via the per-day ＋ button. Mobile WebViews
+  // need a couple of layout passes before the target row settles at its final
+  // offset, so we retry across rAFs and a delayed fallback.
   useEffect(() => {
     if (loadingPeriod) return;
     const hash = location.hash;
     if (!hash) return;
     const id = hash.slice(1);
-    // Wait one frame for the sticky group headers to be laid out.
-    const t = setTimeout(() => {
+    let cancelled = false;
+    const tryScroll = () => {
+      if (cancelled) return false;
       const el = document.getElementById(id);
-      if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' });
-    }, 0);
-    return () => clearTimeout(t);
+      if (!el) return false;
+      // App uses a nested scroll container (body has overflow:hidden), so
+      // scrollIntoView is the only API that walks up to the right scroller.
+      el.scrollIntoView({ block: 'start', behavior: 'auto' });
+      return true;
+    };
+    let raf1 = 0, raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => { tryScroll(); });
+    });
+    // Late-paint fallback for mobile: retry after content fully lays out.
+    const t1 = setTimeout(tryScroll, 120);
+    const t2 = setTimeout(tryScroll, 350);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [loadingPeriod, location.hash, periodTxs]);
 
   const filtered = useMemo(() => {
