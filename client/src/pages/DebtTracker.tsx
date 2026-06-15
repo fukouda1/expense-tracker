@@ -79,6 +79,13 @@ export default function DebtTracker() {
     const filtered = current.filter(k => k !== key);
     localStorage.setItem('tracecash_dismissed_debts', JSON.stringify(filtered));
     setDismissedDebts(new Set(filtered));
+    // Make sure the active tab matches the restored entry so the person is
+    // visible (restoring an "owe" entry while on the "owed" tab would otherwise
+    // look like nothing happened), pull fresh data, and confirm with a toast.
+    setTab(type);
+    setShowDismissed(false);
+    loadDebtTx();
+    showToast(`Restored ${person} to the active list`, 'success');
   };
 
   const [showDismissed, setShowDismissed] = useState(false);

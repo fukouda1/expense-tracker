@@ -58,6 +58,20 @@ export async function appendBackupSheets(wb: any, utils: XlsxUtils): Promise<voi
     }
   } catch { /* ignore */ }
 
+  // Notifications — daily reminder + recurring-due toggles
+  try {
+    const dailyEnabled = localStorage.getItem('tracecash_notif_daily_enabled');
+    const dailyTime = localStorage.getItem('tracecash_notif_daily_time');
+    const recurringEnabled = localStorage.getItem('tracecash_notif_recurring_enabled');
+    if (dailyEnabled || dailyTime || recurringEnabled) {
+      utils.book_append_sheet(wb, utils.json_to_sheet([{
+        DAILY_ENABLED: dailyEnabled ?? '',
+        DAILY_TIME: dailyTime ?? '',
+        RECURRING_ENABLED: recurringEnabled ?? '',
+      }]), 'Notifications');
+    }
+  } catch { /* ignore */ }
+
   // Receipts — base64 thumbnails (resized to 200px, 50% JPEG quality)
   try {
     const receipts = JSON.parse(localStorage.getItem('tracecash_receipts') || '{}') as Record<string, string>;
@@ -139,6 +153,15 @@ export function applyBackupSheetsToLocalStorage(
   const autoBackup = sheetGetter('AutoBackup');
   if (autoBackup?.[0]?.DATA) {
     try { localStorage.setItem('tracecash_auto_backup', String(autoBackup[0].DATA)); } catch { /* ignore */ }
+  }
+
+  // Notifications
+  const notif = sheetGetter('Notifications');
+  if (notif?.[0]) {
+    const r = notif[0];
+    if (r.DAILY_ENABLED) localStorage.setItem('tracecash_notif_daily_enabled', String(r.DAILY_ENABLED));
+    if (r.DAILY_TIME) localStorage.setItem('tracecash_notif_daily_time', String(r.DAILY_TIME));
+    if (r.RECURRING_ENABLED) localStorage.setItem('tracecash_notif_recurring_enabled', String(r.RECURRING_ENABLED));
   }
 
   // Receipts (thumbnails — merged into existing receipts)

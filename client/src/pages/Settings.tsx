@@ -11,6 +11,7 @@ import TransactionCard from '../components/TransactionCard';
 import BudgetProgress from '../components/BudgetProgress';
 import { TemplateManager } from '../components/QuickTemplates';
 import AutoBackupToggle from '../components/AutoBackup';
+import NotificationSettings from '../components/NotificationSettings';
 import SortableList from '../components/SortableList';
 import { PinLockSettings } from '../components/PinLock';
 import { getCurrentMonth, formatMonth, formatCurrency } from '../utils/formatters';
@@ -1088,6 +1089,9 @@ export default function Settings() {
 
           {/* Auto-backup */}
           <AutoBackupToggle />
+
+          {/* Notifications */}
+          <NotificationSettings />
         </div>
       )}
 

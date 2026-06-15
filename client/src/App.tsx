@@ -11,6 +11,7 @@ import OfflineIndicator from './components/OfflineIndicator';
 import { useAutoBackupCheck } from './components/AutoBackup';
 import PinLock from './components/PinLock';
 import Layout from './components/Layout';
+import { scheduleDailyReminder, scheduleRecurringReminders, attachNotifTapListener } from './utils/notifications';
 
 // Code-split pages
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -49,6 +50,20 @@ function AutoBackupRunner() {
   return null;
 }
 
+/** Schedules local notifications on app open and whenever recurring data changes. */
+function NotificationScheduler() {
+  const { recurring } = useData();
+  const navigate = useNavigate();
+  useEffect(() => {
+    scheduleDailyReminder();
+  }, []);
+  useEffect(() => {
+    scheduleRecurringReminders(recurring);
+  }, [recurring]);
+  useEffect(() => attachNotifTapListener((path) => navigate(path)), [navigate]);
+  return null;
+}
+
 /** Handles Android hardware back button: closes open modals, navigates back, or does nothing at root. */
 function BackButtonHandler() {
   const navigate = useNavigate();
@@ -61,14 +76,21 @@ function BackButtonHandler() {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         return;
       }
-      // Navigate back only if not already at the root — prevents closing the app
+      // If on /add (or any page) with a ?returnTo= param, honor it so hash
+      // anchors like /transactions#day-2026-05-08 are preserved on Android back.
       if (location.pathname !== '/') {
-        navigate(-1);
+        const sp = new URLSearchParams(location.search);
+        const returnTo = sp.get('returnTo');
+        if (returnTo) {
+          navigate(returnTo, { replace: true });
+        } else {
+          navigate(-1);
+        }
       }
       // At root with no modals: do nothing (app stays open)
     });
     return () => { listener.then(h => h.remove()); };
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, location.search]);
   return null;
 }
 
@@ -105,6 +127,7 @@ function AppContent() {
         <AutoBackupRunner />
         <BrowserRouter>
           <BackButtonHandler />
+          <NotificationScheduler />
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route element={<Layout />}>

@@ -84,10 +84,11 @@ Prefix: `tracecash_`. Key ones:
 - `tracecash_settled_balancing` — Reconcile: balancing entries the user accepted as-is, keyed by stable composite `date|amount|type|account` (so it survives re-import)
 - `tracecash_recurring_dismissed` — `{ "${id}-${dueDate}": timestamp }` (30-day auto-cleanup)
 - `tracecash_auto_backup` — `{ enabled, lastBackup }`
+- `tracecash_notif_daily_enabled` / `tracecash_notif_daily_time` / `tracecash_notif_recurring_enabled` — local notification toggles
 - `tracecash_view_mode` / `tracecash_show_total` / `tracecash_carry_over` — DisplayContext
 - `tracecash_onboarding_done`
 
-**Export/import**: these are preserved via XLSX sheets (`Templates`, `SettledDebts`, `SettledBalancing`, `PinLock`, `Receipts`, `AutoBackup`) — built by `appendBackupSheets()` / restored by `applyBackupSheetsToLocalStorage()` in `client/src/utils/backupSheets.ts` (shared by native + web export/import in `Settings.tsx`). If you add a new localStorage-backed setting, add one case to each of those two functions — both paths pick it up automatically.
+**Export/import**: these are preserved via XLSX sheets (`Templates`, `SettledDebts`, `SettledBalancing`, `PinLock`, `Receipts`, `AutoBackup`, `Notifications`) — built by `appendBackupSheets()` / restored by `applyBackupSheetsToLocalStorage()` in `client/src/utils/backupSheets.ts` (shared by native + web export/import in `Settings.tsx`). If you add a new localStorage-backed setting, add one case to each of those two functions — both paths pick it up automatically.
 
 ## Non-obvious conventions
 - **Debt tracking** uses the `notes` field as the person's name. Format: `{person}` or `{person}\n{userNotes}`. First line = grouping key; anything after `\n` = user annotation shown as a caption. Grouping code: `(t.notes?.split('\n')[0] ?? '').trim() || 'Unknown'`.
@@ -100,6 +101,10 @@ Prefix: `tracecash_`. Key ones:
 - **AddTransaction returnTo URL** must `encodeURIComponent` the whole `returnTo` value so embedded `&` doesn't leak into the outer query string.
 - **QuickTemplates store BOTH name + ID** for categories and accounts (`client/src/components/QuickTemplates.tsx`). IDs are not portable across installs (DB re-assigns auto-increment IDs on re-import). The helpers `findEntryCategory` / `findEntryAccount` / `resolveEntryIds` prefer name, fall back to ID. If you add a new field to `TemplateEntry`, mirror the same pattern.
 - **Prisma client location**: `server/src/generated/prisma/` (custom output path). Always run `npx prisma generate` after schema changes. `npx prisma db push --accept-data-loss` to sync in dev.
+- **Local notifications** (`client/src/utils/notifications.ts`, `@capacitor/local-notifications`) — native-only (web = no-op). Daily log reminder (ID 1, user-set time) + recurring-due reminders (ID `10000+recurring.id`, fires 09:00 on `next_date` within 30 days). Scheduled by `<NotificationScheduler>` in App.tsx on open + when `recurring` changes; toggles in `components/NotificationSettings.tsx` (Settings → Data). Settings round-trip via the `Notifications` backup sheet. localStorage keys: `tracecash_notif_daily_enabled` / `tracecash_notif_daily_time` / `tracecash_notif_recurring_enabled`.
+- **Cross-platform file save**: `client/src/utils/saveFile.ts` (`saveBase64File` / `saveCsv`) — native writes to TraceCash folder + cache then opens Share sheet; web triggers a blob download. Reuse this instead of duplicating Filesystem plumbing (Entrusted monthly report uses it).
+- **RecurringPreview "+ Add"** prefills `date=TODAY` (not the scheduled `dueDate`) since users pay early; the reminder chip is dismissed via `recurringDismiss=${id}-${dueDate}` only after the transaction is actually saved.
+- **Debt "Restore"** (`undismissDebt`) switches to the matching tab + reloads + toasts, so the un-settled person is visibly re-inserted into the active (balance-sorted) list rather than silently reappearing off-screen.
 
 ## DisplayContext vs local period state
 `client/src/contexts/DisplayContext.tsx` holds a **global** viewMode (weekly/monthly/quarterly/yearly) used by Dashboard, Analytics, etc. Changing it in one place changes it everywhere. If a feature needs its own isolated period filter (e.g. Accounts modal), write local state + the helpers inline instead of using DisplayContext — see `client/src/pages/Accounts.tsx` for the pattern.

@@ -304,7 +304,14 @@ export default function Transactions() {
                             {dayTransfer > 0 && <>{' '}<span className="text-blue-500">⇄{formatCurrency(dayTransfer)}</span></>}
                           </span>
                         )}
-                        <button onClick={() => navigate(`/add?date=${key}&returnTo=${encodeURIComponent(`/transactions#day-${key}`)}`)}
+                        <button onClick={() => {
+                            // Stamp the current /transactions URL with the day hash BEFORE
+                            // pushing /add — that way browser-back / system-back from /add
+                            // pops to /transactions#day-X (not bare /transactions), and the
+                            // scroll-to-hash effect restores position.
+                            window.history.replaceState(window.history.state, '', `/transactions#day-${key}`);
+                            navigate(`/add?date=${key}&returnTo=${encodeURIComponent(`/transactions#day-${key}`)}`);
+                          }}
                           className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-emerald-100 hover:text-emerald-600 transition-colors"
                           title={`Add a transaction on ${key}`}>＋</button>
                         <button onClick={() => { setCopySource(key); setCopyTarget(new Date().toISOString().slice(0, 10)); }}

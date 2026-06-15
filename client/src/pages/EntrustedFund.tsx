@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AmountInput from '../components/AmountInput';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { saveCsv } from '../utils/saveFile';
 import type { Transaction, EntrustedFund } from '../types';
 
 const ENTRUSTED_IN = 'Entrusted Funds';    // income  — a contribution received
@@ -52,6 +53,8 @@ export default function EntrustedFund() {
 
   const [txs, setTxs] = useState<Transaction[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
+  // Month filter for the per-fund contribution roster (YYYY-MM). Defaults to current month.
+  const [rosterMonth, setRosterMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
 
   const activeAccounts = accounts.filter(a => a.active !== false);
   const inCat = categories.find(c => c.name === ENTRUSTED_IN);
@@ -144,6 +147,52 @@ export default function EntrustedFund() {
     return Array.from(m.entries())
       .map(([name, v]) => ({ name, ...v, net: v.contributed - v.returned }))
       .sort((a, b) => b.net - a.net);
+  };
+
+  /**
+   * Monthly contribution roster for a fund: every known contributor (across the
+   * fund's full history) and how much they put in during `month` (YYYY-MM).
+   * `contributed === 0` → they have NOT contributed for that month.
+   */
+  const monthlyRoster = (s: FundStat, month: string) => {
+    const everyone = Array.from(new Set(s.contributions.map(contributorOf))).sort((a, b) => a.localeCompare(b));
+    const inMonth = new Map<string, number>();
+    for (const t of s.contributions) {
+      if (t.date.slice(0, 7) !== month) continue;
+      const n = contributorOf(t);
+      inMonth.set(n, (inMonth.get(n) ?? 0) + t.amount);
+    }
+    return everyone.map(name => ({ name, amount: inMonth.get(name) ?? 0, contributed: inMonth.has(name) }));
+  };
+
+  const exportMonthlyReport = async (f: EntrustedFund, s: FundStat, month: string) => {
+    const roster = monthlyRoster(s, month);
+    const monthTotal = roster.reduce((sum, r) => sum + r.amount, 0);
+    const esc = (v: string | number) => {
+      const str = String(v);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const lines: string[] = [];
+    lines.push(`Entrusted Fund Report,${esc(f.name)}`);
+    lines.push(`Month,${month}`);
+    lines.push('');
+    lines.push('Contributor,Status,Amount This Month');
+    for (const r of roster) {
+      lines.push([esc(r.name), r.contributed ? 'Contributed' : 'No contribution', r.amount].join(','));
+    }
+    lines.push('');
+    lines.push(`Total contributed this month,,${monthTotal}`);
+    lines.push(`Contributors who paid,,${roster.filter(r => r.contributed).length} of ${roster.length}`);
+    const fileName = `${f.name.replace(/[^\w-]+/g, '_')}_${month}.csv`;
+    const ok = await saveCsv(lines.join('\n'), fileName);
+    showToast(ok ? `Report saved: ${fileName}` : 'Failed to save report', ok ? 'success' : 'error');
+  };
+
+  /** Human label for the roster month, e.g. "June 2026". */
+  const monthLabel = (month: string) => {
+    const [y, m] = month.split('-').map(Number);
+    if (!y || !m) return month;
+    return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
   // ── Entry modal (contribution / spend / return / edit) ──
@@ -355,6 +404,59 @@ export default function EntrustedFund() {
                     </div>
 
                     {f.notes && <p className="text-[11px] text-gray-500 dark:text-gray-400 italic">{f.notes}</p>}
+
+                    {/* Monthly contribution roster — who has / hasn't paid this month */}
+                    {(() => {
+                      const roster = monthlyRoster(s, rosterMonth);
+                      const paid = roster.filter(r => r.contributed);
+                      const pending = roster.filter(r => !r.contributed);
+                      const monthTotal = roster.reduce((sum, r) => sum + r.amount, 0);
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Monthly Roster</p>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="month"
+                                value={rosterMonth}
+                                onChange={e => setRosterMonth(e.target.value)}
+                                className="text-[10px] bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5 text-gray-700 dark:text-gray-200"
+                              />
+                              <button
+                                onClick={() => exportMonthlyReport(f, s, rosterMonth)}
+                                className="text-[10px] px-2 py-0.5 rounded bg-teal-600 hover:bg-teal-700 text-white font-medium"
+                                title="Export this month's roster as CSV"
+                              >
+                                ⬇ Report
+                              </button>
+                            </div>
+                          </div>
+                          {roster.length === 0 ? (
+                            <p className="text-[11px] text-gray-400">No contributors recorded yet</p>
+                          ) : (
+                            <>
+                              <p className="text-[10px] text-gray-400 mb-1">
+                                {monthLabel(rosterMonth)} · {paid.length}/{roster.length} paid · {formatCurrency(monthTotal)}
+                              </p>
+                              <div className="space-y-1">
+                                {paid.map(r => (
+                                  <div key={r.name} className="flex items-center justify-between text-[11px] bg-teal-50 dark:bg-teal-900/20 rounded-lg px-2 py-1.5">
+                                    <span className="text-gray-700 dark:text-gray-300">✅ {r.name}</span>
+                                    <span className="font-semibold text-teal-600 dark:text-teal-400">{formatCurrency(r.amount)}</span>
+                                  </div>
+                                ))}
+                                {pending.map(r => (
+                                  <div key={r.name} className="flex items-center justify-between text-[11px] bg-gray-50 dark:bg-gray-700/40 rounded-lg px-2 py-1.5">
+                                    <span className="text-gray-500 dark:text-gray-400">⏳ {r.name}</span>
+                                    <span className="text-[10px] text-amber-500 font-medium">No contribution</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Contributors (net of returns) */}
                     <div>

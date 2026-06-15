@@ -94,7 +94,8 @@ export default function RecurringPreview() {
     params.set('amount', String(item.amount));
     if (item.category_id) params.set('categoryId', String(item.category_id));
     params.set('accountId', String(item.account_id));
-    params.set('date', item.dueDate);
+    // Use TODAY's date, not the scheduled due date — the user often pays early.
+    params.set('date', new Date().toISOString().slice(0, 10));
     params.set('time', new Date().toTimeString().slice(0, 5));
     if (item.notes) params.set('notes', item.notes);
     params.set('returnTo', '/');
