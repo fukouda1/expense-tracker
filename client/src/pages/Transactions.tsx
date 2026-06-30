@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useDisplay } from '../contexts/DisplayContext';
@@ -114,10 +114,18 @@ export default function Transactions() {
   // position when returning from /add via the per-day ＋ button. Mobile WebViews
   // need a couple of layout passes before the target row settles at its final
   // offset, so we retry across rAFs and a delayed fallback.
+  //
+  // Crucially this must fire ONCE per hash: periodTxs is in the deps so the scroll
+  // lands after the day groups render, but a later reload (e.g. pull-to-refresh)
+  // also changes periodTxs — without the guard the user gets yanked back to the
+  // anchor every time they scroll. handledHashRef remembers the hash we've already
+  // scrolled to so subsequent reloads don't re-snap.
+  const handledHashRef = useRef<string | null>(null);
   useEffect(() => {
     if (loadingPeriod) return;
     const hash = location.hash;
     if (!hash) return;
+    if (handledHashRef.current === hash) return; // already scrolled to this anchor
     const id = hash.slice(1);
     let cancelled = false;
     const tryScroll = () => {
@@ -127,6 +135,7 @@ export default function Transactions() {
       // App uses a nested scroll container (body has overflow:hidden), so
       // scrollIntoView is the only API that walks up to the right scroller.
       el.scrollIntoView({ block: 'start', behavior: 'auto' });
+      handledHashRef.current = hash; // consume — don't re-snap on later reloads
       return true;
     };
     let raf1 = 0, raf2 = 0;
