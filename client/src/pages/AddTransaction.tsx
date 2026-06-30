@@ -294,7 +294,9 @@ export default function AddTransaction() {
         }
       }
     } catch (err: any) {
-      const msg = err?.message || 'Failed to save transaction';
+      // Prefer the server's friendly message (e.g. the 409 duplicate guard) over
+      // the generic axios "Request failed with status code 409" string.
+      const msg = err?.response?.data?.error || err?.message || 'Failed to save transaction';
       showToast(msg, 'error');
     } finally {
       setSaving(false);

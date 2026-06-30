@@ -5,7 +5,6 @@ import { useData } from '../contexts/DataContext';
 import { useToast } from '../components/Toast';
 import { get } from '../services/api';
 import Modal from '../components/Modal';
-import ConfirmDialog from '../components/ConfirmDialog';
 import AmountInput from '../components/AmountInput';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import type { Transaction } from '../types';
@@ -43,13 +42,6 @@ export default function DebtTracker() {
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [paymentNotes, setPaymentNotes] = useState('');
   const [saving, setSaving] = useState(false);
-
-  // Mark full as paid confirm
-  const [markPaidConfirm, setMarkPaidConfirm] = useState<{
-    person: string;
-    balance: number;
-    type: 'owed' | 'owe';
-  } | null>(null);
 
   // Mark as paid WITHOUT recording entry (just a local dismissal stored in localStorage)
   const [dismissedDebts, setDismissedDebts] = useState<Set<string>>(() => {
@@ -213,22 +205,13 @@ export default function DebtTracker() {
     }
   };
 
+  // "✅ Full" goes straight to the account-selection modal (which has its own
+  // confirm button) — no redundant confirm dialog hiding the account choice.
   const handleMarkFullPaid = (person: string, balance: number, type: 'owed' | 'owe') => {
-    setMarkPaidConfirm({ person, balance, type });
-  };
-
-  const confirmMarkFullPaid = () => {
-    if (!markPaidConfirm) return;
-    setPaymentModal({
-      person: markPaidConfirm.person,
-      balance: markPaidConfirm.balance,
-      mode: 'full',
-      type: markPaidConfirm.type,
-    });
+    setPaymentModal({ person, balance, mode: 'full', type });
     setPaymentAccountId(accounts[0]?.id ?? 1);
     setPaymentDate(new Date().toISOString().slice(0, 10));
     setPaymentNotes('');
-    setMarkPaidConfirm(null);
   };
 
   const openPartialPayment = (person: string, balance: number, type: 'owed' | 'owe') => {
@@ -422,32 +405,6 @@ export default function DebtTracker() {
           "✅ Full" and "💵 Partial" record a real transaction. "🚫" settles without recording (reversible).
         </p>
       </div>
-
-      {/* Mark Full Paid Confirmation */}
-      <ConfirmDialog
-        open={!!markPaidConfirm}
-        onClose={() => setMarkPaidConfirm(null)}
-        onConfirm={confirmMarkFullPaid}
-        title={markPaidConfirm?.type === 'owed' ? 'Confirm Payment Received' : 'Confirm Payment Sent'}
-        message={
-          markPaidConfirm ? (
-            <div>
-              <p>
-                {markPaidConfirm.type === 'owed'
-                  ? `Record that ${markPaidConfirm.person} paid you back the full amount?`
-                  : `Record that you paid ${markPaidConfirm.person} the full amount?`
-                }
-              </p>
-              <p className="text-lg font-bold mt-2">{formatCurrency(markPaidConfirm.balance)}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                This will create a {markPaidConfirm.type === 'owed' ? 'Lent Payment (income)' : 'Debt Payment (expense)'} entry
-              </p>
-            </div>
-          ) : ''
-        }
-        confirmText="Record Payment"
-        variant="info"
-      />
 
       {/* Partial Payment Modal */}
       <Modal

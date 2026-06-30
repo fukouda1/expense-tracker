@@ -669,22 +669,30 @@ export async function getEntrustedFunds(): Promise<EntrustedFund[]> {
     notes: String(r.notes ?? ''),
     closed: !!r.closed,
     created_at: String(r.created_at ?? ''),
+    members: parseMembers(r.members),
   }));
 }
 
+/** Parse the JSON members column into a string[], tolerant of legacy/empty values. */
+function parseMembers(raw: unknown): string[] {
+  if (raw == null || raw === '') return [];
+  try { const v = JSON.parse(String(raw)); return Array.isArray(v) ? v.map(String) : []; }
+  catch { return []; }
+}
+
 export async function insertEntrustedFund(
-  name: string, targetAmount: number, notes: string
+  name: string, targetAmount: number, notes: string, members: string[] = []
 ): Promise<number> {
   const db = getDb();
   const result = await db.run(
-    'INSERT INTO entrusted_funds (name, target_amount, notes) VALUES (?, ?, ?)',
-    [name, targetAmount, notes]
+    'INSERT INTO entrusted_funds (name, target_amount, notes, members) VALUES (?, ?, ?, ?)',
+    [name, targetAmount, notes, JSON.stringify(members)]
   );
   return result.changes?.lastId ?? 0;
 }
 
 export async function updateEntrustedFund(
-  id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }
+  id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean; members?: string[] }
 ): Promise<void> {
   const db = getDb();
   const sets: string[] = [];
@@ -693,6 +701,7 @@ export async function updateEntrustedFund(
   if (data.target_amount !== undefined) { sets.push('target_amount=?'); vals.push(data.target_amount); }
   if (data.notes !== undefined) { sets.push('notes=?'); vals.push(data.notes); }
   if (data.closed !== undefined) { sets.push('closed=?'); vals.push(data.closed ? 1 : 0); }
+  if (data.members !== undefined) { sets.push('members=?'); vals.push(JSON.stringify(data.members)); }
   if (sets.length === 0) return;
   vals.push(id);
   await db.run(`UPDATE entrusted_funds SET ${sets.join(', ')} WHERE id=?`, vals);
@@ -985,9 +994,13 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Loca
     try {
       if (fundNameToId.has(name)) continue;
       const closed = str(r, 'CLOSED') === 'Yes' ? 1 : 0;
+      // MEMBERS column is a JSON array (newer backups); default to [] for older ones.
+      const membersRaw = str(r, 'MEMBERS');
+      let members = '[]';
+      try { if (membersRaw) members = JSON.stringify(JSON.parse(membersRaw)); } catch { members = '[]'; }
       const res = await db.run(
-        'INSERT INTO entrusted_funds (name, target_amount, notes, closed) VALUES (?, ?, ?, ?)',
-        [name, num(r, 'TARGET_AMOUNT'), str(r, 'NOTES'), closed]
+        'INSERT INTO entrusted_funds (name, target_amount, notes, closed, members) VALUES (?, ?, ?, ?, ?)',
+        [name, num(r, 'TARGET_AMOUNT'), str(r, 'NOTES'), closed, members]
       );
       fundNameToId.set(name, res.changes?.lastId ?? 0);
     } catch (e: any) { result.errors.push(`EntrustedFund "${name}": ${e.message}`); }

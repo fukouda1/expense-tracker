@@ -83,6 +83,7 @@ model EntrustedFund {
   notes         String        @default("") @db.Text
   closed        Boolean       @default(false)
   created_at    DateTime      @default(now())
+  members       String        @default("[]") @db.Text
   transactions  Transaction[]
 
   @@map("entrusted_funds")

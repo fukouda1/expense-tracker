@@ -116,7 +116,7 @@ export default function Reconcile() {
       showToast(`Adjusted ${recAccount.name} by ${recDiff > 0 ? '+' : '-'}${formatCurrency(Math.abs(recDiff))}`, 'success');
       setRecAccount(null);
       reload();
-    } catch (e: any) { showToast(e?.message || 'Failed to reconcile', 'error'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to reconcile', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -181,7 +181,7 @@ export default function Reconcile() {
       showToast('Itemized', 'success');
       setItemizeTx(null);
       reload();
-    } catch (e: any) { showToast(e?.message || 'Failed to itemize', 'error'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to itemize', 'error'); }
     finally { setSaving(false); }
   };
 

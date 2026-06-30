@@ -232,7 +232,7 @@ export default function Settings() {
       setShowModal(false);
       await loadBudgets(budgetMonth);
     } catch (err: any) {
-      showToast(err?.message || 'Failed to save budget', 'error');
+      showToast(err?.response?.data?.error || err?.message || 'Failed to save budget', 'error');
     }
   };
 
@@ -270,7 +270,7 @@ export default function Settings() {
       setShowModal(false);
       await loadRecurring();
     } catch (err: any) {
-      showToast(err?.message || 'Failed to save recurring transaction', 'error');
+      showToast(err?.response?.data?.error || err?.message || 'Failed to save recurring transaction', 'error');
     }
   };
 
@@ -391,7 +391,8 @@ export default function Settings() {
         utils.book_append_sheet(wb, utils.json_to_sheet(funds.length ? funds.map(f => ({
           ID: f.id, NAME: f.name, TARGET_AMOUNT: f.target_amount, NOTES: f.notes,
           CLOSED: f.closed ? 'Yes' : 'No', CREATED_AT: f.created_at,
-        })) : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '' }]), 'EntrustedFunds');
+          MEMBERS: JSON.stringify(f.members ?? []),
+        })) : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '', MEMBERS: '' }]), 'EntrustedFunds');
 
         // Transactions sheet — structured data matching server format
         const allTx = await repo.getTransactionsByDateRange('2000-01-01', '2099-12-31T23:59:59');

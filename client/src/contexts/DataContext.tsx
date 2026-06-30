@@ -79,8 +79,8 @@ interface DataContextType {
   removeRecurring: (id: number) => Promise<void>;
   // Entrusted Funds
   loadEntrustedFunds: () => Promise<void>;
-  addEntrustedFund: (name: string, targetAmount: number, notes: string) => Promise<void>;
-  editEntrustedFund: (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }) => Promise<void>;
+  addEntrustedFund: (name: string, targetAmount: number, notes: string, members?: string[]) => Promise<void>;
+  editEntrustedFund: (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean; members?: string[] }) => Promise<void>;
   removeEntrustedFund: (id: number) => Promise<void>;
   getEntrustedTransactions: () => Promise<Transaction[]>;
   getBalancingTransactions: () => Promise<Transaction[]>;
@@ -422,12 +422,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   // Entrusted Funds CRUD
-  const addEntrustedFund = async (name: string, targetAmount: number, notes: string) => {
-    if (isNative) await repo.insertEntrustedFund(name, targetAmount, notes);
-    else await api.post('/api/entrusted-funds', { name, target_amount: targetAmount, notes });
+  const addEntrustedFund = async (name: string, targetAmount: number, notes: string, members: string[] = []) => {
+    if (isNative) await repo.insertEntrustedFund(name, targetAmount, notes, members);
+    else await api.post('/api/entrusted-funds', { name, target_amount: targetAmount, notes, members });
     await loadEntrustedFunds();
   };
-  const editEntrustedFund = async (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean }) => {
+  const editEntrustedFund = async (id: number, data: { name?: string; target_amount?: number; notes?: string; closed?: boolean; members?: string[] }) => {
     if (isNative) await repo.updateEntrustedFund(id, data);
     else await api.put(`/api/entrusted-funds/${id}`, data);
     await loadEntrustedFunds();

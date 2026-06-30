@@ -28,6 +28,7 @@ export interface EntrustedFund {
   notes: string;
   closed: boolean;
   created_at: string;
+  members: string[]; // expected contributor names (roster), even before they contribute
 }
 
 export interface Category {

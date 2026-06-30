@@ -55,6 +55,55 @@ export default function EntrustedFund() {
   const [expanded, setExpanded] = useState<number | null>(null);
   // Month filter for the per-fund contribution roster (YYYY-MM). Defaults to current month.
   const [rosterMonth, setRosterMonth] = useState<string>(() => new Date().toISOString().slice(0, 7));
+  // In-progress "add member" text, keyed by fund id.
+  const [memberDraft, setMemberDraft] = useState<Record<number, string>>({});
+  // Member currently being renamed + its draft text.
+  const [renameTarget, setRenameTarget] = useState<{ fundId: number; oldName: string } | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
+
+  /** Add a contributor name to a fund's roster (no transaction). */
+  const addMember = async (f: EntrustedFund, rawName: string) => {
+    const name = rawName.trim();
+    if (!name) return;
+    if (f.members.some(m => m.toLowerCase() === name.toLowerCase())) {
+      showToast(`${name} is already a member`, 'info');
+      return;
+    }
+    try {
+      await editEntrustedFund(f.id, { members: [...f.members, name] });
+      setMemberDraft(d => ({ ...d, [f.id]: '' }));
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to add member', 'error'); }
+  };
+  /** Remove a member — blocked if they have any contribution/return on record. */
+  const removeMember = async (f: EntrustedFund, name: string, hasContribs: boolean) => {
+    if (hasContribs) { showToast(`${name} has contributions — cannot remove`, 'error'); return; }
+    try {
+      await editEntrustedFund(f.id, { members: f.members.filter(m => m !== name) });
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to remove member', 'error'); }
+  };
+  /** Rename a member; also rewrites the first line of all their contribution/return notes. */
+  const renameMember = async (f: EntrustedFund, oldName: string, rawNew: string) => {
+    const newName = rawNew.trim();
+    if (!newName || newName === oldName) { setRenameTarget(null); return; }
+    if (f.members.some(m => m.toLowerCase() === newName.toLowerCase() && m.toLowerCase() !== oldName.toLowerCase())) {
+      showToast(`${newName} already exists`, 'error'); return;
+    }
+    try {
+      const newMembers = f.members.includes(oldName)
+        ? f.members.map(m => (m === oldName ? newName : m))
+        : [...f.members, newName];
+      await editEntrustedFund(f.id, { members: newMembers });
+      // Carry the rename into their existing contribution/return transactions.
+      const affected = txs.filter(t => t.entrusted_fund_id === f.id && kindOfTx(t) !== 'spend' && contributorOf(t) === oldName);
+      for (const t of affected) {
+        const extra = extraNoteOf(t);
+        await editTransaction({ ...t, notes: extra ? `${newName}\n${extra}` : newName }, []);
+      }
+      setRenameTarget(null);
+      reload();
+      showToast(`Renamed to ${newName}`, 'success');
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to rename member', 'error'); }
+  };
 
   const activeAccounts = accounts.filter(a => a.active !== false);
   const inCat = categories.find(c => c.name === ENTRUSTED_IN);
@@ -106,7 +155,7 @@ export default function EntrustedFund() {
         showToast('Fund created', 'success');
       }
       setFundModal(null);
-    } catch (e: any) { showToast(e?.message || 'Failed to save fund', 'error'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to save fund', 'error'); }
   };
 
   // ── Per-fund aggregates ──
@@ -154,8 +203,10 @@ export default function EntrustedFund() {
    * fund's full history) and how much they put in during `month` (YYYY-MM).
    * `contributed === 0` → they have NOT contributed for that month.
    */
-  const monthlyRoster = (s: FundStat, month: string) => {
-    const everyone = Array.from(new Set(s.contributions.map(contributorOf))).sort((a, b) => a.localeCompare(b));
+  const monthlyRoster = (s: FundStat, month: string, members: string[] = []) => {
+    // Roster = registered members ∪ anyone who has ever contributed.
+    const everyone = Array.from(new Set([...members, ...s.contributions.map(contributorOf)]))
+      .sort((a, b) => a.localeCompare(b));
     const inMonth = new Map<string, number>();
     for (const t of s.contributions) {
       if (t.date.slice(0, 7) !== month) continue;
@@ -166,7 +217,7 @@ export default function EntrustedFund() {
   };
 
   const exportMonthlyReport = async (f: EntrustedFund, s: FundStat, month: string) => {
-    const roster = monthlyRoster(s, month);
+    const roster = monthlyRoster(s, month, f.members);
     const monthTotal = roster.reduce((sum, r) => sum + r.amount, 0);
     const esc = (v: string | number) => {
       const str = String(v);
@@ -203,6 +254,8 @@ export default function EntrustedFund() {
   >(null);
   const [eAmount, setEAmount] = useState('');
   const [eContributor, setEContributor] = useState('');
+  // New-contribution multi-select: record the same amount for several contributors at once.
+  const [eMultiContributors, setEMultiContributors] = useState<string[]>([]);
   const [eAccountId, setEAccountId] = useState<number>(activeAccounts[0]?.id ?? 1);
   const [eDate, setEDate] = useState(new Date().toISOString().slice(0, 10));
   const [eNotes, setENotes] = useState('');
@@ -210,7 +263,7 @@ export default function EntrustedFund() {
 
   const openEntry = (kind: EntryKind, fundId: number) => {
     setEntryModal({ kind, fundId });
-    setEAmount(''); setEContributor(''); setEAccountId(activeAccounts[0]?.id ?? 1);
+    setEAmount(''); setEContributor(''); setEMultiContributors([]); setEAccountId(activeAccounts[0]?.id ?? 1);
     setEDate(new Date().toISOString().slice(0, 10)); setENotes('');
   };
   const openEditEntry = (tx: Transaction) => {
@@ -232,20 +285,80 @@ export default function EntrustedFund() {
   const modalFundId = entryModal ? (entryModal.kind === 'edit' ? entryModal.tx.entrusted_fund_id ?? 0 : entryModal.fundId) : 0;
   const modalContributorNames = useMemo(() => {
     const s = fundStats.get(modalFundId);
-    if (!s) return [];
-    return Array.from(new Set(s.contributions.map(contributorOf)));
-  }, [fundStats, modalFundId]);
+    const fundMembers = entrustedFunds.find(f => f.id === modalFundId)?.members ?? [];
+    const fromContribs = s ? s.contributions.map(contributorOf) : [];
+    return Array.from(new Set([...fundMembers, ...fromContribs]));
+  }, [fundStats, modalFundId, entrustedFunds]);
+
+  // Only NEW contributions support batching across multiple contributors.
+  const isMultiContribution = entryModal?.kind === 'contribution';
+  const toggleMultiContributor = (name: string) =>
+    setEMultiContributors(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
+  const addTypedContributor = () => {
+    const name = eContributor.trim();
+    if (!name) return;
+    if (!eMultiContributors.some(n => n.toLowerCase() === name.toLowerCase())) {
+      setEMultiContributors(prev => [...prev, name]);
+    }
+    setEContributor('');
+  };
 
   const saveEntry = async () => {
     if (!entryModal || !modalKind) return;
     const amount = parseFloat(eAmount);
     if (!amount || amount <= 0) { showToast('Enter a valid amount', 'error'); return; }
+
+    const fallbackTime = new Date().toTimeString().slice(0, 5);
+
+    // ── Batch contribution: same amount for several selected contributors ──
+    if (isMultiContribution && entryModal.kind === 'contribution') {
+      // Combine selected chips with any name still typed in the box.
+      const names = [...eMultiContributors];
+      const typed = eContributor.trim();
+      if (typed && !names.some(n => n.toLowerCase() === typed.toLowerCase())) names.push(typed);
+      if (names.length === 0) { showToast('Select at least one contributor', 'error'); return; }
+      if (!inCat) { showToast('Entrusted categories missing — reopen the page to create them', 'error'); return; }
+
+      setSaving(true);
+      try {
+        const fund = entrustedFunds.find(f => f.id === entryModal.fundId);
+        const newMembers = fund ? [...fund.members] : [];
+        let ok = 0; const failed: string[] = [];
+        for (const name of names) {
+          const notes = eNotes.trim() ? `${name}\n${eNotes.trim()}` : name;
+          try {
+            await addTransaction({
+              amount, type: 'income', category_id: inCat.id, account_id: eAccountId,
+              to_account_id: null, date: `${eDate}T${fallbackTime}`, notes,
+              entrusted_fund_id: entryModal.fundId,
+            } as Omit<Transaction, 'id' | 'created_at'>, []);
+            ok++;
+            if (!newMembers.some(m => m.toLowerCase() === name.toLowerCase())) newMembers.push(name);
+          } catch (e: any) {
+            failed.push(name);
+          }
+        }
+        // Auto-merge every successful contributor into the fund roster.
+        if (fund && newMembers.length !== fund.members.length) {
+          await editEntrustedFund(fund.id, { members: newMembers });
+        }
+        if (ok > 0) showToast(
+          `Recorded ${ok} contribution${ok !== 1 ? 's' : ''}${failed.length ? ` · ${failed.length} skipped (duplicate)` : ''}`,
+          failed.length ? 'info' : 'success',
+        );
+        else showToast(`No contributions saved — ${failed.length} duplicate(s)`, 'error');
+        setEntryModal(null);
+        reload();
+      } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to save', 'error'); }
+      finally { setSaving(false); }
+      return;
+    }
+
     if (needsContributor && !eContributor.trim()) { showToast('Contributor name is required', 'error'); return; }
 
     const notes = needsContributor
       ? (eNotes.trim() ? `${eContributor.trim()}\n${eNotes.trim()}` : eContributor.trim())
       : eNotes.trim();
-    const fallbackTime = new Date().toTimeString().slice(0, 5);
 
     setSaving(true);
     try {
@@ -272,9 +385,19 @@ export default function EntrustedFund() {
           'success',
         );
       }
+      // Auto-merge: a contribution/return contributor becomes a fund member so the
+      // Members list and the contributor names stay one unified roster.
+      if (needsContributor) {
+        const fundId = entryModal.kind === 'edit' ? entryModal.tx.entrusted_fund_id : entryModal.fundId;
+        const fund = entrustedFunds.find(f => f.id === fundId);
+        const cname = eContributor.trim();
+        if (fund && cname && !fund.members.some(m => m.toLowerCase() === cname.toLowerCase())) {
+          await editEntrustedFund(fund.id, { members: [...fund.members, cname] });
+        }
+      }
       setEntryModal(null);
       reload();
-    } catch (e: any) { showToast(e?.message || 'Failed to save entry', 'error'); }
+    } catch (e: any) { showToast(e?.response?.data?.error || e?.message || 'Failed to save entry', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -405,9 +528,71 @@ export default function EntrustedFund() {
 
                     {f.notes && <p className="text-[11px] text-gray-500 dark:text-gray-400 italic">{f.notes}</p>}
 
+                    {/* Members — register expected contributors (no amount). They appear
+                        as ⏳ pending in the roster until they actually contribute. */}
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Members</p>
+                      {f.members.length > 0 && (() => {
+                        // Members who have at least one contribution/return on record
+                        // (case-insensitive) can be renamed but not deleted.
+                        const withContribs = new Set(
+                          [...s.contributions, ...s.returns].map(t => contributorOf(t).toLowerCase())
+                        );
+                        return (
+                        <div className="flex flex-wrap gap-1.5 mb-1.5">
+                          {f.members.map(m => {
+                            const isRenaming = renameTarget?.fundId === f.id && renameTarget.oldName === m;
+                            const hasContribs = withContribs.has(m.toLowerCase());
+                            if (isRenaming) {
+                              return (
+                                <span key={m} className="inline-flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={renameDraft}
+                                    onChange={e => setRenameDraft(e.target.value)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter') renameMember(f, m, renameDraft);
+                                      if (e.key === 'Escape') setRenameTarget(null);
+                                    }}
+                                    className="w-24 px-2 py-1 rounded-full text-[11px] bg-white dark:bg-gray-700 border border-teal-400 text-gray-900 dark:text-white"
+                                  />
+                                  <button onClick={() => renameMember(f, m, renameDraft)} className="text-teal-600 dark:text-teal-400 text-[11px]" title="Save">✓</button>
+                                  <button onClick={() => setRenameTarget(null)} className="text-gray-400 text-[11px]" title="Cancel">×</button>
+                                </span>
+                              );
+                            }
+                            return (
+                              <span key={m} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                {m}
+                                <button onClick={() => { setRenameTarget({ fundId: f.id, oldName: m }); setRenameDraft(m); }}
+                                  className="text-gray-400 hover:text-blue-500 leading-none" title={`Rename ${m}`}>✏️</button>
+                                {!hasContribs && (
+                                  <button onClick={() => removeMember(f, m, hasContribs)} className="text-gray-400 hover:text-red-500 leading-none" title={`Remove ${m}`}>×</button>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        );
+                      })()}
+                      <div className="flex gap-1.5">
+                        <input
+                          value={memberDraft[f.id] ?? ''}
+                          onChange={e => setMemberDraft(d => ({ ...d, [f.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') addMember(f, memberDraft[f.id] ?? ''); }}
+                          placeholder="Add a contributor name"
+                          className="flex-1 p-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-[11px] text-gray-900 dark:text-white"
+                        />
+                        <button onClick={() => addMember(f, memberDraft[f.id] ?? '')}
+                          className="px-3 py-1 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] font-medium hover:bg-teal-100 dark:hover:bg-teal-900/40">
+                          + Member
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Monthly contribution roster — who has / hasn't paid this month */}
                     {(() => {
-                      const roster = monthlyRoster(s, rosterMonth);
+                      const roster = monthlyRoster(s, rosterMonth, f.members);
                       const paid = roster.filter(r => r.contributed);
                       const pending = roster.filter(r => !r.contributed);
                       const monthTotal = roster.reduce((sum, r) => sum + r.amount, 0);
@@ -542,7 +727,54 @@ export default function EntrustedFund() {
       {/* Entry modal */}
       <Modal open={!!entryModal} onClose={() => setEntryModal(null)} title={modalTitle}>
         <div className="space-y-3">
-          {needsContributor && (
+          {needsContributor && isMultiContribution && (
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                Contributors {eMultiContributors.length > 0 && <span className="text-teal-600 dark:text-teal-400">· {eMultiContributors.length} selected</span>}
+              </label>
+              <p className="text-[10px] text-gray-400 mb-1.5">Tap names to select multiple — the amount below applies to each.</p>
+              {modalContributorNames.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {modalContributorNames.map(n => {
+                    const selected = eMultiContributors.some(m => m.toLowerCase() === n.toLowerCase());
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => toggleMultiContributor(n)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+                          selected
+                            ? 'bg-teal-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-teal-100 dark:hover:bg-teal-900/40'
+                        }`}
+                      >
+                        {selected ? '✓ ' : ''}{n}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {/* Chips for typed-in names not in the suggestion list */}
+              {eMultiContributors.filter(n => !modalContributorNames.some(m => m.toLowerCase() === n.toLowerCase())).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {eMultiContributors.filter(n => !modalContributorNames.some(m => m.toLowerCase() === n.toLowerCase())).map(n => (
+                    <span key={n} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] bg-teal-600 text-white">
+                      ✓ {n}
+                      <button onClick={() => toggleMultiContributor(n)} className="leading-none">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <input value={eContributor} onChange={e => setEContributor(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTypedContributor(); } }}
+                  placeholder="Add another name" className={inputClass} />
+                <button type="button" onClick={addTypedContributor}
+                  className="px-3 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[11px] font-medium">+ Add</button>
+              </div>
+            </div>
+          )}
+          {needsContributor && !isMultiContribution && (
             <div>
               <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
                 {modalKind === 'return' ? 'Return to (contributor)' : 'Contributor name'}

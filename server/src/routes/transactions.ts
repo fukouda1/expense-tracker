@@ -149,17 +149,21 @@ router.post('/', asyncHandler(async (req, res) => {
   const err = validateTransaction(req.body);
   if (err) { res.status(400).json({ error: err }); return; }
 
-  // Duplicate guard: reject if identical transaction already exists
+  // Duplicate guard: reject only a true double-tap — identical date, amount, type,
+  // account AND notes AND fund. Notes carries the contributor/person name, so two
+  // different contributors giving the same amount on the same day are NOT duplicates.
   const duplicate = await prisma.transaction.findFirst({
     where: {
       date,
       amount: Number(amount),
       type,
       account_id: Number(account_id),
+      notes: notes ?? '',
+      entrusted_fund_id: entrusted_fund_id ? Number(entrusted_fund_id) : null,
     },
   });
   if (duplicate) {
-    res.status(409).json({ error: 'A transaction with the same date, amount, type, and account already exists.' });
+    res.status(409).json({ error: 'An identical transaction (same date, amount, type, account, and notes) already exists.' });
     return;
   }
 
@@ -190,13 +194,18 @@ router.put('/:id', asyncHandler(async (req, res) => {
   const existing = await prisma.transaction.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ error: 'Transaction not found' }); return; }
 
-  // Duplicate guard on edit — compare resolved final values against other transactions
+  // Duplicate guard on edit — compare resolved final values against other transactions.
+  // Includes notes (contributor name) + fund so different contributors aren't blocked.
   const resolvedAmount = amount !== undefined ? Number(amount) : existing.amount;
   const resolvedType = type !== undefined ? type : existing.type;
   const resolvedAccountId = account_id !== undefined ? Number(account_id) : existing.account_id;
   const resolvedDate = date !== undefined ? date : existing.date;
+  const resolvedNotes = notes !== undefined ? (notes ?? '') : existing.notes;
+  const resolvedFundId = entrusted_fund_id !== undefined
+    ? (entrusted_fund_id ? Number(entrusted_fund_id) : null)
+    : existing.entrusted_fund_id;
 
-  if (amount !== undefined || type !== undefined || account_id !== undefined || date !== undefined) {
+  if (amount !== undefined || type !== undefined || account_id !== undefined || date !== undefined || notes !== undefined) {
     const duplicate = await prisma.transaction.findFirst({
       where: {
         id: { not: id },
@@ -204,10 +213,12 @@ router.put('/:id', asyncHandler(async (req, res) => {
         amount: resolvedAmount,
         type: resolvedType,
         account_id: resolvedAccountId,
+        notes: resolvedNotes,
+        entrusted_fund_id: resolvedFundId,
       },
     });
     if (duplicate) {
-      res.status(409).json({ error: 'A transaction with the same date, amount, type, and account already exists.' });
+      res.status(409).json({ error: 'An identical transaction (same date, amount, type, account, and notes) already exists.' });
       return;
     }
   }

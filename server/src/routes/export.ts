@@ -50,8 +50,9 @@ router.get('/xlsx', async (_req, res) => {
   const fundData = funds.map(f => ({
     ID: f.id, NAME: f.name, TARGET_AMOUNT: f.target_amount, NOTES: f.notes,
     CLOSED: f.closed ? 'Yes' : 'No', CREATED_AT: f.created_at.toISOString(),
+    MEMBERS: f.members ?? '[]',
   }));
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fundData.length ? fundData : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '' }]), 'EntrustedFunds');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fundData.length ? fundData : [{ ID: '', NAME: '', TARGET_AMOUNT: '', NOTES: '', CLOSED: '', CREATED_AT: '', MEMBERS: '' }]), 'EntrustedFunds');
 
   // ── Transactions ──
   const transactions = await prisma.transaction.findMany({

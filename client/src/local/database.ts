@@ -77,7 +77,8 @@ const CREATE_TABLES_SQL = [
     target_amount REAL NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
     closed INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    members TEXT NOT NULL DEFAULT '[]'
   )`,
 
   // Transaction-Tags many-to-many
@@ -131,13 +132,15 @@ const MIGRATIONS_SQL = [
   `ALTER TABLE budgets ADD COLUMN active INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE recurring_transactions ADD COLUMN auto_create INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE transactions ADD COLUMN entrusted_fund_id INTEGER`,
+  `ALTER TABLE entrusted_funds ADD COLUMN members TEXT NOT NULL DEFAULT '[]'`,
   `CREATE TABLE IF NOT EXISTS entrusted_funds (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     target_amount REAL NOT NULL DEFAULT 0,
     notes TEXT NOT NULL DEFAULT '',
     closed INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    members TEXT NOT NULL DEFAULT '[]'
   )`,
 ];
 

@@ -144,12 +144,17 @@ export async function importFromSheets(sheets: Map<string, Row[]>): Promise<Impo
     if (!name) continue;
     try {
       if (fundNameMap.has(name)) continue;
+      // MEMBERS is a JSON array string in newer backups; default to [] for older ones.
+      const membersRaw = str(r, 'MEMBERS');
+      let members = '[]';
+      try { if (membersRaw) members = JSON.stringify(JSON.parse(membersRaw)); } catch { members = '[]'; }
       const fund = await prisma.entrustedFund.create({
         data: {
           name,
           target_amount: num(r, 'TARGET_AMOUNT'),
           notes: str(r, 'NOTES'),
           closed: str(r, 'CLOSED') === 'Yes',
+          members,
         },
       });
       fundNameMap.set(name, fund.id);
